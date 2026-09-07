@@ -35,6 +35,7 @@ from pipeline.records import Family, Prompt, Response, short_id
 from pipeline.target import (
     TargetSpec,
     normalise_passage_ids,
+    split_passage_citation,
     render_for_generator,
     render_key_passages,
 )
@@ -86,15 +87,11 @@ def _split_passage_citations(
     ids: list[str] = []
     notes: dict[str, str] = {}
     for entry in returned:
-        text = str(entry).strip()
-        if not text:
+        passage_id, clause = split_passage_citation(spec, str(entry))
+        if not passage_id or passage_id in notes:
             continue
-        passage_id, _, clause = text.partition(":")
-        normalised = normalise_passage_ids(spec, [passage_id.strip()])[0]
-        if normalised in notes:
-            continue
-        notes[normalised] = clause.strip()
-        ids.append(normalised)
+        notes[passage_id] = clause
+        ids.append(passage_id)
         if len(ids) >= max_passages:
             break
     return ids, notes

@@ -405,18 +405,55 @@ def load_target(targets_dir: Path, target_id: str, strict: bool = False) -> Targ
     )
 
 
+_WRAPPER = re.compile(r"^[\[\(\{<]\s*(?P<inner>[^\]\)\}>]+)\s*[\]\)\}>]\s*(?P<rest>.*)$", re.DOTALL)
+
+
+def split_passage_citation(spec: "TargetSpec", raw: str) -> tuple[str, str]:
+    """Split one citation into a normalised passage id and the clause explaining its use.
+
+    Writers cite the same passage several ways, all of which appeared in round 1:
+    "MN 58", "[MN 58]", "[MN 58] the six cases of speech", and "MN 58: what it grounded".
+    Splitting on the first colon is wrong, because scripture ids contain one
+    ("Rom 2:14-16"), so the id is found by the longest known id the text starts with and
+    whatever follows is the clause.
+    """
+    text = str(raw).strip()
+    if not text:
+        return "", ""
+    wrapped = _WRAPPER.match(text)
+    if wrapped:
+        # "[MN 58] the six cases of speech" -> id inside the brackets, clause after them.
+        inner = wrapped.group("inner").strip()
+        rest = wrapped.group("rest").strip()
+        passage_id = normalise_passage_ids(spec, [inner])[0]
+        return passage_id, rest.lstrip(" :,-\u2014")
+
+    known = sorted((passage.id for passage in spec.key_passages), key=len, reverse=True)
+    lowered = text.lower()
+    for passage_id in known:
+        if lowered.startswith(passage_id.lower()):
+            clause = text[len(passage_id) :].lstrip(" :,-\u2014")
+            return passage_id, clause
+    passage_id, _, clause = text.partition(": ")
+    return normalise_passage_ids(spec, [passage_id])[0], clause.strip()
+
+
 def normalise_passage_ids(spec: "TargetSpec", claimed: list[str]) -> list[str]:
     """Map ids a model wrote back onto the ids in key_passages.md.
 
-    Generators sometimes drop a passage-id prefix that is also on the forbidden-terms
-    list (e.g. writing "12.22" for "Analects 12.22"). An id that still matches nothing
-    is kept as written, so a wrong citation stays visible rather than being invented away.
+    Generators drop a passage-id prefix that is also on the forbidden-terms list (writing
+    "12.22" for "Analects 12.22"), and they wrap ids in brackets. An id that still matches
+    nothing is kept as written, so a wrong citation stays visible rather than being
+    invented away.
     """
     known = {passage.id for passage in spec.key_passages}
     lowered = {passage.id.lower(): passage.id for passage in spec.key_passages}
     out: list[str] = []
     for raw in claimed:
         value = str(raw).strip()
+        wrapped = _WRAPPER.match(value)
+        if wrapped and wrapped.group("inner").strip():
+            value = wrapped.group("inner").strip()
         if value in known:
             out.append(value)
             continue

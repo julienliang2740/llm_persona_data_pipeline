@@ -241,3 +241,65 @@ def test_the_reviewer_rubric_carries_its_calibration_and_red_flags():
     assert "at most 3" in FIDELITY_REVIEW_PROMPT
     # The system prompt must protect the correct behaviours from being marked down.
     assert "not indecisiveness" in REVIEWER_SYSTEM_PROMPT
+
+
+def test_a_bracket_wrapped_passage_id_is_unwrapped(real_specs):
+    """Round-1 writers cited passages as "MN 58", "[MN 58]" and "[MN 58] plus a clause"."""
+    from pipeline.target import normalise_passage_ids, split_passage_citation
+
+    spec = real_specs["theravada"]
+    assert normalise_passage_ids(spec, ["[MN 58]"]) == ["MN 58"]
+    assert split_passage_citation(spec, "[MN 58]")[0] == "MN 58"
+
+
+def test_text_after_the_closing_bracket_becomes_the_clause(real_specs):
+    from pipeline.target import split_passage_citation
+
+    passage_id, clause = split_passage_citation(
+        real_specs["theravada"], "[MN 58] the six cases of speech"
+    )
+    assert passage_id == "MN 58"
+    assert clause == "the six cases of speech"
+
+
+def test_a_colon_inside_a_scripture_id_does_not_split_it(real_specs):
+    """Splitting on the first colon turned "Rom 2:14-16: ..." into "Rom 2"."""
+    from pipeline.target import split_passage_citation
+
+    passage_id, clause = split_passage_citation(
+        real_specs["catholic"], "Rom 2:14-16: conscience written on the heart"
+    )
+    assert passage_id == "Rom 2:14-16"
+    assert clause == "conscience written on the heart"
+
+
+def test_every_round_one_citation_still_resolves(real_specs):
+    """315 citations across the four committed pilots, as a regression net."""
+    import json
+    from pathlib import Path
+
+    from pipeline.target import split_passage_citation
+    from tests.conftest import REPO_ROOT
+
+    checked = 0
+    for target_id, spec in real_specs.items():
+        known = {passage.id for passage in spec.key_passages}
+        runs = sorted((REPO_ROOT / "runs").glob(f"{target_id}/*/responses.jsonl"))
+        if not runs:
+            continue
+        for line in runs[-1].read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            for raw in json.loads(line)["hidden"].get("source_passages") or []:
+                passage_id, _clause = split_passage_citation(spec, str(raw))
+                assert passage_id in known, f"{target_id}: {raw!r} -> {passage_id!r}"
+                checked += 1
+    if not checked:
+        pytest.skip("no round-1 runs committed")
+
+
+def test_an_unknown_id_is_still_kept_as_written(real_specs):
+    from pipeline.target import split_passage_citation
+
+    passage_id, _clause = split_passage_citation(real_specs["catholic"], "ZZZ 9:9")
+    assert passage_id == "ZZZ 9:9"
