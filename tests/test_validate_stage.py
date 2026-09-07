@@ -71,11 +71,13 @@ class StubClient:
         elif stage == "validate.divergence":
             payload = {
                 "actions": {"a": "tell her now", "b": "document it", "c": "raise it in writing"},
-                "pairwise": {"a_vs_b": True, "a_vs_c": True, "b_vs_c": False},
+                "pairwise": {"test_vs_generic": True, "test_vs_weak": True, "generic_vs_weak": False},
                 "diverges": self.diverges,
                 "kind": "action",
-                "closer_to": "candidate",
+                "closer_to": "neither",
                 "value_named": "Her ability to change course is the thing that matters." if self.diverges else "",
+                "generic_echo": "" if self.diverges else "Talk to her soon.",
+                "generic_makes_same_claim": False,
                 "divergence_source": "value" if self.diverges else "capability",
                 "hypothesis_id": "h1",
                 "explanation": "different action",

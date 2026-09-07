@@ -37,6 +37,10 @@ generation:
   # Share of families whose tradeoff is one the spec marks unresolved. Raised
   # automatically when a target has more unresolved tradeoffs than this would cover.
   unresolved_tradeoff_fraction: 0.25
+  # Every divergence hypothesis must get at least this many families per 100. The plan
+  # already round-robins to achieve it; stating it here makes the requirement checkable
+  # and puts it in the report's coverage table rather than leaving it implicit.
+  hypothesis_coverage_floor: 1.0
   # Small slice where the prompt may name the tradition and the cue check is skipped.
   # Researchers suggest 0.05-0.10 once the neutral slice is working.
   explicit_fraction: 0.0
@@ -153,15 +157,10 @@ models:
     timeout_s: 1800
     supports_json_mode: false
   strong_generic:
-    # A strong model answering with NO target specification, at the base model's length
-    # budget. The third leg of the divergence comparison: it separates "the target values
-    # something different" from "the candidate came from a better model".
+    # Inherits everything unset from `generator`, including its reasoning_effort, so this
+    # experiment compares like with like: both legs run at low effort and differ only in
+    # the specification.
     model: accounts/fireworks/models/qwen3p8-max
     base_url: https://api.fireworks.ai/inference/v1
     api_key_source: fireworks
     max_concurrency: 4
-    temperature: 0.7
-    max_tokens: 12000
-    # The judge compares this leg at the base model's answer budget (1600 doubled once),
-    # which a reasoning model spends on thinking; answer directly instead.
-    extra_body: {reasoning_effort: none}

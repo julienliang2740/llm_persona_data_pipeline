@@ -30,6 +30,66 @@ from prompts.review import DIVERGENCE_JUDGE_PROMPT
 logger = logging.getLogger("pipeline.divergence")
 
 
+def verdict_from_payload(
+    payload: dict[str, Any],
+    prompt_id: str,
+    judge_model: str,
+    label_of: dict[str, str],
+    hypothesis_id: str,
+) -> DivergenceVerdict:
+    """Map the judge's letter-keyed answer back onto candidate, generic and weak.
+
+    The judge never learns which model wrote which reply, so everything it returns is keyed
+    by letter or by the role words "generic" and "weak"; this is the only place that
+    knows the mapping.
+    """
+    actions = payload.get("actions") or {}
+    pairwise = payload.get("pairwise") or {}
+    value_named = str(payload.get("value_named", "")).strip()
+    generic_echo = str(payload.get("generic_echo", "")).strip()
+    same_claim = bool(payload.get("generic_makes_same_claim"))
+    source = str(payload.get("divergence_source", "none")).strip().lower()
+    if source not in ("value", "capability", "stipulated", "none"):
+        source = "none"
+    # If the unspecified assistant already makes the claim, the specification did not
+    # produce it, whatever the judge concluded. This flipped five of round 2's 23 value
+    # verdicts when the critic checked them by hand.
+    if same_claim:
+        source = "capability"
+    # Both gates: a named value AND a value source.
+    diverges = bool(value_named) and source == "value"
+
+    closer_to = str(payload.get("closer_to", "")).strip().lower()
+    if closer_to not in ("generic", "weak", "neither"):
+        closer_to = ""
+
+    action_of = {kind: str(actions.get(label.lower(), "")).strip() for kind, label in label_of.items()}
+    return DivergenceVerdict(
+        prompt_id=prompt_id,
+        judge_model=judge_model,
+        diverges=diverges,
+        kind=str(payload.get("kind", "none")),
+        explanation=str(payload.get("explanation", "")).strip(),
+        presented_first=label_of.get("candidate", ""),
+        candidate_action=action_of.get("candidate", ""),
+        base_action=action_of.get("weak", ""),
+        generic_action=action_of.get("generic", ""),
+        closer_to=closer_to,
+        value_named=value_named,
+        generic_echo=generic_echo,
+        generic_makes_same_claim=same_claim,
+        divergence_source=source,
+        hypothesis_id=str(payload.get("hypothesis_id", "")).strip(),
+        diverges_vs_base=bool(pairwise.get("test_vs_weak")),
+        diverges_vs_generic=bool(pairwise.get("test_vs_generic")),
+        generic_differs_from_base=bool(pairwise.get("generic_vs_weak")),
+        label_order=", ".join(
+            f"{label}={kind}"
+            for label, kind in sorted((label, kind) for kind, label in label_of.items())
+        ),
+    )
+
+
 async def _judge_divergence(
     client: ModelClient,
     config: RunConfig,
@@ -99,10 +159,16 @@ async def _judge_divergence(
         base = base_by_prompt[prompt_id]
         generic = generic_by_prompt[prompt_id]
         hypothesis_id = (family.divergence_hypothesis_id if family else "") or ""
-        # Seeded on the prompt id: random across items, reproducible for one item.
-        candidate_first = random.Random(prompt_id).random() < 0.5
-        reply_a = candidate.answer
-        reply_b, reply_c = (base.text, generic.text) if candidate_first else (generic.text, base.text)
+
+        # Shuffle which reply carries which letter. Round 2 always put the candidate in
+        # slot A and 23 of 26 verdicts came back preferring it; position must not be a cue.
+        # Seeded on the prompt id, so the shuffle is random across items and reproducible
+        # for any one of them.
+        replies = [("candidate", candidate.answer), ("generic", generic.text), ("weak", base.text)]
+        random.Random(prompt_id).shuffle(replies)
+        label_of = {kind: "ABC"[index] for index, (kind, _text) in enumerate(replies)}
+        text_by_label = {"ABC"[index]: text for index, (_kind, text) in enumerate(replies)}
+
         payload, _ = await client.complete_json(
             judge,
             [
@@ -113,43 +179,18 @@ async def _judge_divergence(
                         user_prompt=prompt.text,
                         hypothesis=hypothesis_text.get(hypothesis_id)
                         or "(no specific hypothesis recorded for this family)",
-                        reply_a=reply_a,
-                        reply_b=reply_b,
-                        reply_c=reply_c,
+                        reply_a=text_by_label["A"],
+                        reply_b=text_by_label["B"],
+                        reply_c=text_by_label["C"],
+                        candidate_label=label_of["candidate"],
+                        generic_label=label_of["generic"],
                     ),
                 }
             ],
             stage="validate.divergence",
             record_id=prompt_id,
         )
-        actions = payload.get("actions") or {}
-        pairwise = payload.get("pairwise") or {}
-        base_key, generic_key = ("b", "c") if candidate_first else ("c", "b")
-        # The judge answers about labels A/B/C; map them back to base and generic.
-        vs_base = bool(pairwise.get(f"a_vs_{base_key}"))
-        vs_generic = bool(pairwise.get(f"a_vs_{generic_key}"))
-        value_named = str(payload.get("value_named", "")).strip()
-        source = str(payload.get("divergence_source", "none")).strip().lower()
-        # Both gates, not one: an unquoted value claim is not a value difference.
-        diverges = bool(value_named) and source == "value"
-        return DivergenceVerdict(
-            prompt_id=prompt_id,
-            judge_model=judge.model,
-            diverges=diverges,
-            kind=str(payload.get("kind", "none")),
-            explanation=str(payload.get("explanation", "")).strip(),
-            presented_first="base" if candidate_first else "strong_generic",
-            candidate_action=str(actions.get("a", "")).strip(),
-            base_action=str(actions.get(base_key, "")).strip(),
-            generic_action=str(actions.get(generic_key, "")).strip(),
-            closer_to=str(payload.get("closer_to", "")).strip().lower(),
-            value_named=value_named,
-            divergence_source=source if source in ("value", "capability", "stipulated", "none") else "none",
-            hypothesis_id=str(payload.get("hypothesis_id", "")).strip(),
-            diverges_vs_base=vs_base,
-            diverges_vs_generic=vs_generic,
-            generic_differs_from_base=bool(pairwise.get("b_vs_c")),
-        )
+        return verdict_from_payload(payload, prompt_id, judge.model, label_of, hypothesis_id)
 
     results = await gather_bounded([judge_one(prompt_id) for prompt_id in comparable])
     for result in results:

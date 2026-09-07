@@ -34,7 +34,12 @@ def _truncate(text: str, limit: int) -> str:
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
-def build_report(run_dir: Path, target_id: str, pricing: dict[str, Any] | None = None) -> str:
+def build_report(
+    run_dir: Path,
+    target_id: str,
+    pricing: dict[str, Any] | None = None,
+    config: dict[str, Any] | None = None,
+) -> str:
     families = records.read_jsonl(run_dir / records.FAMILIES_FILE, Family)
     prompts = records.read_jsonl(run_dir / records.PROMPTS_FILE, Prompt)
     responses = records.read_jsonl(run_dir / records.RESPONSES_FILE, Response)
@@ -90,7 +95,9 @@ def build_report(run_dir: Path, target_id: str, pricing: dict[str, Any] | None =
     for family in reserved_by_screen[:5]:
         lines.append(f"  - `{family.family_id}`: {family.reserved_reason}")
     lines += _situation_feature_spread(families)
-    lines += coverage_tables(run_dir, families, prompts)
+    lines += coverage_tables(
+        run_dir, families, prompts, float((config or {}).get("hypothesis_coverage_floor", 1.0))
+    )
 
     kept = [d for d in decisions if d.keep]
     dropped = [d for d in decisions if not d.keep]
@@ -505,9 +512,14 @@ def _mean_scores(reviews: list[Review]) -> dict[str, float]:
     return out
 
 
-def run_stage(run_dir: Path, target_id: str, pricing: dict[str, Any] | None = None) -> Path:
+def run_stage(
+    run_dir: Path,
+    target_id: str,
+    pricing: dict[str, Any] | None = None,
+    config: dict[str, Any] | None = None,
+) -> Path:
     """Entry point for `main.py report`."""
-    text = build_report(run_dir, target_id, pricing)
+    text = build_report(run_dir, target_id, pricing, config)
     out_path = run_dir / REPORT_FILE
     out_path.write_text(text, encoding="utf-8")
     logger.info("report: wrote %s", out_path)

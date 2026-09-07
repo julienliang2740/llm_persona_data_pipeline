@@ -720,8 +720,10 @@ def check_plan(
                     f"divergence_hypothesis_id."
                 )
 
-    # Coverage floors are scale-dependent: at 100 families everything must be reached.
-    floor_scale = total >= 100
+    # Coverage floors are scale-dependent: the configured floor is per 100 families, so a
+    # run smaller than that cannot be expected to reach every item.
+    per_hundred = float(settings.get("hypothesis_coverage_floor", 1.0))
+    floor_scale = total * per_hundred / 100.0 >= 1.0 and total >= 100
     unresolved = [t["id"] for t in spec.tradeoffs if t.get("unresolved")]
     covered_tradeoffs = {tid for slot in slots for tid in slot.tradeoff_ids}
     missing_unresolved = [tid for tid in unresolved if tid not in covered_tradeoffs]
@@ -734,6 +736,19 @@ def check_plan(
     hypotheses = [str(h.get("id")) for h in spec.divergence_hypotheses if h.get("id")]
     covered_hypotheses = {slot.divergence_hypothesis_id for slot in slots if slot.divergence_hypothesis_id}
     missing_hypotheses = [h for h in hypotheses if h not in covered_hypotheses]
+    wanted_per_hypothesis = max(1, round(total * per_hundred / 100.0))
+    thin = sorted(
+        hypothesis
+        for hypothesis, count in Counter(
+            slot.divergence_hypothesis_id for slot in slots if slot.divergence_hypothesis_id
+        ).items()
+        if count < wanted_per_hypothesis
+    )
+    if thin and floor_scale:
+        problems.append(
+            f"WARN {len(thin)} hypothes(es) get fewer than the configured floor of "
+            f"{wanted_per_hypothesis} families per {total}: {thin[:6]}"
+        )
     if missing_hypotheses:
         severity = "ERROR" if floor_scale else "WARN"
         problems.append(

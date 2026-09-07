@@ -233,6 +233,13 @@ class DivergenceVerdict:
     generic_differs_from_base: bool = False
     # The sentence a generic assistant would not have written. Empty forces diverges=false.
     value_named: str = ""
+    # The closest sentence in the no-specification reply. When it makes the same claim, the
+    # specification did not produce the difference and the source is capability, not value.
+    generic_echo: str = ""
+    generic_makes_same_claim: bool = False
+    # Which label the candidate was shown under, recorded so a run can be audited for
+    # position bias. The judge sees a different shuffle for every prompt.
+    label_order: str = ""
     divergence_source: str = ""  # value | capability | stipulated | none
     hypothesis_id: str = ""
     unverified_reason: str = ""  # set when a compared answer was truncated

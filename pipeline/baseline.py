@@ -12,7 +12,9 @@ import logging
 from pathlib import Path
 
 from pipeline import records
-from pipeline.config import RunConfig
+from dataclasses import replace
+
+from pipeline.config import ModelRole, RunConfig
 from pipeline.model import LocalEndpointUnavailable, ModelClient, gather_bounded
 from pipeline.records import BaselineAnswer, Family, Prompt
 from pipeline.target import TargetSpec
@@ -38,6 +40,27 @@ def prompts_needing_baseline(families: list[Family], prompts: list[Prompt]) -> l
     return needed
 
 
+def strong_generic_role(config: RunConfig) -> ModelRole:
+    """The generator's own settings with the specification removed.
+
+    Anything the config leaves unset on `strong_generic` is inherited from `generator`, so
+    the control cannot silently drift into a weaker model, a shorter budget or a different
+    thinking setting. That drift is exactly what made round 2's `value` verdicts
+    unreadable: the two legs differed in reasoning effort as well as in the spec.
+    """
+    generator = config.role("generator")
+    if "strong_generic" not in config.roles:
+        return replace(generator, name="strong_generic")
+    configured = config.roles["strong_generic"]
+    raw = (config.raw.get("models") or {}).get("strong_generic") or {}
+    return replace(
+        configured,
+        max_tokens=configured.max_tokens if "max_tokens" in raw else generator.max_tokens,
+        extra_body=configured.extra_body if raw.get("extra_body") else dict(generator.extra_body),
+        temperature=configured.temperature if "temperature" in raw else generator.temperature,
+    )
+
+
 async def run_strong_generic(
     config: RunConfig, run_dir: Path, spec: TargetSpec | None = None
 ) -> dict[str, int]:
@@ -56,9 +79,13 @@ async def run_strong_generic(
         logger.info("strong generic: %d answers already present", len(existing))
         return {"strong_generic_answers": len(existing), "new": 0}
 
-    role = config.role("strong_generic") if "strong_generic" in config.roles else config.role("generator")
-    # Matched to the base model's budget so length cannot masquerade as a difference.
-    max_tokens = int(config.generation.get("baseline_max_tokens", config.role("base").max_tokens))
+    role = strong_generic_role(config)
+    # No budget override. The only difference between this leg and the candidate must be
+    # the specification: round 2 gave this leg reasoning_effort none and 1600 tokens while
+    # the candidate had full reasoning and 24000, so "the generic never reached that point"
+    # measured the thinking budget rather than the target. Length is matched by an
+    # instruction in the prompt instead of by a smaller budget.
+    max_tokens = role.max_tokens
 
     async with ModelClient.from_config(config, run_dir / records.USAGE_FILE, "baseline") as client:
 
@@ -69,7 +96,7 @@ async def run_strong_generic(
                     {"role": "system", "content": STRONG_GENERIC_SYSTEM_PROMPT},
                     {"role": "user", "content": prompt.text},
                 ],
-                temperature=0.7,
+                temperature=role.temperature,
                 max_tokens=max_tokens,
                 stage="baseline.strong_generic",
                 record_id=prompt.prompt_id,

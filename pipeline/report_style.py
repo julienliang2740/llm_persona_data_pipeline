@@ -215,7 +215,12 @@ def _count_table(title: str, counts: Counter[str], total: int, label: str) -> li
     return lines
 
 
-def coverage_tables(run_dir: Path, families: list[Family], prompts: list[Prompt]) -> list[str]:
+def coverage_tables(
+    run_dir: Path,
+    families: list[Family],
+    prompts: list[Prompt],
+    hypothesis_coverage_floor: float = 1.0,
+) -> list[str]:
     """What the run actually exercised: tradeoffs, hypotheses, asker stance, eval mix.
 
     Round 1 had no way to see that two targets exercised none of their unresolved
@@ -275,6 +280,23 @@ def coverage_tables(run_dir: Path, families: list[Family], prompts: list[Prompt]
         lines.append(
             "Hypotheses with no family: "
             + (", ".join(f"`{h}`" for h in missed) if missed else "none")
+        )
+        # The floor is configured per 100 families, so state what it means at this size.
+        wanted = max(1, round(len(families) * hypothesis_coverage_floor / 100.0))
+        thin = sorted(
+            hypothesis
+            for hypothesis in hypothesis_ids
+            if hypothesis_counts.get(hypothesis, 0) < wanted
+        )
+        lines.append(
+            f"Coverage floor is {hypothesis_coverage_floor:g} family per hypothesis per 100 "
+            f"families, so {wanted} at this size ({len(families)} families). "
+            + (
+                f"{len(thin)} of {len(hypothesis_ids)} fall short: "
+                + ", ".join(f"`{h}`" for h in thin[:6])
+                if thin
+                else "Every hypothesis meets it."
+            )
         )
 
     stance_counts = Counter(
