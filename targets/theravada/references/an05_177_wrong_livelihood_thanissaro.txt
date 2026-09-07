@@ -1,0 +1,10 @@
+# AN 5.177 — Vaṇijjā Sutta: Business (Wrong Livelihood)
+# Translator: Thanissaro Bhikkhu
+# Source: Access to Insight (BCBS Edition), https://accesstoinsight.org/tipitaka/an/an05/an05.177.than.html
+# License: CC BY-NC 4.0 (Creative Commons Attribution-NonCommercial 4.0 International)
+# Accessed: 2026-09-07. Processing: HTML stripped, site navigation/footer removed, whitespace normalised.
+# Passage id prefix for citation: "AN 5.177"
+
+"Monks, a lay follower should not engage in five types of business. Which five? Business in weapons, business in human beings, business in meat, business in intoxicants, and business in poison.
+
+"These are the five types of business that a lay follower should not engage in."

@@ -1,0 +1,82 @@
+# Pali anchors — exact wording for the passages this target relies on
+#
+# Source: Sri Lanka Tripitaka Project (SLTP) electronic Pali Tipitaka, as republished by Access to Insight
+#   at https://accesstoinsight.org/tipitaka/sltp/ .
+# License: public domain. Access to Insight states of the SLTP anthology page: "The text of this page
+#   ("Sri Lanka Tripitaka Project: Pali Tipitaka Source Texts", by Public domain) is free of known
+#   copyright restrictions." SuttaCentral's own licensing page likewise states that the original-language
+#   Buddhist texts are in the public domain.
+# Accessed: 2026-09-07. Processing: HTML stripped from the SLTP volume files; the excerpts below were located
+#   by string search and copied verbatim, including SLTP's editorial footnote digits and [BJT Page nnn] markers.
+# Caution: the SLTP project itself warns that transcription errors exist. These excerpts were checked against
+#   the English translations in this directory but NOT against a printed critical edition.
+# Orthography: SLTP writes niggahita as 'ṃ'; other files here (Anandajoti) write 'ṁ'. Same sound.
+
+
+## AN 6.63   [SLTP AN_III]
+note: Cetanā as kamma. Grounds TH02 (motive inspection).
+pali: a vuttaṃ: Cetanāhaṃ bhikkhave kammaṃ vadāmi, cetayitvā kammaṃ karoti kāyena vācāya manasā, Katamo ca bhikkhave kammānaṃ nidānasambhavo: phasso bhikkhave kammānaṃ nidānambhavo. Katamā ca bhikkhave kammānaṃ vemattatā: atthi b
+
+## MN 9   [SLTP MN_I]
+note: The three unwholesome roots and their opposites. Grounds TH02.
+pali: Katamañcāvuso akusalamūlaṃ ? Lobho akusalamūlaṃ, doso akusalamūlaṃ, moho akusalamūlaṃ. Idaṃ vuccatāvuso akusalamūlaṃ. --------------------- 1. Sammādiṭṭhi, syā. 2. Saddhammaṃ, machasaṃ 3. Tena hi āvuso, machasaṃ. Syā 4. Katamaṃ panāvuso kusalaṃ, syā. 5. Kusalamūlaṃ,
+
+## MN 19   [SLTP MN_I]
+note: What one frequently thinks about becomes the inclination of the mind. Grounds TH10 (habit).
+pali: Yaññadeva bhikkhave bhikkhu bahulamanuvitakketi anuvicāreti tathā tathā nati hoti cetaso. Kāmavitakkañce bhikkhave bhikkhu bahulamanuvitakketi anuvicāreti, pahāsi nekkhammavitakkaṃ. Kāmavitakkaṃ bahulamakāsi. Tassa taṃ kāmavitakkāya cittaṃ namati. Byāpādavitakkañce bhikkhave bhikkhu bahulamanuvitakketi anuvicāreti, pahāsi abyāpādavitakkaṃ. Byāpā
+
+## MN 58   [SLTP MN_I]
+note: The six-case speech analysis: factual x beneficial x welcome, with kālaññū (sense of time) attached to the two beneficial cases. Grounds TH03.
+pali: yaṃ tathāgato vācaṃ jānāti abhūtaṃ atacchaṃ anatthasaṃhitaṃ, sā ca paresaṃ appiyā amanāpā, na taṃ tathāgato vācaṃ bhāsati. Yampi tathāgato vācaṃ jānāti bhūtaṃ tacchaṃ anatthasaṃhitaṃ. Sā ca paresaṃ appiyā amanāpā, tampi tathāgato vācaṃ na bhāsati. Yañca kho tathāgato vācaṃ jānāti bhūtaṃ tacchaṃ atthasaṃhitaṃ sā ca paresaṃ appiyā amanāpā, tatra kālaññū tathāgato hoti tassā vācāya veyyākaraṇāya. Yaṃ tathāgato vācaṃ jānāti abhūtaṃ atacchaṃ anatthasaṃhitaṃ sā ca paresaṃ piyā manāpā, na taṃ tathāgato vācaṃ bhāsati. Yampi tathāgato vācaṃ jānāti bhūtaṃ tacchaṃ anatthasaṃhitaṃ. Sā ca paresaṃ piyā manāpā, tampi tathāgato vācaṃ na bhāsati. Yañca kho tathāgato vācaṃ jānāti bhūtaṃ tacchaṃ atthasaṃhitaṃ. Sā ca paresaṃ piyā manāpā, tatra kālaññū tathāgato hoti tassā vācāya veyyākaraṇāya. Taṃ kissa hetu: atthi rājakumāra tathāgatassa sattesu anukampāti. Yeme bhante khattiyapaṇḍitāpi brāhmaṇapaṇḍitāpi gahapatipaṇḍitāpi samaṇapaṇḍitāpi pañhaṃ abhisaṅkharitvā tat
+
+## MN 61   [SLTP MN_I]
+note: Repeated reflection on bodily, verbal and mental action. Grounds TH09 (before/during/after).
+pali: paccavekkhitvā paccavekkhitvā kāyena kammaṃ kātabbaṃ, paccavekkhitvā paccavekkhitvā vācāya kammaṃ kātabbaṃ, paccavekkhitvā paccavekkhitvā manasā kammaṃ kātabbaṃ4 Yadeva tvaṃ rāhula kāyena kammaṃ kattukāmo ahosi5 tadeva te kāyakammaṃ paccavekkhitabbaṃ: yannu kho ahaṃ idaṃ kāyena kammaṃ kattukāmo, idaṃ me kāyakammaṃ attavyābādhāyapi saṃvatteyya, paravy
+
+## MN 117   [SLTP MN_III]
+note: Mundane right view (with 'this world / the other world / spontaneously reborn beings') vs noble supramundane right view. Grounds the Configuration B adaptation flag.
+pali: sammādiṭṭhimpahaṃ2 bhikkhave, dvayaṃ3 vadāmi: atthi bhikkhave, sammādiṭṭhi sāsavā puññābhāgiyā upadhivepakkā atthi bhikkhave, sammādiṭṭhi ariyā anāsavā lokuttarā maggaṅgā. Katamā ca bhikkhave, sammādiṭṭhi sāsavā puññabhāgiyā upadhivepakkā: atthi dinnaṃ, atthi yiṭṭhaṃ, atthi hutaṃ, atthi sukaṭadukkaṭānaṃ kammānaṃ phalaṃ vipāko, atthi ayaṃ loko, atthi paro loko, atthi mātā, atthi pitā, atthi sattā opapātikā, atthi loke samaṇabrāhmaṇā sammaggatā sammāpaṭipannā, ye imaṃ ca lokaṃ paraṃ ca lokaṃ sayaṃ abhiññā sacchikatvā pavedentīti. Ayaṃ bhikkhave, sammādiṭṭhi sāsavā puññabhāgiyā upadhivepakkā. -------------------------- 1.Sattaṅgehi
+
+## SN 56.11   [SLTP SN_V]
+note: The two extremes and the middle way; the four noble truths. Grounds TH06/TH13.
+pali: dve me bhikkhave, antā pabbajitena na sevitabbā1. Yocayāṃ kāmesu kāmasukhallikānuyogo hīno gammo pothujjaniko anariyo anatthasaṃhito, yo cāyaṃ attakilamathānuyogo dukkho anariyo anatthasaṃhito, ete te2 bhikkhave, ubho ante anupagamma majjhimā paṭipadā tathāgatena abhisambuddhā cakkhukaraṇī ñāṇakaraṇī upasamāya abhiññāya sambodhāya nibbānāya saṃvattati. Katamā ca sā bhikkhave, majjhimā paṭipadā tathāgatena abhisambuddhā cakkhukaraṇī ñāṇakaraṇī upasamāya abhiññāya sambodhāya nibbānāya saṃvattati: ayameva ariyo aṭṭhaṅgiko maggo seyyathīdaṃ: sammādiṭṭhi sammāsaṅkappo sammāvācā sammākammanto sammāājīvo sammāvāyāmo sammāsati sammāsamādhi. Ayaṃ kho sā bhikkhave, majjhimā paṭipadā tathāgatena abhisambuddhā cakkhukaraṇī ñāṇakaraṇī upasamāya abhiñ
+
+## SN 42.3   [SLTP SN_IV]
+note: The warrior whose mind is set on killing. Grounds TH12 (firmness without hatred).
+pali: Atha kho yodhājīvo gāmaṇī yena bhagavā tenupasaṅkami. Upasaṅkamitvā bhagavantaṃ abhivādetvā ekamantaṃ nisīdi. Ekamantaṃ nisinno kho yodhājīvo gāmaṇī bhagavantaṃ etadavoca: sutaṃ metaṃ bhante pubbakānaṃ ācariyapācariyānaṃ yodhājīvānaṃ bhāsamānānaṃ yo so yodhājīvo saṅgāme ussahati vāyamati, tamenaṃ ussahannaṃ vāyamannaṃ vāyamantaṃ pare hananti pariyāpādenti, so kāyassa bhedā parammaraṇā sarañjitānaṃ-1 devānaṃ sahavyataṃ upapajjatīti. Idha bhagavā kimāhāti. Alaṃ gāmaṇī tiṭṭhatetaṃ, mā maṃ etaṃ pucchiti. Dutiyampi kho yodhājīvo gāmaṇī bhagavantaṃ etadavoca: sutaṃ metaṃ bhante pubbakānaṃ ācariyapācariyānaṃ yodhājīvānaṃ bhāsamānānaṃ 'yo so yodhājīvo saṅgāme ussahati vāyamati, tamenaṃ ussahantaṃ vāyamantaṃ pare hananti pariyāpādenti, s
+
+## AN 3.65   [SLTP AN_I]
+note: The Kālāma criteria: not hearsay or logic alone, but whether qualities are unwholesome, blameworthy, censured by the wise, and lead to harm. Grounds TH08.
+pali: Etha tumhe kālāmā mā anussavena, mā paramparāya, mā itikirāya, mā piṭakasampadānena, mā takkahetu, mā nayahetu, mā ākāraparivitakkena, mā diṭṭhinijjhānakkhantiyā, mā bhabbarūpatāya, mā samaṇo no garū'ti. Yadā tumhe kālāmā attanā'va jāneyyātha: ime dhammā akusalā, ime dhammā sāvajjā, ime dhammā viññūgarahitā, ime dhammā samattā samādinnā ahitāya dukkhāya saṃvattantī'ti. Atha tumhe kālāmā pajaheyyāthā'ti iti yantaṃ vuttaṃ idametaṃ paṭicca vuttaṃ. 1. Bhananti-machasaṃ. Syā. [BJT Page 340] [\x 340/] Etha tumhe kālāmā mā anussavena, mā paramparāya, mā itikirāya, mā piṭakasampadānena, mā takkahetu, mā nayahetu, mā ākāraparivitakk
+
+## AN 3.100   [SLTP AN_I]
+note: The same trifling deed ripens differently depending on the agent's development. Grounds the anti-victim-blaming boundary.
+pali: Idha bhikkhave ekaccassa puggalassa appamattakampi pāpaṃ397 kammaṃ kataṃ, tame'naṃ nirayaṃ upaneti. Idha pana bhikkhave ekaccassa puggalassa tādisaññeva appamattakaṃ pāpaṃ kammaṃ kataṃ diṭṭhadhammavedanīyaṃ hoti. Nāṇumpi398 khāyati. Kiṃ399 bahudeva. Kathaṃrūpassa bhikkhave puggalassa appamattakampi pāpaṃ400 kammaṃ kataṃ tame'naṃ nirayaṃ upaneti? Idhapana bhikkhave ekacco puggalo abhāvitakāyo hoti abhāvitasīlo abhāvitacitto abhāvitapañño paritto appātumo appadukkhavihārī, evarūpassa bhikkhave puggalassa appamattakampi pāpaṃ kammaṃ kataṃ tame'naṃ niray
+
+## DN 16   [SLTP DN_II]
+note: Virtue -> collectedness -> wisdom -> release refrain. Grounds TH13 (developmental structure).
+pali: "iti sīlaṃ, iti samādhi, iti paññā. Sīlaparibhāvito samādhi mahapphalo hoti mahānisaṃso. Samādhiparibhāvitā paññā mahapphalā hoti mahānisaṃsā. Paññāparibhāvitaṃ cittaṃ sammadeva āsavehi vimuccati, seyyathīdaṃ2: kāmāsavā bhavāsavā3 avijjāsavā"ti. 15. Atha kho bhagavā rājagahe yathābhirattaṃ viharitvā āyasmantaṃ ānandaṃ āmantesi: āyāmānanda yena ambalaṭṭhikā tenupasaṅkamissāmāti. 'Ev
+
+## DN 26   [SLTP DN_III]
+note: Wealth not given to the destitute -> poverty -> theft -> violence. Grounds TH11 (structural causes).
+pali: No ca kho adhanānaṃ dhanamanuppādāsi1 adhanānaṃ dhane ananuppadīyamāne dāḷiddiyaṃ2 vepullamagamāsi. Dāḷiddiye vepullaṃ gate aññataro puriso paresaṃ adinnaṃ theyyasaṅkhātaṃ ādiyi. Tamenaṃ aggahesuṃ gahetvā rañño khattiyassa muddhābisittassa dassesuṃ ayaṃ deva puriso paresaṃ adinnaṃ theyyasaṅkhātaṃ ādiyī'ti. Evaṃ vutte bhikkhave rājā khattiyo muddhābhisitto taṃ purisaṃ etadavoca:"saccaṃ kiratvaṃ amho purisa paresaṃ adinnaṃ theyyasaṅkhātaṃ ādiyī?3"Ti. "Saccaṃ devā"ti. "Kiṃ kāranā?"Ti.
+
+## DN 31   [SLTP DN_III]
+note: The five duties of an employer: work suited to strength, food and wages, care in sickness, sharing extras, leave at times. Grounds TH11.
+pali: heṭṭhimā disā dāsakammakarā paccupaṭṭhātabbā: yathābalaṃ kammantasaṃvidhānena, bhattavetanānuppadānena, gilānupaṭṭhānena, acchariyānaṃ rasānaṃ saṃvibhāgena, samaye vossaggena. Imehi kho gahapatiputta pañcahi ṭhānehi ayirakena heṭṭhimā disā dāsakammakarā paccupaṭṭhitā pañcahi ṭhānehi ayirakaṃ anukampanti. Pubbuṭṭhāyino ca honti, pacchānipātino ca, dinnādāyino ca,
+
+## Dhp 5   [SLTP Dhp]
+note: Hatred is never appeased by hatred. Grounds TH12.
+pali: Na hi verena verāni sammantīdha kudācanaṃ 5 Averena ca sammanti esa dhammo sanantano. 6. Pare ca na vijānanti mayamettha yamāmase 6 Ye ca tattha vijānanti tato sammanti medhagā. 7
+
+## Dhp 201   [SLTP Dhp]
+note: Victory breeds enmity; the one at peace sleeps well. Grounds TH12/TH14.
+pali: Jayaṃ veraṃ pasavati dukkhaṃ seti parājito201 Upasanto sukhaṃ seti hatmā jayaparājayaṃ. 6. Natthi rāgasamo aggi natthi dosasamo kali202 Natthi khandhasamā dukkhā katthi santiparaṃ
+
+## Dhp 103   [SLTP Dhp]
+note: Conquering oneself is the greater victory. Grounds TH14.
+pali: Yo sahassaṃ sahassena saṅgāme mānuse jine103 Ekañca jeyya attānaṃ sa ve saṅgāmajuttamo. 5. Attā have jitaṃ seyyo yā cāyaṃ itarā pajā104 Attadantassa posassa niccaṃ saññatacārino. 6. Neva devo na gandha
+
+## Dhp 223   [SLTP Dhp]
+note: Conquer anger with non-anger, falsehood with truth. Grounds TH12.
+pali: Akkodhena jine kodhaṃ asādhuṃ sādhunā jine223 Jine kadariyaṃ dānena saccena alikavādinaṃ. 4. Saccaṃ bhaṇe na kujjheyya dajjāppasmimpi yācito224 Etehi tīhi ṭhānehi gacche devāna sant
