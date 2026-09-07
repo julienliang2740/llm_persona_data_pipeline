@@ -174,3 +174,46 @@ def test_generate_module_resolves_reframing_overlap_helper():
     import pipeline.generate as generate
 
     assert generate.jaccard("a b c", "a b c") == 1.0
+
+
+def test_family_assignment_lines_carry_the_planned_slot(monkeypatch):
+    """Round 2 found the plan's institution, enums, stance and hypothesis never reached the
+    generator; they were stamped on afterwards. The assignment text must name them."""
+    import asyncio
+
+    import pipeline.generate as generate
+    from pipeline.plan import FamilySlot
+
+    captured = {}
+
+    async def fake_request_items(**kwargs):
+        captured["message"] = kwargs["user_message"]
+        return []
+
+    monkeypatch.setattr(generate, "_request_items", fake_request_items)
+    spec = generate.load_target("tests/fixtures/targets", "toy") if hasattr(generate, "load_target") else None
+    if spec is None:
+        from pipeline.target import load_target
+
+        spec = load_target("tests/fixtures/targets", "toy")
+    slot = FamilySlot(
+        slot_index=0, domain=spec.domains[0]["id"], tradeoff_ids=[spec.tradeoffs[0]["id"]],
+        case_type_intent="divergence", institution="a bicycle courier co-op", role_type="no_authority",
+        harm_severity="serious", urgency="now", public_or_private="public", asker_stance="defensive",
+        divergence_hypothesis_id=str(spec.divergence_hypotheses[0]["id"]),
+    )
+    from pipeline.config import load_config
+
+    config = load_config("configs/pilot.yaml")
+    import tempfile, pathlib
+
+    run_dir = pathlib.Path(tempfile.mkdtemp())
+
+    class FakeClient:  # never called because _request_items is stubbed
+        pass
+
+    asyncio.run(generate.generate_families(FakeClient(), spec, config, run_dir, [slot], []))
+    message = captured["message"]
+    for needle in ("bicycle courier co-op", "role_type=no_authority", "harm_severity=serious",
+                   "asker_stance=defensive", "divergence_hypothesis_id="):
+        assert needle in message, needle

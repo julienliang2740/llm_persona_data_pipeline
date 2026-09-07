@@ -262,10 +262,29 @@ async def generate_families(
             group = pairs.get(position)
             note = f", contrastive group {group}" if group else ""
             explicit = ", EXPLICIT slice" if slot.mode == "explicit" else ""
-            lines.append(
-                f"- family {position + 1}: tradeoff_ids={slot.tradeoff_ids or ['(any)']}, "
-                f"case_type_intent={slot.case_type_intent!r}{note}{explicit}"
-            )
+            # Everything the plan decided must reach the generator as an assignment; the
+            # enums are merged back from the slot afterwards, so an unstated one is unplanned.
+            parts = [
+                f"tradeoff_ids={slot.tradeoff_ids or ['(any)']}",
+                f"case_type_intent={slot.case_type_intent!r}",
+            ]
+            if slot.institution:
+                parts.append(f"institution={slot.institution!r}")
+            for field_name in ("role_type", "harm_severity", "urgency", "public_or_private", "asker_stance"):
+                value = getattr(slot, field_name, "")
+                if value:
+                    parts.append(f"{field_name}={value}")
+            if slot.divergence_hypothesis_id:
+                parts.append(
+                    f"divergence_hypothesis_id={slot.divergence_hypothesis_id!r}"
+                    f" ({hypothesis_text.get(slot.divergence_hypothesis_id, '')})"
+                )
+            if slot.unresolved_choice_id:
+                parts.append(
+                    f"open_question={slot.unresolved_choice_id!r}"
+                    f" ({choice_text.get(slot.unresolved_choice_id, '')})"
+                )
+            lines.append(f"- family {position + 1}: " + ", ".join(parts) + note + explicit)
         user_message = render(
             FAMILY_GENERATION_PROMPT,
             target_spec=spec_text,
