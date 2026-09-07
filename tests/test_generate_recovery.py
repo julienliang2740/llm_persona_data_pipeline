@@ -157,3 +157,13 @@ def test_dump_debug_writes_json_and_text(tmp_path):
     text_path = dump_debug(tmp_path, "b", "raw model words")
     assert json.loads(json_path.read_text()) == {"k": 1}
     assert text_path.read_text() == "raw model words"
+
+
+def test_extract_list_descends_one_wrapper_level():
+    """Seen in round 2: {"result": {"families": [...]}}."""
+    from pipeline.model import extract_list
+
+    item = {"seed_situation": "x", "why_it_is_hard": "y"}
+    looks = lambda value: isinstance(value, dict) and "seed_situation" in value  # noqa: E731
+    assert extract_list({"result": {"families": [item, item]}}, "families", looks_like_item=looks) == [item, item]
+    assert extract_list({"result": {"family": item}}, "families", looks_like_item=looks) == [item]
