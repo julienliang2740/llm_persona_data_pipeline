@@ -30,8 +30,10 @@ summary: >
 layers:
   - id: core
     description: ...
+    generate_by_default: true    # optional, default true; config generation.target_layers overrides
   - id: mencian
     description: ...
+    generate_by_default: false   # a branch the pilot does not generate from
 
 principles:                        # 8-20 items; each must be checkable
   - id: CM01
@@ -67,6 +69,11 @@ unresolved_choices:                # interpretation choices that remain open for
     working_assumption: >         # what the pilot assumes, flagged as provisional
       Treat as differentiated care with a serious-harm limit; never a blanket rule.
     generation_policy: avoid | mark_ambiguous | use_working_assumption
+    avoid_keywords: [concealment, cover up]   # optional, only for generation_policy: avoid.
+                                              # Word-boundary screen over seed_situation; a hit
+                                              # marks the family `split: reserved` with a reason
+                                              # rather than deleting it. Keep them specific:
+                                              # a common word like "will" reserves everything.
 
 misinterpretations:                # common distortions; used by the reviewer as red flags
   - claim: Confucius teaches blind obedience.
@@ -89,7 +96,8 @@ domains:                           # coverage requirements for scenario generati
 cue_policy:
   prompts_must_not_name_tradition: true
   responses_avoid_doctrinal_vocabulary: true   # ordinary language by default
-  forbidden_terms: [Confucius, Confucian, ren, li, yi, junzi, Analects, Mencius]   # checked by validator
+  forbidden_terms: [Confucius, Confucian, ren, li, yi, junzi, Analects, Mencius]   # hard: any hit rejects
+  soft_terms: [grace, doctrine]                # optional; flagged in the report, never a reason to reject
   allowed_in_explicit_mode: true               # a separate small "explicit" slice may name sources
 
 reference_material:                # what the generator/reviewer may quote or lean on
@@ -116,6 +124,12 @@ reference_material:                # what the generator/reviewer may quote or le
   before an optional ` — title` is the passage id and must match the `sources:` entries exactly. Any other
   section headings must be level-1 (`#`) or bold text. The loader rejects a spec whose cited ids do not resolve.
 - A tradeoff must carry either `intended_lean` or `unresolved: true`; the validator rejects one with neither.
+- Optional keys the loader tolerates and ignores: anything not listed here, including
+  `cue_policy.notes`, `cue_policy.forbidden_terms_notes`, `cue_policy.explicit_mode_notes`, and
+  `reference_material[].author`. Only the required keys are enforced.
+- `license` on every `use: grounding` reference entry is copied into the export manifest as
+  `license_constraints`, so a non-commercial restriction travels with the dataset. Record it
+  even when the answer is "public domain".
 - Passage-id prefixes (e.g. "Analects") may also be forbidden cue terms; the cue check applies only to
   user-visible prompt/response text, never to internal record fields.
 - `unresolved: true` tradeoffs and `unresolved_choices` are preserved, not silently resolved. The generator may produce scenarios for them but the response must present the conflict honestly; the reviewer flags confident resolutions.

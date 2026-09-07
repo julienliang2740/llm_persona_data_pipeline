@@ -11,6 +11,9 @@
 # reviewer, duplicates and leakage, which lands near 500 kept training rows.
 # 40 eval families x 1 prompt + 10 reframed = 50 evaluation prompts.
 
+# Travels into manifest.json next to the source licence terms.
+redistribution_note: ""
+
 targets_dir: targets
 runs_dir: runs
 pricing_file: configs/pricing.yaml
@@ -23,10 +26,22 @@ generation:
   divergence_fraction: 0.4   # at least 100 intended-divergence cases after filtering
   eval_family_fraction: 0.167
   reserved_family_fraction: 0.05   # held back entirely, for novel-transfer tests later
+  # Contrastive groups: the same situation with exactly one morally relevant fact
+  # changed. Members are never deduped against each other and never split apart.
+  counterfactual_fraction: 0.3
+  # Small slice where the prompt may name the tradition and the cue check is skipped.
+  # Researchers suggest 0.05-0.10 once the neutral slice is working.
+  explicit_fraction: 0.0
+  # Which spec layers to generate from. Omit to use the spec's own
+  # layers[].generate_by_default flags (all layers when the spec defines none).
+  target_layers: []
   reframing_variants: [setting_shift, fiction, roleplay, terse]
   reframing_families: 10     # eval families that also get a reframed prompt
   revise_rounds: 1           # one critique -> rewrite pass; set 0 to measure whether it helps
-  max_passage_chars: 6000
+  # Passage budgets. The family-generation call sees the whole passage file; response
+  # generation only ever sees the passages its own family cites.
+  max_passage_chars_families: 40000
+  max_passage_chars_responses: 8000
 
 validation:
   use_embeddings: true
@@ -42,6 +57,9 @@ validation:
   min_judgment_not_terminology: 3
   min_scenario_quality: 3
   keep_revise_if_scores_pass: true
+  # The reviewer flags a response that quotes or closely echoes source wording. That is a
+  # licensing control; set true to drop those rather than only report them.
+  reject_on_quoted_source: false
 
 evaluation:
   temperature: 0.7           # matched before/after, per the plan
@@ -91,7 +109,7 @@ models:
     model: qwen2.5-7b-instruct
     base_url: http://127.0.0.1:8080/v1
     api_key_source: none
-    max_concurrency: 1
+    max_concurrency: 4
     temperature: 0.7
     max_tokens: 512
     timeout_s: 900
