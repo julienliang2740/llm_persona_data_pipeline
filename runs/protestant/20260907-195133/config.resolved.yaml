@@ -12,6 +12,7 @@ generation:
   families_per_call: 4
   family_generation_attempts: 2
   held_out_tradeoffs: 1
+  hypothesis_coverage_floor: 1.0
   max_passage_chars_families: 40000
   max_passage_chars_responses: 8000
   n_families: 8
@@ -75,12 +76,8 @@ models:
   strong_generic:
     api_key_source: fireworks
     base_url: https://api.fireworks.ai/inference/v1
-    extra_body:
-      reasoning_effort: none
     max_concurrency: 4
-    max_tokens: 12000
     model: accounts/fireworks/models/qwen3p8-max
-    temperature: 0.7
 pricing_file: configs/pricing.yaml
 redistribution_note: ''
 runs_dir: runs

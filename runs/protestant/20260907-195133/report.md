@@ -60,6 +60,7 @@ Recorded on 8 of 8 families. A feature with one dominant value means the coverag
 | vocation_not_career_maximisation | 1 | 25% |
 
 Hypotheses with no family: `absent_parties_have_standing`, `conviction_with_fallibility`, `repentance_and_restitution_not_reputation_management`, `silence_is_a_decision`, `stewardship_not_accumulation`
+Coverage floor is 1 family per hypothesis per 100 families, so 1 at this size (8 families). 5 of 9 fall short: `absent_parties_have_standing`, `conviction_with_fallibility`, `repentance_and_restitution_not_reputation_management`, `silence_is_a_decision`, `stewardship_not_accumulation`
 
 **Asker stance**
 
@@ -99,9 +100,9 @@ Reasons recorded on dropped responses (a response can have several):
 
 Mean scores: fidelity 4.94, judgment_not_terminology 5.00, scenario_quality 4.94, cue_leakage 0.00, confident_on_unresolved 0.00 (n=16)
 
-Reviews awarding a 5 while raising a defect flag: **4** of 16. That combination means the reviewer is not applying the rubric, and the score cap did not catch it because the 5 sits on another dimension.
+Reviews awarding a 5 while raising a defect flag: **0** of 16. The rubric was applied consistently.
 
-Conflicting pairs: prompt_stipulates_move+fidelity=5 ×4, prompt_stipulates_move+judgment_not_terminology=5 ×4, prompt_stipulates_move+scenario_quality=5 ×3.
+Prompts that stipulate the target's move: **4** of 16; relabelled ordinary. The user handed the assistant the answer, so the case cannot show a difference from a generic assistant. This is a prompt-quality figure, not a mark against the response.
 
 ## Second reviewer
 
@@ -178,15 +179,15 @@ Scored with embeddings. The ranking is printed whether or not anything crossed t
 ## Divergence from the baseline
 
 - intended divergence cases: **8**
-- confirmed by the judge: **7** (88%)
-- did not diverge, relabelled ordinary: **1**
+- confirmed by the judge: **6** (75%)
+- did not diverge, relabelled ordinary: **2**
 - unverified (no baseline answer): **0**
 
 A difference in the reasons alone counts as divergence, not only a different action.
 
 | kind of divergence | count | share of intended cases |
 |---|---|---|
-| action (incl. both) | 5 | 62% |
+| action (incl. both) | 4 | 50% |
 | reasons only | 2 | 25% |
 | both action and reasons | 4 | 50% |
 
@@ -200,58 +201,59 @@ A difference in the reasons alone counts as divergence, not only a different act
 | candidate vs strong generic | 4 | 100% |
 | strong generic vs 7B base | 4 | 100% |
 
-- attributed to a **value** the target holds: **4** (100%)
+- attributed to a **value** the target holds, on EVERY judged prompt in the family: **2** (50%)
+- the same on at least one prompt: **4** (100%), a ceiling rather than a result
 - attributed to something the prompt stipulated: **0** (0%)
 
-The value rate alone is the number worth quoting: a difference the prompt stipulated, or one that is only fluency, is not the target instantiated.
+The first line is the number worth quoting. A difference the prompt stipulated, or one that is only fluency, is not the target instantiated; neither is one that appears under a single rendering of the situation and vanishes under the other.
 
 ## House style shared across targets
 
 
-Share of each target's answers containing the phrase, over 5 runs: `catholic` (16 responses), `confucian` (16 responses), `protestant` (16 responses), `theravada` (18 responses), `toy` (11 responses)
+Share of each target's answers containing the phrase, over 5 runs: `catholic` (16 responses), `confucian` (16 responses), `protestant` (16 responses), `theravada` (16 responses), `toy` (11 responses)
 
 | four-gram | targets ≥30% | catholic | confucian | protestant | theravada | toy |
 |---|---|---|---|---|---|---|
+| not the same as | 1 | 12% | 6% | 6% | 44% | 0% |
+| is not the same | 1 | 12% | 12% | 6% | 38% | 0% |
 | this lands first on | 1 | 0% | 0% | 69% | 0% | 0% |
-| the hard part is | 1 | 0% | 6% | 0% | 22% | 36% |
-| can go either way | 1 | 0% | 0% | 0% | 28% | 36% |
-| judgment can go either | 1 | 0% | 0% | 0% | 28% | 36% |
-| reasonable judgment can go | 1 | 0% | 0% | 0% | 28% | 36% |
 | lands first on the | 1 | 0% | 0% | 62% | 0% | 0% |
-| is real but it | 1 | 6% | 6% | 31% | 17% | 0% |
+| you don't need to | 1 | 0% | 44% | 0% | 6% | 9% |
+| change the answer if | 1 | 0% | 56% | 0% | 0% | 0% |
+| would change the answer | 1 | 0% | 56% | 0% | 0% | 0% |
 | is not in the | 1 | 0% | 0% | 50% | 0% | 0% |
-| watch for two signs | 1 | 0% | 0% | 0% | 11% | 36% |
+| is real but it | 1 | 6% | 0% | 31% | 12% | 0% |
 | is the weakest claim | 1 | 0% | 0% | 44% | 0% | 0% |
-| it lands on the | 1 | 0% | 0% | 38% | 0% | 0% |
+| people affected are the | 1 | 31% | 0% | 0% | 6% | 0% |
+| the people affected are | 1 | 31% | 0% | 0% | 6% | 0% |
 | who is not in | 1 | 0% | 0% | 38% | 0% | 0% |
-| that would change the | 1 | 0% | 38% | 0% | 0% | 0% |
-| would change the answer | 1 | 0% | 31% | 0% | 0% | 0% |
-| people affected are the | 1 | 31% | 0% | 0% | 0% | 0% |
+| it lands on the | 1 | 0% | 0% | 38% | 0% | 0% |
+| judgment can go either | 1 | 0% | 0% | 0% | 0% | 36% |
 
 A phrase in the right-hand columns for every target is house style, not the target's judgment: the same sentence shape survived four different specifications.
 
 Count of habitual four-grams per target, and how much of that habit is shared:
 
-- at ≥30%: catholic 4, confucian 4, protestant 9, theravada 0, toy 5; **0** shared by two or more targets; mean pairwise overlap **0.00**
-- at ≥15%: catholic 26, confucian 21, protestant 38, theravada 28, toy 105; **11** shared by two or more targets; mean pairwise overlap **0.02**
+- at ≥30%: catholic 4, confucian 7, protestant 9, theravada 3, toy 5; **0** shared by two or more targets; mean pairwise overlap **0.00**
+- at ≥15%: catholic 26, confucian 26, protestant 38, theravada 18, toy 105; **6** shared by two or more targets; mean pairwise overlap **0.01**
 
 ## Cost and usage
 
-- model calls: **92**
-- prompt tokens: 786,651
-- completion tokens: 509,775 (of which reasoning: 460,976)
-- cost: **$5.4399**
+- model calls: **109**
+- prompt tokens: 811,705
+- completion tokens: 562,368 (of which reasoning: 507,472)
+- cost: **$5.6934**
 
 | stage | calls | prompt tokens | completion tokens |
 |---|---|---|---|
 | baseline | 8 | 1,279 | 3,025 |
-| baseline.strong_generic | 8 | 1,564 | 6,578 |
+| baseline.strong_generic | 16 | 3,768 | 14,190 |
 | generate.families | 7 | 158,752 | 50,645 |
 | generate.prompts | 8 | 10,260 | 25,482 |
 | generate.reframing | 2 | 1,601 | 10,061 |
 | generate.responses | 16 | 115,890 | 158,347 |
-| validate.divergence | 8 | 20,265 | 47,428 |
-| validate.embed | 1 | 3,947 | 0 |
+| validate.divergence | 16 | 39,168 | 92,409 |
+| validate.embed | 2 | 7,894 | 0 |
 | validate.review | 33 | 466,077 | 201,479 |
 | validate.revise | 1 | 7,016 | 6,730 |
 
