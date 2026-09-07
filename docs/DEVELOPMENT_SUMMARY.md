@@ -67,9 +67,32 @@ Where to look: model calls `pipeline/model.py`; prompts `prompts/generation.py`,
 - Base model: 7.8 tok/s single stream, ~17 tok/s aggregate at 4 slots idle, ~9 under CPU contention.
   The baseline stage is the long pole; `--load-mode none` avoids an 8x throughput collapse.
 
-## 4. Experiments and competing approaches (round 1)
+## 4. Experiments and competing approaches
 
-(filled after the critique round)
+Round 1 (one pass, then six critics):
+- **Reviewer/generator from different families** (Qwen generator, DeepSeek reviewer): the reviewer
+  still scored 4-5 on nearly everything; separation of families is not enough for calibration.
+  Round 2 adds a required verbatim evidence quote (empty caps the score at 3), signature-move
+  checks, and a second reviewer (kimi-k3) for agreement measurement.
+- **Divergence vs the 7B base only**: confirmed 33/34 but almost all capability gap. Round 2 judges
+  three ways (candidate, 7B base, strong generic with no spec) and counts only value-attributed
+  divergence with a quoted sentence.
+- **Flat similarity thresholds** (0.92 dedupe, 0.85 leakage): never fired. Round 2 measures prompts
+  only and calibrates with median + 3 robust deviations (mean + 3 sd let a duplicate raise the cut
+  that should catch it), and always prints the closest pairs.
+- **Three prompts per family** produced three restatements of one answer; round 2 uses two prompts
+  per family with different question kinds.
+- **One deliberation shape for all targets** ("name the obligations, weigh them") imposed a duty
+  ranking on Theravada and Confucian; round 2 uses a per-target `deliberation_shape` written by
+  the researcher.
+- **Retry policy**: six attempts (~1 minute) lost batches to a shared per-minute limit; now ten with
+  a 90 s cap, and one API-heavy process at a time.
+- **Train → evaluate plumbing**: a CPU LoRA on 14 Confucian rows with a 0.5B model, answers judged by
+  the same rubric as the 7B base (base passed 1/7, adapter 0/7). This proves the path, not a result;
+  a real result needs the GPU recipe in `training/`.
+
+Round 2 experiments (results in section 5): E1 three-way divergence; E2 second-reviewer agreement;
+E3 house-style metric before/after; E4 `reasoning_effort: low` on the generator (cost vs scores).
 
 ## 5. What the four pilots showed
 
@@ -136,7 +159,26 @@ The round-2 change list derived from these is `docs/round2-changes.md`.
 
 ## 7. Unresolved issues
 
-(filled after the critique round)
+- **Value divergence is rare by construction.** Most tradeoffs a spec lists have a modern
+  professional-ethics answer a strong generic assistant already gives. Only tradeoffs with no generic
+  analogue (Catholic double effect, Theravada non-deception under pressure, Confucian graded
+  partiality) produced value-attributable divergence. Whether 500 rows can carry enough of those is
+  the open question for Part 1's purpose.
+- **Reviewer calibration.** A generator and a reviewer that share taste produce flat scores; the
+  evidence-quote requirement and second reviewer are mitigations, not a solution. Human review of a
+  sample is still required before training on any export.
+- **Doctrinal tests transposed into plain English** pass every cue check and are still imitation at
+  one remove. Nothing automatic distinguishes "states the double-effect test" from "judges the case".
+- **Licensing.** Theravada grounding mixes CC BY-NC and CC BY-SA; the export is internal research
+  use only until sources are segregated. Vatican and Catechism material is quotation-scale, pending
+  rights review. SuttaCentral text was deliberately not used.
+- **Interpretive choices left open by design** (each spec's `unresolved_choices`): confessional vs
+  neutral mode, naturalised kamma, Protestant grace-and-agency neutrality, Confucian family partiality
+  scope, Catholic sexual ethics excluded from the pilot. These need a human decision, not more data.
+- **Base-model realism.** A 4-bit 7B on CPU is slow (baseline is the long pole) and its generic,
+  list-shaped answers make the divergence bar low. The strong-generic third leg addresses the
+  measurement; the training target is still the 7B.
+- **Explicit-mode slice** (naming the tradition) was 0 in all pilots and is untested.
 
 ## 8. Approximate Fireworks cost
 
