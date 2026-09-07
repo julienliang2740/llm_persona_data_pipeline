@@ -1,0 +1,80 @@
+evaluation:
+  answer_max_tokens: null
+  temperature: 0.7
+generation:
+  counterfactual_fraction: 0.3
+  divergence_fraction: 0.5
+  eval_family_fraction: 0.25
+  eval_prompts_per_family: 1
+  explicit_fraction: 0.0
+  families_per_call: 4
+  family_generation_attempts: 2
+  max_passage_chars_families: 40000
+  max_passage_chars_responses: 8000
+  n_families: 8
+  prompts_per_family: 3
+  reframing_families: 2
+  reframing_variants:
+  - setting_shift
+  - fiction
+  - roleplay
+  - terse
+  reserved_family_fraction: 0.0
+  revise_rounds: 0
+  target_layers: []
+  unresolved_tradeoff_fraction: 0.25
+models:
+  base:
+    api_key_source: none
+    base_url: http://127.0.0.1:8080/v1
+    max_concurrency: 4
+    max_tokens: 512
+    model: qwen2.5-7b-instruct
+    supports_json_mode: false
+    temperature: 0.7
+    timeout_s: 900
+  embeddings:
+    api_key_source: fireworks
+    base_url: https://api.fireworks.ai/inference/v1
+    max_concurrency: 2
+    model: accounts/fireworks/models/qwen3-embedding-8b
+    supports_json_mode: false
+  generator:
+    api_key_source: fireworks
+    base_url: https://api.fireworks.ai/inference/v1
+    extra_body: {}
+    max_concurrency: 4
+    max_tokens: 24000
+    model: accounts/fireworks/models/qwen3p8-max
+    temperature: 0.9
+  judge:
+    api_key_source: fireworks
+    base_url: https://api.fireworks.ai/inference/v1
+    max_concurrency: 4
+    max_tokens: 12000
+    model: accounts/fireworks/models/deepseek-v4-pro-0813
+    temperature: 0.0
+  reviewer:
+    api_key_source: fireworks
+    base_url: https://api.fireworks.ai/inference/v1
+    max_concurrency: 4
+    max_tokens: 16000
+    model: accounts/fireworks/models/deepseek-v4-pro-0813
+    temperature: 0.2
+pricing_file: configs/pricing.yaml
+redistribution_note: ''
+runs_dir: runs
+targets_dir: targets
+validation:
+  duplicate_threshold_embeddings: 0.92
+  duplicate_threshold_jaccard: 0.75
+  keep_revise_if_scores_pass: true
+  leakage_threshold_embeddings: 0.85
+  leakage_threshold_jaccard: 0.6
+  min_fidelity: 4
+  min_judgment_not_terminology: 3
+  min_scenario_quality: 3
+  reject_on_quoted_source: false
+  use_embeddings: true
+  within_family_duplicate_embeddings: 0.985
+  within_family_duplicate_jaccard: 0.9

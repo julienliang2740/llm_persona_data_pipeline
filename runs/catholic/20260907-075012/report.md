@@ -25,14 +25,60 @@
 
 | feature | most common values |
 |---|---|
-| relationship | care recipient and home-health aide ×1, patient, spouse, and platform administrator ×1, payroll clerk asked by a line supervisor about a worker ×1, roster clerk and depot supervisor; affected driver is a colleague ×1 |
-| role_type | client with influence over assignment and complaint ×1, technical administrator without clinical decision authority ×1, custodian of confidential records, not the promotion decision-maker ×1, administrative clerk with scheduling information but no HR authority ×1 |
 | harm_severity | medical harm leading to hospital readmission ×1, severe distress or missed deterioration that could shorten life ×1, could damage reputation and cost a promotion opportunity ×1, moderate: private family information exposed and trust damaged ×1 |
 | urgency | decision needed before next care assignment ×1, decision needed before the next nightly treatment session ×1, promotion recommendation is due within days ×1, answer needed before the next roster conversation ×1 |
 | public_or_private | formal complaint visible to agency supervisors ×1, private family and care-team matter, with alerts and logs visible to clinicians ×1, private payroll information, asked about in a one-to-one conversation ×1, semi-public: route change and complaints are known to other drivers ×1 |
-| asker_state | merciful and hesitant, wants to avoid ruining the aide but worried about safety ×1, anxious, wants relief for the patient but fears being blamed ×1, practical and risk-averse, wants a quick assurance ×1, pressured by complaints and wants a quick explanation ×1 |
+| role_type | client with influence over assignment and complaint ×1, technical administrator without clinical decision authority ×1, custodian of confidential records, not the promotion decision-maker ×1, administrative clerk with scheduling information but no HR authority ×1 |
+| relationship | care recipient and home-health aide ×1, patient, spouse, and platform administrator ×1, payroll clerk asked by a line supervisor about a worker ×1, roster clerk and depot supervisor; affected driver is a colleague ×1 |
 
 Recorded on 4 of 8 families. A feature with one dominant value means the coverage plan is not varying it.
+
+### Coverage
+
+**Tradeoffs exercised**
+
+| tradeoff | families | share |
+|---|---|---|
+| truth_vs_privacy | 2 | 25% |
+| secrecy_vs_grave_harm (unresolved) | 1 | 12% |
+| loyalty_vs_reporting_wrongdoing | 1 | 12% |
+| justice_vs_mercy | 1 | 12% |
+| pain_relief_vs_shortened_life | 1 | 12% |
+| f orgiveness_vs_protection | 1 | 12% |
+| treatment_vs_burden | 1 | 12% |
+
+6 of 14 spec tradeoffs reached; unresolved tradeoffs never exercised: `family_vs_strangers`, `participation_vs_complicity`, `solidarity_vs_subsidiarity`
+
+Tradeoff ids on families that the specification does not define: `f orgiveness_vs_protection`
+
+**Divergence hypotheses instantiated**
+
+| hypothesis | families | share |
+|---|---|---|
+| (none assigned) | 3 | 100% |
+
+Hypotheses with no family: `accountability_for_automated_decisions`, `cooperation_is_graded`, `discretion_over_full_disclosure`, `distinguishes_settled_from_contestable`, `mercy_without_concealment`, `names_the_act_not_the_aim`, `property_yields_to_urgent_necessity`, `refuses_consequentialist_override`, `separates_culpability_from_wrongness`, `unequal_obligations`, `withdrawal_is_not_killing`
+
+**Asker stance**
+
+| stance | families | share | planned |
+|---|---|---|---|
+| (not recorded) | 8 | 100% | - |
+| angry_wants_to_win | 0 | 0% | 15% |
+| conflicted | 0 | 0% | 40% |
+| decided_wants_permission | 0 | 0% | 20% |
+| defensive | 0 | 0% | 15% |
+| transactional | 0 | 0% | 10% |
+
+**Evaluation composition**
+
+| case type | families planned | rows exported |
+|---|---|---|
+| divergence | 1 | 4 |
+| ordinary | 2 | 4 |
+
+Eval rows by prompt variant: base ×3, fiction ×2, setting_shift ×3.
+A mix that shifts between the two columns means drops are being applied after the split, so the eval set no longer measures what the plan asked for.
 
 ## Accept / reject
 
@@ -56,6 +102,10 @@ Reasons recorded on dropped responses (a response can have several):
 
 Mean scores: fidelity 4.87, judgment_not_terminology 4.96, scenario_quality 4.87, cue_leakage 0.00, confident_on_unresolved 0.04 (n=23)
 
+Reviews awarding a 5 while raising a defect flag: **1** of 23. That combination means the reviewer is not applying the rubric, and the score cap did not catch it because the 5 sits on another dimension.
+
+Conflicting pairs: confident_on_unresolved+scenario_quality=5 ×1.
+
 ## Cue-term hits
 
 None. No forbidden term appeared in any prompt or response.
@@ -68,6 +118,10 @@ Explicit-mode records (cue check deliberately skipped): **0**.
 ## Near-duplicates
 
 None above the threshold.
+
+### Closest pairs
+
+This run kept no `similarity_pairs.jsonl`, so the pair distribution the calibrated threshold is drawn from was not recorded. The leakage section below still shows the closest training row for each of the 8 scored eval responses; it covers no train-to-train or eval-to-eval pair.
 
 ## Leakage between eval and train
 
@@ -94,12 +148,51 @@ A difference in the reasons alone counts as divergence, not only a different act
 | reasons only | 0 | 0% |
 | both action and reasons | 8 | 80% |
 
+### Three-way comparison, per family
+
+3 families with a judged prompt.
+
+| comparison | families differing | share |
+|---|---|---|
+| candidate vs 7B base | 3 | 100% |
+| candidate vs strong generic | not recorded | - |
+| strong generic vs 7B base | not recorded | - |
+
+- attributed to a **value** the target holds: **0** (0%)
+- attributed to something the prompt stipulated: **0** (0%)
+
+The value rate alone is the number worth quoting: a difference the prompt stipulated, or one that is only fluency, is not the target instantiated.
+
+## House style shared across targets
+
+
+Share of each target's answers containing the phrase, over 5 runs: `catholic` (23 responses), `confucian` (16 responses), `protestant` (20 responses), `theravada` (18 responses), `toy` (11 responses)
+
+| four-gram | targets ≥30% | catholic | confucian | protestant | theravada | toy |
+|---|---|---|---|---|---|---|
+| the hard part is | 1 | 26% | 6% | 20% | 22% | 36% |
+| can go either way | 1 | 0% | 0% | 0% | 28% | 36% |
+| judgment can go either | 1 | 0% | 0% | 0% | 28% | 36% |
+| reasonable judgment can go | 1 | 0% | 0% | 0% | 28% | 36% |
+| watch for two signs | 1 | 4% | 0% | 5% | 11% | 36% |
+| that would change the | 1 | 0% | 38% | 0% | 0% | 0% |
+| the asker is a | 1 | 0% | 31% | 0% | 0% | 0% |
+| it does not license | 1 | 0% | 31% | 0% | 0% | 0% |
+| would change the answer | 1 | 0% | 31% | 0% | 0% | 0% |
+
+A phrase in the right-hand columns for every target is house style, not the target's judgment: the same sentence shape survived four different specifications.
+
+Count of habitual four-grams per target, and how much of that habit is shared:
+
+- at ≥30%: catholic 0, confucian 4, protestant 0, theravada 0, toy 5; **0** shared by two or more targets; mean pairwise overlap **0.00**
+- at ≥15%: catholic 9, confucian 21, protestant 15, theravada 28, toy 105; **14** shared by two or more targets; mean pairwise overlap **0.05**
+
 ## Cost and usage
 
-- model calls: **100**
-- prompt tokens: 679,533
+- model calls: **102**
+- prompt tokens: 693,971
 - completion tokens: 361,713 (of which reasoning: 328,724)
-- cost: **$3.0378**
+- cost: **$3.0393**
 
 | stage | calls | prompt tokens | completion tokens |
 |---|---|---|---|
@@ -109,7 +202,7 @@ A difference in the reasons alone counts as divergence, not only a different act
 | generate.reframing | 5 | 3,956 | 9,443 |
 | generate.responses | 23 | 146,786 | 171,516 |
 | validate.divergence | 10 | 12,756 | 20,633 |
-| validate.embed | 3 | 21,352 | 0 |
+| validate.embed | 5 | 35,790 | 0 |
 | validate.review | 24 | 269,215 | 86,824 |
 
 ## Samples kept

@@ -25,3 +25,7 @@
 08:13:40 INFO    main: === stage: export ===
 08:13:40 INFO    pipeline.export: export: 6 training rows, 1 eval rows -> /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-075936
 08:13:40 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-075936/report.md
+09:57:05 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-075936/report.md
+09:57:51 INFO    main: target catholic v0.2 (16 principles, 14 tradeoffs, 78 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-075936
+09:57:51 INFO    main: === stage: export ===
+09:57:51 INFO    pipeline.export: export: 6 training rows, 1 eval rows -> /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-075936

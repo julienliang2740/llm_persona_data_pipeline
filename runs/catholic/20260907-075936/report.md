@@ -25,14 +25,44 @@
 
 | feature | most common values |
 |---|---|
-| relationship | close friend and committee colleague ×1, committee member and worker who received staff-fund support ×1, telehealth nurse, patient’s legally appointed decision-maker, clinical team ×1 |
-| role_type | committee member with shared reporting responsibility, not the final decision-maker ×1, holds formal authority over repayment terms and future eligibility ×1, frontline clinical-technical staff with escalation duty but no treatment authority ×1 |
 | harm_severity | co-op funds lost and members living with unrepaired leaks; friend could lose role and income ×1, moderate financial harm to a shared fund and risk to the worker's income ×1, possible death and serious misunderstanding of care choice ×1 |
 | urgency | decision needed before the quarterly board meeting within days ×1, decision needed within days before another fund request is decided ×1, recurring nightly alerts; clinical review needed soon ×1 |
 | public_or_private | currently private, but the accounts will be presented publicly to the board ×1, semi-private: known to the committee, likely to become visible to coworkers ×1, private home care, visible to care team and vendor platform ×1 |
-| asker_state | torn and anxious, wants to protect the friend but not betray the members ×1, uneasy, wants a firm but repairable outcome that does not crush the worker ×1, anxious, wants to avoid both excessive treatment and abandonment ×1 |
+| role_type | committee member with shared reporting responsibility, not the final decision-maker ×1, holds formal authority over repayment terms and future eligibility ×1, frontline clinical-technical staff with escalation duty but no treatment authority ×1 |
+| relationship | close friend and committee colleague ×1, committee member and worker who received staff-fund support ×1, telehealth nurse, patient’s legally appointed decision-maker, clinical team ×1 |
 
 Recorded on 3 of 3 families. A feature with one dominant value means the coverage plan is not varying it.
+
+### Coverage
+
+**Tradeoffs exercised**
+
+| tradeoff | families | share |
+|---|---|---|
+| loyalty_vs_reporting_wrongdoing | 1 | 33% |
+| justice_vs_mercy | 1 | 33% |
+| treatment_vs_burden | 1 | 33% |
+
+**Divergence hypotheses instantiated**
+
+| hypothesis | families | share |
+|---|---|---|
+| (none assigned) | 1 | 100% |
+
+**Asker stance**
+
+| stance | families | share |
+|---|---|---|
+| (not recorded) | 3 | 100% |
+
+**Evaluation composition**
+
+| case type | families planned | rows exported |
+|---|---|---|
+| divergence | 1 | 1 |
+
+Eval rows by prompt variant: setting_shift ×1.
+A mix that shifts between the two columns means drops are being applied after the split, so the eval set no longer measures what the plan asked for.
 
 ## Accept / reject
 
@@ -67,6 +97,15 @@ Explicit-mode records (cue check deliberately skipped): **0**.
 
 None above the threshold.
 
+### Ten closest pairs
+
+No `similarity_pairs.jsonl` in this run. Falling back to each eval response's closest training row:
+
+| eval response | closest training row |
+|---|---|
+| `resp_781ed5b9d3` | 0.520 |
+| `resp_4a8e200d74` | 0.502 |
+
 ## Leakage between eval and train
 
 2 eval responses checked. Maximum similarity to any training row: **0.520**.
@@ -88,6 +127,21 @@ A difference in the reasons alone counts as divergence, not only a different act
 | action (incl. both) | 0 | 0% |
 | reasons only | 0 | 0% |
 | both action and reasons | 0 | 0% |
+
+## House style shared across targets
+
+
+Share of each target's answers containing the phrase, over 5 runs: `catholic` (8 answers), `confucian` (22 answers), `protestant` (20 answers), `theravada` (18 answers), `toy` (11 answers)
+
+| four-gram | targets ≥30% | catholic | confucian | protestant | theravada | toy |
+|---|---|---|---|---|---|---|
+| watch for two signs | 1 | 12% | 5% | 5% | 11% | 36% |
+| judgment can go either | 1 | 0% | 0% | 0% | 28% | 36% |
+| reasonable judgment can go | 1 | 0% | 0% | 0% | 28% | 36% |
+| can go either way | 1 | 0% | 0% | 0% | 28% | 36% |
+| say something like 'i | 1 | 0% | 36% | 10% | 6% | 9% |
+
+A phrase in the right-hand columns for every target is house style, not the target's judgment: the same sentence shape survived four different specifications.
 
 ## Cost and usage
 

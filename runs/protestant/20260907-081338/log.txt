@@ -98,3 +98,113 @@
 09:28:15 INFO    pipeline.export: export: 15 training rows, 3 eval rows -> /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
 09:28:15 INFO    main: === stage: report ===
 09:28:15 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338/report.md
+09:57:06 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338/report.md
+09:57:51 INFO    main: target protestant v0.2 (16 principles, 11 tradeoffs, 128 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+09:57:51 INFO    main: === stage: export ===
+09:57:51 WARNING pipeline.export: export: counterfactual group(s) ['cf_c0c1c3f6b9'] kept fewer than two families and are not exported; there is nothing left to contrast with.
+09:57:51 WARNING pipeline.export: export: dropping train row resp_bd06a9d15b, unfilled placeholders ['[list]', '[days/times]']
+09:57:51 WARNING pipeline.export: export: dropping train row resp_a5d9bcc3f7, unfilled placeholders ['[Name]', '[period]', '[specific claim]', '[one concrete factual correction]']
+09:57:51 WARNING pipeline.export: export: dropping train row resp_b32069839e, unfilled placeholders ['[X]', '[specific fact]']
+09:57:51 WARNING pipeline.export: export: dropping train row resp_da8e79b9fa, unfilled placeholders ['[date]']
+09:57:51 INFO    pipeline.export: export: 11 training rows, 1 eval rows -> /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+09:58:48 INFO    main: target protestant v0.2 (16 principles, 11 tradeoffs, 128 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+09:58:48 INFO    main: === stage: export ===
+09:58:48 WARNING pipeline.export: export: counterfactual group(s) ['cf_c0c1c3f6b9'] kept fewer than two families and are not exported; there is nothing left to contrast with.
+09:58:48 WARNING pipeline.export: export: dropping train row resp_bd06a9d15b, unfilled placeholders ['[list]', '[days/times]']
+09:58:48 WARNING pipeline.export: export: dropping train row resp_a5d9bcc3f7, unfilled placeholders ['[Name]', '[period]', '[specific claim]', '[one concrete factual correction]']
+09:58:48 WARNING pipeline.export: export: dropping train row resp_b32069839e, unfilled placeholders ['[X]', '[specific fact]']
+09:58:48 WARNING pipeline.export: export: dropping train row resp_da8e79b9fa, unfilled placeholders ['[date]']
+09:58:48 INFO    pipeline.export: export: 11 training rows, 1 eval rows -> /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+09:58:49 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338/report.md
+09:59:32 INFO    main: target protestant v0.2 (16 principles, 11 tradeoffs, 128 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+09:59:32 INFO    main: === stage: export ===
+09:59:32 WARNING pipeline.export: export: dropping train row resp_bd06a9d15b, unfilled placeholders ['[list]', '[days/times]']
+09:59:32 WARNING pipeline.export: export: dropping train row resp_a5d9bcc3f7, unfilled placeholders ['[Name]', '[period]', '[specific claim]', '[one concrete factual correction]']
+09:59:32 WARNING pipeline.export: export: dropping train row resp_b32069839e, unfilled placeholders ['[X]', '[specific fact]']
+09:59:32 WARNING pipeline.export: export: dropping train row resp_da8e79b9fa, unfilled placeholders ['[date]']
+09:59:32 WARNING pipeline.export: export: dropping eval row resp_bcd442c977, unfilled placeholders ['[number]']
+09:59:32 INFO    pipeline.export: export: 11 training rows, 4 eval rows -> /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+09:59:49 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338/report.md
+10:00:15 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338/report.md
+10:00:32 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338/report.md
+10:01:24 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338/report.md
+10:03:30 INFO    main: target protestant v0.2 (16 principles, 11 tradeoffs, 128 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+10:03:30 INFO    main: === stage: export ===
+10:03:30 WARNING pipeline.export: export: dropping train row resp_bd06a9d15b, unfilled placeholders ['[list]', '[days/times]']
+10:03:30 WARNING pipeline.export: export: dropping train row resp_a5d9bcc3f7, unfilled placeholders ['[Name]', '[period]', '[specific claim]', '[one concrete factual correction]']
+10:03:30 WARNING pipeline.export: export: dropping train row resp_b32069839e, unfilled placeholders ['[X]', '[specific fact]']
+10:03:30 WARNING pipeline.export: export: dropping train row resp_da8e79b9fa, unfilled placeholders ['[date]']
+10:03:30 WARNING pipeline.export: export: dropping eval row resp_bcd442c977, unfilled placeholders ['[number]']
+10:03:30 INFO    pipeline.export: export: 11 training rows, 4 eval rows -> /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+10:03:30 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338/report.md
+10:05:00 INFO    main: target protestant v0.2 (16 principles, 11 tradeoffs, 128 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+10:05:00 INFO    main: === stage: export ===
+10:05:00 WARNING pipeline.export: export: dropping train row resp_bd06a9d15b, unfilled placeholders ['[list]', '[days/times]']
+10:05:00 WARNING pipeline.export: export: dropping train row resp_a5d9bcc3f7, unfilled placeholders ['[Name]', '[period]', '[specific claim]', '[one concrete factual correction]']
+10:05:00 WARNING pipeline.export: export: dropping train row resp_b32069839e, unfilled placeholders ['[X]', '[specific fact]']
+10:05:00 WARNING pipeline.export: export: dropping train row resp_da8e79b9fa, unfilled placeholders ['[date]']
+10:05:00 WARNING pipeline.export: export: dropping eval row resp_bcd442c977, unfilled placeholders ['[number]']
+10:05:00 INFO    pipeline.export: export: 11 training rows, 4 eval rows -> /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+10:05:00 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338/report.md
+10:05:28 INFO    main: target protestant v0.2 (16 principles, 11 tradeoffs, 128 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+10:05:28 INFO    main: === stage: export ===
+10:05:28 WARNING pipeline.export: export: dropping train row resp_bd06a9d15b, unfilled placeholders ['[list]', '[days/times]']
+10:05:28 WARNING pipeline.export: export: dropping train row resp_a5d9bcc3f7, unfilled placeholders ['[Name]', '[period]', '[specific claim]', '[one concrete factual correction]']
+10:05:28 WARNING pipeline.export: export: dropping train row resp_b32069839e, unfilled placeholders ['[X]', '[specific fact]']
+10:05:28 WARNING pipeline.export: export: dropping train row resp_da8e79b9fa, unfilled placeholders ['[date]']
+10:05:28 WARNING pipeline.export: export: dropping eval row resp_bcd442c977, unfilled placeholders ['[number]']
+10:05:28 INFO    pipeline.export: export: 11 training rows, 4 eval rows -> /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+10:05:53 INFO    main: target protestant v0.2 (16 principles, 11 tradeoffs, 128 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+10:05:53 INFO    main: === stage: export ===
+10:05:53 WARNING pipeline.export: export: dropping train row resp_bd06a9d15b, unfilled placeholders ['[list]', '[days/times]']
+10:05:53 WARNING pipeline.export: export: dropping train row resp_a5d9bcc3f7, unfilled placeholders ['[Name]', '[period]', '[specific claim]', '[one concrete factual correction]']
+10:05:53 WARNING pipeline.export: export: dropping train row resp_b32069839e, unfilled placeholders ['[X]', '[specific fact]']
+10:05:53 WARNING pipeline.export: export: dropping train row resp_da8e79b9fa, unfilled placeholders ['[date]']
+10:05:53 WARNING pipeline.export: export: dropping eval row resp_bcd442c977, unfilled placeholders ['[number]']
+10:05:53 INFO    pipeline.export: export: 11 training rows, 4 eval rows -> /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+10:05:54 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338/report.md
+10:06:19 INFO    main: target protestant v0.2 (16 principles, 11 tradeoffs, 128 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+10:06:19 INFO    main: === stage: export ===
+10:06:19 WARNING pipeline.export: export: dropping train row resp_bd06a9d15b, unfilled placeholders ['[list]', '[days/times]']
+10:06:19 WARNING pipeline.export: export: dropping train row resp_a5d9bcc3f7, unfilled placeholders ['[Name]', '[period]', '[specific claim]', '[one concrete factual correction]']
+10:06:19 WARNING pipeline.export: export: dropping train row resp_b32069839e, unfilled placeholders ['[X]', '[specific fact]']
+10:06:19 WARNING pipeline.export: export: dropping train row resp_da8e79b9fa, unfilled placeholders ['[date]']
+10:06:19 WARNING pipeline.export: export: dropping eval row resp_bcd442c977, unfilled placeholders ['[number]']
+10:06:19 INFO    pipeline.export: export: 11 training rows, 4 eval rows -> /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+10:06:39 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338/report.md
+10:08:39 INFO    main: target protestant v0.2 (16 principles, 11 tradeoffs, 128 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+10:08:39 INFO    main: === stage: export ===
+10:08:39 WARNING pipeline.export: export: dropping train row resp_bd06a9d15b, unfilled placeholders ['[list]', '[days/times]']
+10:08:39 WARNING pipeline.export: export: dropping train row resp_a5d9bcc3f7, unfilled placeholders ['[Name]', '[period]', '[specific claim]', '[one concrete factual correction]']
+10:08:39 WARNING pipeline.export: export: dropping train row resp_b32069839e, unfilled placeholders ['[X]', '[specific fact]']
+10:08:39 WARNING pipeline.export: export: dropping train row resp_da8e79b9fa, unfilled placeholders ['[date]']
+10:08:39 WARNING pipeline.export: export: dropping eval row resp_bcd442c977, unfilled placeholders ['[number]']
+10:08:39 INFO    pipeline.export: export: 11 training rows, 4 eval rows -> /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+10:08:40 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338/report.md
+10:17:12 INFO    main: target protestant v0.2 (16 principles, 11 tradeoffs, 128 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+10:17:12 INFO    main: === stage: export ===
+10:17:12 WARNING pipeline.export: export: dropping train row resp_bd06a9d15b, unfilled placeholders ['[list]', '[days/times]']
+10:17:12 WARNING pipeline.export: export: dropping train row resp_a5d9bcc3f7, unfilled placeholders ['[Name]', '[period]', '[specific claim]', '[one concrete factual correction]']
+10:17:12 WARNING pipeline.export: export: dropping train row resp_b32069839e, unfilled placeholders ['[X]', '[specific fact]']
+10:17:12 WARNING pipeline.export: export: dropping train row resp_da8e79b9fa, unfilled placeholders ['[date]']
+10:17:12 WARNING pipeline.export: export: dropping eval row resp_bcd442c977, unfilled placeholders ['[number]']
+10:17:12 INFO    pipeline.export: export: 11 training rows, 4 eval rows -> /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+10:17:13 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338/report.md
+18:52:36 INFO    main: target protestant v0.2 (16 principles, 11 tradeoffs, 128 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+18:52:36 INFO    main: === stage: export ===
+18:52:36 WARNING pipeline.export: export: dropping train row resp_bd06a9d15b, unfilled placeholders ['[list]', '[days/times]']
+18:52:36 WARNING pipeline.export: export: dropping train row resp_a5d9bcc3f7, unfilled placeholders ['[Name]', '[period]', '[specific claim]', '[one concrete factual correction]']
+18:52:36 WARNING pipeline.export: export: dropping train row resp_b32069839e, unfilled placeholders ['[X]', '[specific fact]']
+18:52:36 WARNING pipeline.export: export: dropping train row resp_da8e79b9fa, unfilled placeholders ['[date]']
+18:52:36 WARNING pipeline.export: export: dropping eval row resp_bcd442c977, unfilled placeholders ['[number]']
+18:52:36 INFO    pipeline.export: export: 11 training rows, 4 eval rows -> /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+18:52:36 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338/report.md
+18:53:28 INFO    main: target protestant v0.2 (16 principles, 11 tradeoffs, 128 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+18:53:28 INFO    main: === stage: export ===
+18:53:29 WARNING pipeline.export: export: dropping train row resp_bd06a9d15b, unfilled placeholders ['[list]', '[days/times]']
+18:53:29 WARNING pipeline.export: export: dropping train row resp_a5d9bcc3f7, unfilled placeholders ['[Name]', '[period]', '[specific claim]', '[one concrete factual correction]']
+18:53:29 WARNING pipeline.export: export: dropping train row resp_b32069839e, unfilled placeholders ['[X]', '[specific fact]']
+18:53:29 WARNING pipeline.export: export: dropping train row resp_da8e79b9fa, unfilled placeholders ['[date]']
+18:53:29 WARNING pipeline.export: export: dropping eval row resp_bcd442c977, unfilled placeholders ['[number]']
+18:53:29 INFO    pipeline.export: export: 11 training rows, 4 eval rows -> /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+18:53:29 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338/report.md

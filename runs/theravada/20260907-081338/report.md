@@ -25,14 +25,57 @@
 
 | feature | most common values |
 |---|---|
-| relationship | front-desk worker, threatening visitor, and clinician at risk ×2, adult siblings, one seriously ill brother ×1, member of a co-op dealing with a shift manager and other members ×1, pharmacist and patient ×1 |
-| role_type | junior staff member who controls access information but has no security authority ×1, junior staff member who controls access information and has a physical barrier available ×1, family caregiver and next of kin, no formal medical authority ×1, member without formal authority but able to publish to members ×1 |
 | harm_severity | possible physical violence against the clinician ×2, death, possible legal and moral consequence, lasting family rupture ×1, small recurring financial loss affecting older members, plus reputational conflict ×1, possible serious injury or death in a traffic collision ×1 |
 | urgency | decision needed immediately while the visitor is at the desk ×2, decision pressure rising as illness advances and requests continue ×1, post could be published immediately; refunds not yet decided ×1, decision needed before the driver's next route ×1 |
 | public_or_private | public reception area, but the clinician's exact location is not publicly known ×2, private family and clinical setting, known to the care team ×1, visible to the co-op membership once posted ×1, private consultation with public risk ×1 |
-| asker_state | frightened, wants to protect the clinician without making the situation worse ×1, frightened, wants a safe answer that does not require lying ×1, exhausted, torn between respecting his brother and fearing he would help end a life ×1, angry, wants the manager exposed and forced to repay ×1 |
+| role_type | junior staff member who controls access information but has no security authority ×1, junior staff member who controls access information and has a physical barrier available ×1, family caregiver and next of kin, no formal medical authority ×1, member without formal authority but able to publish to members ×1 |
+| relationship | front-desk worker, threatening visitor, and clinician at risk ×2, adult siblings, one seriously ill brother ×1, member of a co-op dealing with a shift manager and other members ×1, pharmacist and patient ×1 |
 
 Recorded on 8 of 8 families. A feature with one dominant value means the coverage plan is not varying it.
+
+### Coverage
+
+**Tradeoffs exercised**
+
+| tradeoff | families | share |
+|---|---|---|
+| truth_vs_protecting_someone_from_violence (unresolved) | 3 | 38% |
+| compassion_vs_ending_a_life (unresolved) | 1 | 12% |
+| justice_vs_anger | 1 | 12% |
+| confidentiality_vs_preventing_harm (unresolved) | 1 | 12% |
+| loyalty_vs_exposing_wrongdoing | 1 | 12% |
+| short_term_pain_vs_long_term_benefit | 1 | 12% |
+
+6 of 13 spec tradeoffs reached; unresolved tradeoffs never exercised: `livelihood_vs_indirect_complicity`, `non_deception_vs_adversarial_safety`, `protection_vs_defensive_force`, `structural_reform_vs_coercive_action`
+
+**Divergence hypotheses instantiated**
+
+| hypothesis | families | share |
+|---|---|---|
+| (none assigned) | 3 | 100% |
+
+Hypotheses with no family: `commitment_kept_identity_dropped`, `conditioning_without_desert`, `examine_the_state_behind_the_request`, `firmness_without_the_punitive_extras`, `honest_non_resolution_on_contested_cases`, `judged_as_a_pattern_not_an_instance`, `near_enemy_distinctions`, `repair_sequence_not_apology_script`, `structural_cause_named_alongside_individual_choice`, `sycophancy_named_as_disloyalty`, `timing_and_benefit_over_immediate_disclosure`, `useless_truth_withheld`
+
+**Asker stance**
+
+| stance | families | share | planned |
+|---|---|---|---|
+| (not recorded) | 8 | 100% | - |
+| angry_wants_to_win | 0 | 0% | 15% |
+| conflicted | 0 | 0% | 40% |
+| decided_wants_permission | 0 | 0% | 20% |
+| defensive | 0 | 0% | 15% |
+| transactional | 0 | 0% | 10% |
+
+**Evaluation composition**
+
+| case type | families planned | rows exported |
+|---|---|---|
+| divergence | 2 | 3 |
+| ordinary | 2 | 3 |
+
+Eval rows by prompt variant: base ×4, fiction ×1, setting_shift ×1.
+A mix that shifts between the two columns means drops are being applied after the split, so the eval set no longer measures what the plan asked for.
 
 ## Accept / reject
 
@@ -54,6 +97,8 @@ Reasons recorded on dropped responses (a response can have several):
 
 Mean scores: fidelity 4.78, judgment_not_terminology 5.00, scenario_quality 5.00, cue_leakage 0.00, confident_on_unresolved 0.00 (n=18)
 
+Reviews awarding a 5 while raising a defect flag: **0** of 18. The rubric was applied consistently.
+
 ## Cue-term hits
 
 None. No forbidden term appeared in any prompt or response.
@@ -66,6 +111,10 @@ Explicit-mode records (cue check deliberately skipped): **0**.
 ## Near-duplicates
 
 None above the threshold.
+
+### Closest pairs
+
+This run kept no `similarity_pairs.jsonl`, so the pair distribution the calibrated threshold is drawn from was not recorded. The leakage section below still shows the closest training row for each of the 6 scored eval responses; it covers no train-to-train or eval-to-eval pair.
 
 ## Leakage between eval and train
 
@@ -91,6 +140,46 @@ A difference in the reasons alone counts as divergence, not only a different act
 | action (incl. both) | 6 | 100% |
 | reasons only | 0 | 0% |
 | both action and reasons | 4 | 67% |
+
+### Three-way comparison, per family
+
+3 families with a judged prompt.
+
+| comparison | families differing | share |
+|---|---|---|
+| candidate vs 7B base | 3 | 100% |
+| candidate vs strong generic | not recorded | - |
+| strong generic vs 7B base | not recorded | - |
+
+- attributed to a **value** the target holds: **0** (0%)
+- attributed to something the prompt stipulated: **0** (0%)
+
+The value rate alone is the number worth quoting: a difference the prompt stipulated, or one that is only fluency, is not the target instantiated.
+
+## House style shared across targets
+
+
+Share of each target's answers containing the phrase, over 5 runs: `catholic` (8 responses), `confucian` (16 responses), `protestant` (20 responses), `theravada` (18 responses), `toy` (11 responses)
+
+| four-gram | targets ≥30% | catholic | confucian | protestant | theravada | toy |
+|---|---|---|---|---|---|---|
+| the hard part is | 2 | 62% | 6% | 20% | 22% | 36% |
+| question is not whether | 1 | 38% | 0% | 25% | 11% | 27% |
+| watch for two signs | 1 | 12% | 0% | 5% | 11% | 36% |
+| can go either way | 1 | 0% | 0% | 0% | 28% | 36% |
+| judgment can go either | 1 | 0% | 0% | 0% | 28% | 36% |
+| reasonable judgment can go | 1 | 0% | 0% | 0% | 28% | 36% |
+| that would change the | 1 | 0% | 38% | 0% | 0% | 0% |
+| would change the answer | 1 | 0% | 31% | 0% | 0% | 0% |
+| the asker is a | 1 | 0% | 31% | 0% | 0% | 0% |
+| it does not license | 1 | 0% | 31% | 0% | 0% | 0% |
+
+A phrase in the right-hand columns for every target is house style, not the target's judgment: the same sentence shape survived four different specifications.
+
+Count of habitual four-grams per target, and how much of that habit is shared:
+
+- at ≥30%: catholic 2, confucian 4, protestant 0, theravada 0, toy 5; **1** shared by two or more targets; mean pairwise overlap **0.02**
+- at ≥15%: catholic 50, confucian 21, protestant 15, theravada 28, toy 105; **12** shared by two or more targets; mean pairwise overlap **0.03**
 
 ## Cost and usage
 

@@ -1,11 +1,15 @@
 {
   "target_id": "catholic",
   "target_name": "Catholic moral and practical thought",
-  "spec_version": "0.1",
+  "spec_version": "0.2",
+  "spec_hash": "bbaa186047b9",
   "run_id": "20260907-075936",
-  "exported_at": "2026-09-07T08:13:40+00:00",
+  "exported_at": "2026-09-07T09:57:51+00:00",
+  "git_commit": "5b046045dd566a820d9d27459beae442c70e3009-dirty",
   "config_file": "/home/ubuntu/part1_data_pipeline/configs/pilot.yaml",
-  "config_hash": "084c54295cf8",
+  "config_hash": "2dbd48a457aa",
+  "config_copy": "config.resolved.yaml",
+  "spec_copy": "spec.yaml",
   "models": {
     "generator": "accounts/fireworks/models/qwen3p8-max",
     "reviewer": "accounts/fireworks/models/deepseek-v4-pro-0813",
@@ -14,22 +18,28 @@
     "base": "qwen2.5-7b-instruct"
   },
   "counts": {
+    "n_families_configured": 8,
+    "n_families_effective": 3,
     "families": 3,
     "families_train": 2,
     "families_eval": 1,
     "families_reserved": 0,
+    "layers_generated": [],
     "prompts": 8,
     "responses": 8,
     "kept": 7,
     "dropped": 1,
     "sft_train_rows": 6,
     "eval_rows": 1,
+    "eval_rows_kept_despite_score_cut": 0,
+    "rows_dropped_for_placeholders": 0,
     "explicit_mode_rows": 0,
     "counterfactual_groups": 0,
+    "counterfactual_groups_incomplete": 0,
     "by_bucket": {
       "eval:civic_and_institutional": 1,
       "eval_case:divergence": 1,
-      "eval_case:reframing": 1,
+      "eval_variant:setting_shift": 1,
       "train:money_and_consumption": 3,
       "train:technology_and_automation": 3,
       "train_case:ordinary": 6
@@ -37,7 +47,7 @@
   },
   "license_constraints": [
     {
-      "license": "not recorded",
+      "license": "Mixed; governed by its most restrictive component. 3,425 of the 4,392 quoted words are short cited excerpts from the Catechism and Vatican magisterial documents, \"© Libreria Editrice Vaticana\", used at quotation scale with no reuse grant. The remaining 967 words (Douay-Rheims, Summa, Augustine) are public domain in the United States. Treat the whole file as not-for-redistribution: see `redistribution_note` and SOURCES.md.",
       "use": "grounding",
       "sources": "key_passages"
     },
@@ -52,7 +62,7 @@
       "sources": "augustine"
     }
   ],
-  "redistribution_note": "",
+  "redistribution_note": "Of the 4,392 words quoted in `references/key_passages.md`, 3,425 come from the Catechism and from Vatican magisterial documents over which the Libreria Editrice Vaticana asserts worldwide rights; the remaining 967 are public domain (Douay-Rheims, Summa, Augustine). Every one of those 3,425 words is a short cited excerpt, none longer than 85 words, quoted for grounding and never as a continuous run of a work. What follows for this pipeline: key_passages.md may be read into generation and review prompts and held in run artifacts internally, but neither that file nor any artifact that reproduces its Vatican excerpts should be published or redistributed outside the project without permission, and no Vatican text may be added to a training corpus on the strength of this spec. Generated responses are new text and are not covered by this note, provided they do not quote the excerpts - which `cue_policy` and the passage-id leak check already forbid. A decision to publish run artifacts needs the rights review recorded in `SOURCES.md` section 4.",
   "cost": {
     "usd": 1.3980456800000005,
     "display": "$1.3980",

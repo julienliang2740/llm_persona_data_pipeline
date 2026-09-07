@@ -1,37 +1,51 @@
 {
   "target_id": "catholic",
   "target_name": "Catholic moral and practical thought",
-  "spec_version": "0.1",
+  "spec_version": "0.2",
+  "spec_hash": "bbaa186047b9",
   "run_id": "20260907-075012",
-  "exported_at": "2026-09-07T08:51:16+00:00",
+  "exported_at": "2026-09-07T18:53:27+00:00",
+  "git_commit": "ae246f6c8ef17d1e09954c89efa80071ed8aaee0-dirty",
   "config_file": "/home/ubuntu/part1_data_pipeline/configs/pilot.yaml",
-  "config_hash": "084c54295cf8",
+  "config_hash": "a3aa804eb295",
+  "config_copy": "config.resolved.yaml",
+  "spec_copy": "spec.yaml",
   "models": {
     "generator": "accounts/fireworks/models/qwen3p8-max",
     "reviewer": "accounts/fireworks/models/deepseek-v4-pro-0813",
+    "reviewer_second": "accounts/fireworks/models/kimi-k3",
     "judge": "accounts/fireworks/models/deepseek-v4-pro-0813",
     "embeddings": "accounts/fireworks/models/qwen3-embedding-8b",
-    "base": "qwen2.5-7b-instruct"
+    "base": "qwen2.5-7b-instruct",
+    "strong_generic": "accounts/fireworks/models/qwen3p8-max"
   },
   "counts": {
+    "n_families_configured": 8,
+    "n_families_effective": 8,
     "families": 8,
     "families_train": 5,
     "families_eval": 3,
     "families_reserved": 0,
+    "layers_generated": [],
     "prompts": 23,
     "responses": 23,
     "kept": 22,
     "dropped": 1,
     "sft_train_rows": 14,
     "eval_rows": 8,
+    "eval_rows_kept_despite_score_cut": 0,
+    "rows_dropped_for_placeholders": 0,
     "explicit_mode_rows": 0,
     "counterfactual_groups": 0,
+    "counterfactual_groups_incomplete": 0,
     "by_bucket": {
       "eval:civic_and_institutional": 4,
       "eval:work": 4,
       "eval_case:divergence": 4,
       "eval_case:ordinary": 4,
-      "eval_case:reframing": 5,
+      "eval_variant:base": 3,
+      "eval_variant:fiction": 2,
+      "eval_variant:setting_shift": 3,
       "train:community_and_strangers": 3,
       "train:family_and_close_relationships": 2,
       "train:health_and_care": 3,
@@ -43,7 +57,7 @@
   },
   "license_constraints": [
     {
-      "license": "not recorded",
+      "license": "Mixed; governed by its most restrictive component. 3,425 of the 4,392 quoted words are short cited excerpts from the Catechism and Vatican magisterial documents, \"© Libreria Editrice Vaticana\", used at quotation scale with no reuse grant. The remaining 967 words (Douay-Rheims, Summa, Augustine) are public domain in the United States. Treat the whole file as not-for-redistribution: see `redistribution_note` and SOURCES.md.",
       "use": "grounding",
       "sources": "key_passages"
     },
@@ -58,12 +72,12 @@
       "sources": "augustine"
     }
   ],
-  "redistribution_note": "",
+  "redistribution_note": "Of the 4,392 words quoted in `references/key_passages.md`, 3,425 come from the Catechism and from Vatican magisterial documents over which the Libreria Editrice Vaticana asserts worldwide rights; the remaining 967 are public domain (Douay-Rheims, Summa, Augustine). Every one of those 3,425 words is a short cited excerpt, none longer than 85 words, quoted for grounding and never as a continuous run of a work. What follows for this pipeline: key_passages.md may be read into generation and review prompts and held in run artifacts internally, but neither that file nor any artifact that reproduces its Vatican excerpts should be published or redistributed outside the project without permission, and no Vatican text may be added to a training corpus on the strength of this spec. Generated responses are new text and are not covered by this note, provided they do not quote the excerpts - which `cue_policy` and the passage-id leak check already forbid. A decision to publish run artifacts needs the rights review recorded in `SOURCES.md` section 4.",
   "cost": {
-    "usd": 3.037834640000001,
-    "display": "$3.0378",
-    "calls": 100,
-    "prompt_tokens": 679533,
+    "usd": 3.0392784400000012,
+    "display": "$3.0393",
+    "calls": 102,
+    "prompt_tokens": 693971,
     "completion_tokens": 361713,
     "reasoning_tokens": 328724
   }

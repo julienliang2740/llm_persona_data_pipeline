@@ -25,14 +25,56 @@
 
 | feature | most common values |
 |---|---|
-| relationship | long-standing mentor and driver, now applicant ×1, trainer and apprentice ×1, siblings; asker is executor, brother is former agent under a power of attorney and a beneficiary ×1, line manager and direct report ×1 |
-| role_type | holds formal authority over an initial hiring ranking ×1, holds assessment authority ×1, holds fiduciary authority over estate records and distribution ×1, holds formal authority over performance review and scheduling ×1 |
 | harm_severity | moderate: an unfair appointment, loss of opportunity for another applicant, and damage to trust in the process ×1, risk of physical injury to coworkers if unsafe practice is certified ×1, moderate financial loss and breach of trust affecting another sibling's needed reimbursement ×1, customer trust damaged and employee may lose job or pay; no physical harm ×1 |
 | urgency | written ranking due tomorrow ×1, sign-off needed before the certification cohort closes ×1, decision needed before the estate accounting is certified, likely within weeks ×1, decision expected within a week ×1 |
 | public_or_private | private request, but the decision affects a committee and other candidates ×1, the observed lapse was private, but the certification will affect the whole shift ×1, private family dispute, but tied to a formal legal accounting owed to beneficiaries ×1, visible to customers, HR, and other team members ×1 |
-| asker_state | conflicted, wants to be fair but fears seeming disloyal and ungrateful ×1, conflicted and guilty, wants to keep a promise without wrecking the apprentice's chances ×1, torn between protecting the brother and not betraying the sister or the duty of the role ×1, troubled, wants to be fair, but under pressure to show decisive action ×1 |
+| role_type | holds formal authority over an initial hiring ranking ×1, holds assessment authority ×1, holds fiduciary authority over estate records and distribution ×1, holds formal authority over performance review and scheduling ×1 |
+| relationship | long-standing mentor and driver, now applicant ×1, trainer and apprentice ×1, siblings; asker is executor, brother is former agent under a power of attorney and a beneficiary ×1, line manager and direct report ×1 |
 
 Recorded on 4 of 8 families. A feature with one dominant value means the coverage plan is not varying it.
+
+### Coverage
+
+**Tradeoffs exercised**
+
+| tradeoff | families | share |
+|---|---|---|
+| individual_vs_structural_responsibility | 2 | 25% |
+| partiality_vs_impartial_procedure | 2 | 25% |
+| respect_vs_correction | 1 | 12% |
+| harmony_vs_truthfulness | 1 | 12% |
+| trustworthiness_vs_rightness | 1 | 12% |
+| family_vs_public_justice | 1 | 12% |
+
+6 of 10 spec tradeoffs reached; unresolved tradeoffs never exercised: `immediate_feeling_vs_reflective_correction`, `scope_of_kinship_claims_on_scarce_resources`
+
+**Divergence hypotheses instantiated**
+
+| hypothesis | families | share |
+|---|---|---|
+| (none assigned) | 3 | 100% |
+
+Hypotheses with no family: `conditions_before_blame`, `correction_over_accommodation`, `graded_concern_over_impartiality`, `harmony_without_sameness_over_conflict_smoothing`, `manner_as_substance`, `override_of_form_under_serious_harm`, `refusal_to_read_reputation_as_evidence`, `remonstrance_over_compliance_or_escalation`, `rightness_governs_commitment`
+
+**Asker stance**
+
+| stance | families | share | planned |
+|---|---|---|---|
+| (not recorded) | 8 | 100% | - |
+| angry_wants_to_win | 0 | 0% | 15% |
+| conflicted | 0 | 0% | 40% |
+| decided_wants_permission | 0 | 0% | 20% |
+| defensive | 0 | 0% | 15% |
+| transactional | 0 | 0% | 10% |
+
+**Evaluation composition**
+
+| case type | families planned | rows exported |
+|---|---|---|
+| ordinary | 3 | 7 |
+
+Eval rows by prompt variant: base ×3, fiction ×2, setting_shift ×2.
+A mix that shifts between the two columns means drops are being applied after the split, so the eval set no longer measures what the plan asked for.
 
 ## Accept / reject
 
@@ -54,6 +96,8 @@ Reasons recorded on dropped responses (a response can have several):
 
 Mean scores: fidelity 4.82, judgment_not_terminology 5.00, scenario_quality 4.95, cue_leakage 0.00, confident_on_unresolved 0.00 (n=22)
 
+Reviews awarding a 5 while raising a defect flag: **0** of 22. The rubric was applied consistently.
+
 ## Cue-term hits
 
 None. No forbidden term appeared in any prompt or response.
@@ -66,6 +110,10 @@ Explicit-mode records (cue check deliberately skipped): **0**.
 ## Near-duplicates
 
 None above the threshold.
+
+### Closest pairs
+
+This run kept no `similarity_pairs.jsonl`, so the pair distribution the calibrated threshold is drawn from was not recorded. The leakage section below still shows the closest training row for each of the 7 scored eval responses; it covers no train-to-train or eval-to-eval pair.
 
 ## Leakage between eval and train
 
@@ -92,16 +140,57 @@ A difference in the reasons alone counts as divergence, not only a different act
 | reasons only | 0 | 0% |
 | both action and reasons | 4 | 44% |
 
+### Three-way comparison, per family
+
+3 families with a judged prompt.
+
+| comparison | families differing | share |
+|---|---|---|
+| candidate vs 7B base | 3 | 100% |
+| candidate vs strong generic | not recorded | - |
+| strong generic vs 7B base | not recorded | - |
+
+- attributed to a **value** the target holds: **0** (0%)
+- attributed to something the prompt stipulated: **0** (0%)
+
+The value rate alone is the number worth quoting: a difference the prompt stipulated, or one that is only fluency, is not the target instantiated.
+
+## House style shared across targets
+
+
+Share of each target's answers containing the phrase, over 5 runs: `catholic` (8 responses), `confucian` (22 responses), `protestant` (20 responses), `theravada` (18 responses), `toy` (11 responses)
+
+| four-gram | targets ≥30% | catholic | confucian | protestant | theravada | toy |
+|---|---|---|---|---|---|---|
+| the hard part is | 3 | 62% | 36% | 20% | 22% | 36% |
+| question is not whether | 1 | 38% | 14% | 25% | 11% | 27% |
+| watch for two signs | 1 | 12% | 5% | 5% | 11% | 36% |
+| can go either way | 1 | 0% | 0% | 0% | 28% | 36% |
+| judgment can go either | 1 | 0% | 0% | 0% | 28% | 36% |
+| reasonable judgment can go | 1 | 0% | 0% | 0% | 28% | 36% |
+| say something like 'i | 1 | 0% | 36% | 10% | 6% | 9% |
+| hard part is refusing | 1 | 0% | 32% | 0% | 0% | 0% |
+
+A phrase in the right-hand columns for every target is house style, not the target's judgment: the same sentence shape survived four different specifications.
+
+Count of habitual four-grams per target, and how much of that habit is shared:
+
+- at ≥30%: catholic 2, confucian 3, protestant 0, theravada 0, toy 5; **1** shared by two or more targets; mean pairwise overlap **0.06**
+- at ≥15%: catholic 50, confucian 5, protestant 15, theravada 28, toy 105; **11** shared by two or more targets; mean pairwise overlap **0.03**
+
 ## Cost and usage
 
-- model calls: **102**
-- prompt tokens: 645,566
-- completion tokens: 397,755 (of which reasoning: 363,755)
-- cost: **$3.0502**
+- model calls: **130**
+- prompt tokens: 777,554
+- completion tokens: 453,939 (of which reasoning: 408,243)
+- cost: **$3.4148**
 
 | stage | calls | prompt tokens | completion tokens |
 |---|---|---|---|
 | baseline | 16 | 2,512 | 7,579 |
+| evaluate.answer.base_7b | 14 | 2,860 | 7,168 |
+| evaluate.judge.base_7b | 7 | 66,033 | 24,403 |
+| evaluate.judge.smoke_0p5b_adapter | 7 | 63,095 | 24,613 |
 | generate.families | 11 | 170,753 | 53,370 |
 | generate.prompts | 8 | 6,282 | 9,082 |
 | generate.reframing | 4 | 3,189 | 9,552 |

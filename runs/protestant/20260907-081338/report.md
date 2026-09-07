@@ -7,7 +7,7 @@
 | generate | 8 families, 20 prompts, 20 responses |
 | baseline | 11 baseline answers |
 | validate | 20 reviews, 20 decisions, 9 divergence verdicts |
-| export | 15 training rows, 3 eval rows |
+| export | 11 training rows, 4 eval rows |
 
 ## Families by split and domain
 
@@ -25,14 +25,60 @@
 
 | feature | most common values |
 |---|---|
-| relationship | driver and route supervisor at the same depot ×2, adult sisters, one harmed the family finances while helping with a parent ×1, long-standing manager and subordinate; the manager is also a personal benefactor ×1, co-op members and neighbours ×1 |
-| role_type | supervisor with authority to flag a vehicle for inspection but not direct control over repairs ×2, family caregiver and informal account helper asking for restored access; the asker is a sibling with shared responsibility ×1, bookkeeper with access to records but no formal authority to approve transfers ×1, member with a valid booking, no formal authority ×1 |
 | harm_severity | possible crash or serious injury if the van remains on the road ×1, no current harm; past exposure has been removed ×1, serious financial loss and breach of trust around a dependent parent ×1, residents could face unsafe heating, a large unexpected bill, or loss of repair funds ×1 |
 | urgency | decision needed before routes leave tomorrow morning ×1, no safety deadline; can be handled in normal working hours ×1, decision needed before the next round of estate and care tasks ×1, needs resolution before the next board meeting and winter repairs ×1 |
 | public_or_private | private conversation, but the risk extends to public roads ×1, private conversation with no current public exposure ×1, private family matter with practical access to money and care ×1, hidden from the board and residents; known privately to the manager and me ×1 |
-| asker_state | torn between keeping the driver's trust and preventing harm ×1, wants to do the right thing without causing needless damage to the driver ×1, wants to let go of anger but fears being exploited again ×1, grateful, anxious about causing someone to lose their job, and looking for a way to avoid choosing ×1 |
+| role_type | supervisor with authority to flag a vehicle for inspection but not direct control over repairs ×2, family caregiver and informal account helper asking for restored access; the asker is a sibling with shared responsibility ×1, bookkeeper with access to records but no formal authority to approve transfers ×1, member with a valid booking, no formal authority ×1 |
+| relationship | driver and route supervisor at the same depot ×2, adult sisters, one harmed the family finances while helping with a parent ×1, long-standing manager and subordinate; the manager is also a personal benefactor ×1, co-op members and neighbours ×1 |
 
 Recorded on 8 of 8 families. A feature with one dominant value means the coverage plan is not varying it.
+
+### Coverage
+
+**Tradeoffs exercised**
+
+| tradeoff | families | share |
+|---|---|---|
+| truth_vs_confidence_kept | 2 | 25% |
+| forgiveness_vs_accountability | 1 | 12% |
+| loyalty_vs_whistleblowing | 1 | 12% |
+| liberty_vs_neighbour_impact | 1 | 12% |
+| work_vs_rest_and_dependants | 1 | 12% |
+| generosity_vs_provision_for_dependants | 1 | 12% |
+| mercy_vs_protecting_the_community | 1 | 12% |
+
+5 of 11 spec tradeoffs reached; unresolved tradeoffs never exercised: `conviction_vs_cooperation`, `individual_conscience_vs_communal_judgment`, `rule_vs_prudential_exception`, `use_of_force_and_defence`
+
+Tradeoff ids on families that the specification does not define: `loyalty_vs_whistleblowing`, `truth_vs_confidence_kept`
+
+**Divergence hypotheses instantiated**
+
+| hypothesis | families | share |
+|---|---|---|
+| (none assigned) | 4 | 100% |
+
+Hypotheses with no family: `absent_parties_have_standing`, `conviction_with_fallibility`, `forgiveness_is_not_trust`, `grace_shaped_humility_vs_moralising`, `repentance_and_restitution_not_reputation_management`, `right_is_not_the_end_of_the_question`, `silence_is_a_decision`, `stewardship_not_accumulation`, `vocation_not_career_maximisation`
+
+**Asker stance**
+
+| stance | families | share | planned |
+|---|---|---|---|
+| (not recorded) | 8 | 100% | - |
+| angry_wants_to_win | 0 | 0% | 15% |
+| conflicted | 0 | 0% | 40% |
+| decided_wants_permission | 0 | 0% | 20% |
+| defensive | 0 | 0% | 15% |
+| transactional | 0 | 0% | 10% |
+
+**Evaluation composition**
+
+| case type | families planned | rows exported |
+|---|---|---|
+| divergence | 2 | 2 |
+| ordinary | 1 | 2 |
+
+Eval rows by prompt variant: base ×2, fiction ×1, setting_shift ×1.
+A mix that shifts between the two columns means drops are being applied after the split, so the eval set no longer measures what the plan asked for.
 
 ## Accept / reject
 
@@ -55,6 +101,8 @@ Reasons recorded on dropped responses (a response can have several):
 
 Mean scores: fidelity 4.65, judgment_not_terminology 4.90, scenario_quality 4.80, cue_leakage 0.00, confident_on_unresolved 0.00 (n=20)
 
+Reviews awarding a 5 while raising a defect flag: **0** of 20. The rubric was applied consistently.
+
 ## Cue-term hits
 
 None. No forbidden term appeared in any prompt or response.
@@ -67,6 +115,10 @@ Explicit-mode records (cue check deliberately skipped): **0**.
 ## Near-duplicates
 
 None above the threshold.
+
+### Closest pairs
+
+This run kept no `similarity_pairs.jsonl`, so the pair distribution the calibrated threshold is drawn from was not recorded. The leakage section below still shows the closest training row for each of the 5 scored eval responses; it covers no train-to-train or eval-to-eval pair.
 
 ## Leakage between eval and train
 
@@ -92,6 +144,46 @@ A difference in the reasons alone counts as divergence, not only a different act
 | action (incl. both) | 9 | 100% |
 | reasons only | 0 | 0% |
 | both action and reasons | 5 | 56% |
+
+### Three-way comparison, per family
+
+4 families with a judged prompt.
+
+| comparison | families differing | share |
+|---|---|---|
+| candidate vs 7B base | 4 | 100% |
+| candidate vs strong generic | not recorded | - |
+| strong generic vs 7B base | not recorded | - |
+
+- attributed to a **value** the target holds: **0** (0%)
+- attributed to something the prompt stipulated: **0** (0%)
+
+The value rate alone is the number worth quoting: a difference the prompt stipulated, or one that is only fluency, is not the target instantiated.
+
+## House style shared across targets
+
+
+Share of each target's answers containing the phrase, over 5 runs: `catholic` (8 responses), `confucian` (16 responses), `protestant` (20 responses), `theravada` (18 responses), `toy` (11 responses)
+
+| four-gram | targets ≥30% | catholic | confucian | protestant | theravada | toy |
+|---|---|---|---|---|---|---|
+| the hard part is | 2 | 62% | 6% | 20% | 22% | 36% |
+| question is not whether | 1 | 38% | 0% | 25% | 11% | 27% |
+| watch for two signs | 1 | 12% | 0% | 5% | 11% | 36% |
+| reasonable judgment can go | 1 | 0% | 0% | 0% | 28% | 36% |
+| can go either way | 1 | 0% | 0% | 0% | 28% | 36% |
+| judgment can go either | 1 | 0% | 0% | 0% | 28% | 36% |
+| that would change the | 1 | 0% | 38% | 0% | 0% | 0% |
+| it does not license | 1 | 0% | 31% | 0% | 0% | 0% |
+| would change the answer | 1 | 0% | 31% | 0% | 0% | 0% |
+| the asker is a | 1 | 0% | 31% | 0% | 0% | 0% |
+
+A phrase in the right-hand columns for every target is house style, not the target's judgment: the same sentence shape survived four different specifications.
+
+Count of habitual four-grams per target, and how much of that habit is shared:
+
+- at ≥30%: catholic 2, confucian 4, protestant 0, theravada 0, toy 5; **1** shared by two or more targets; mean pairwise overlap **0.02**
+- at ≥15%: catholic 50, confucian 21, protestant 15, theravada 28, toy 105; **12** shared by two or more targets; mean pairwise overlap **0.03**
 
 ## Cost and usage
 
