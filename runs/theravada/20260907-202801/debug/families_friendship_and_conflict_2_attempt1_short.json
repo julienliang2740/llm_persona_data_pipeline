@@ -1,0 +1,8 @@
+{
+  "wanted": 1,
+  "got": 0,
+  "payload": {
+    "error": "error processing request event: 'NoneType' object is not callable"
+  },
+  "raw_text": "{\n\"error\": \"error processing request event: 'NoneType' object is not callable\"\n}"
+}

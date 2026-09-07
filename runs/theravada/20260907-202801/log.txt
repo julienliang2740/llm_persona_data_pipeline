@@ -1,0 +1,18 @@
+20:28:01 INFO    main: target theravada v0.1 (16 principles, 13 tradeoffs, 49 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/theravada/20260907-202801
+20:28:01 INFO    main: === stage: generate ===
+20:29:44 WARNING pipeline.generate: families_friendship_and_conflict_2 returned 0 of 1 items; retrying once with an explicit shape reminder (payload saved to /home/ubuntu/part1_data_pipeline/runs/theravada/20260907-202801/debug)
+20:30:43 INFO    pipeline.generate: families: 8 of 8 planned (8 new, 0 reserved by the avoided-topic screen)
+20:32:11 INFO    pipeline.generate: prompts: 16 total (16 new)
+20:37:01 INFO    pipeline.generate: responses: 16 total (16 new, 0 failed)
+20:37:01 INFO    main: === stage: baseline ===
+20:40:57 INFO    pipeline.baseline: baseline: 8 answers total (8 new, 0 failed, 0 truncated)
+20:41:15 INFO    pipeline.baseline: strong generic: 8 answers total (8 new, 0 failed, 0 truncated)
+20:41:15 INFO    main: === stage: validate ===
+20:43:19 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+20:46:04 INFO    pipeline.review: revise: rewriting 3 responses the reviewer flagged
+21:05:03 INFO    pipeline.validate: similarity (embeddings): 120 pairs, median 0.446, robust sd 0.096, threshold median+3.0sd = 0.735
+21:05:03 INFO    pipeline.validate: validate: {'responses': 16, 'kept': 14, 'dropped': 2, 'similarity_method': 'embeddings', 'similarity_calibration': {'statistic': 'median + 3 x robust_sd', 'centre': 0.4462, 'spread': 0.0963, 'sigmas': 3.0}, 'leakage_calibration': {'statistic': 'median + 3 x robust_sd', 'centre': 0.4343, 'spread': 0.0911, 'sigmas': 3.0}, 'duplicate_threshold': 0.7353, 'leakage_threshold': 0.7077, 'duplicate_clusters': 1, 'duplicates': 1, 'cue_hits': 0, 'eval_items_checked_for_leakage': 4, 'max_leakage_seen': 0.6169, 'divergence_confirmed': 8, 'divergence_not_confirmed': 0, 'divergence_unverified': 0, 'divergence_action': 6, 'divergence_reasons': 8, 'divergence_pairwise': {'candidate_vs_base': 8, 'candidate_vs_strong_generic': 8, 'strong_generic_vs_base': 8, 'judged': 8}, 'divergence_families_intended': 4, 'divergence_families_value': 4, 'divergence_value_rate_by_family': 1.0, 'divergence_closer_to': {'candidate': 8}, 'divergence_by_source': {'value': 8}, 'soft_cue_flags': 7, 'explicit_mode_records': 0, 'quoted_source_flags': 0, 'archaic_register_flags': 0, 'reviewer_flag_score_conflicts': {'reviews_with_flag_and_five': 4, 'reviews_total': 16, 'flag_five_pairs': {'prompt_stipulates_move+fidelity=5': 3, 'prompt_stipulates_move+judgment_not_terminology=5': 3, 'prompt_stipulates_move+scenario_quality=5': 2, 'formulaic_shape+fidelity=5': 1, 'formulaic_shape+scenario_quality=5': 1}}}
+21:05:03 INFO    main: === stage: export ===
+21:05:03 INFO    pipeline.export: export: 11 training rows, 3 eval rows -> /home/ubuntu/part1_data_pipeline/runs/theravada/20260907-202801
+21:05:03 INFO    main: === stage: report ===
+21:05:04 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/theravada/20260907-202801/report.md
