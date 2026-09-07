@@ -4,10 +4,10 @@
   "spec_version": "0.1",
   "spec_hash": "c6e1e897bc37",
   "run_id": "20260907-184558",
-  "exported_at": "2026-09-07T19:14:47+00:00",
-  "git_commit": "6b9fda1f0598111268b1503c8cebe84bca10ebfc-dirty",
+  "exported_at": "2026-09-07T21:30:17+00:00",
+  "git_commit": "f98367f64263d2dd85ff9906ef104c95263aa9d0-dirty",
   "config_file": "/home/ubuntu/part1_data_pipeline/configs/pilot.yaml",
-  "config_hash": "a3aa804eb295",
+  "config_hash": "0bcb862d3fb2",
   "config_copy": "config.resolved.yaml",
   "spec_copy": "spec.yaml",
   "models": {
@@ -55,8 +55,8 @@
       "train:family": 4,
       "train:interpersonal_conflict": 2,
       "train:work": 2,
-      "train_case:divergence": 5,
-      "train_case:ordinary": 7
+      "train_case:divergence": 6,
+      "train_case:ordinary": 6
     }
   },
   "license_constraints": [
@@ -73,11 +73,11 @@
   ],
   "redistribution_note": "Every grounding source for this target is in the public domain (James Legge's Analects and Mengzi translations, and the Chinese originals), so the contents of references/ may be redistributed and included in generated artifacts without restriction. No copyrighted modern translation is quoted anywhere; those are listed reference_only in SOURCES.md.",
   "cost": {
-    "usd": 4.4871209599999995,
-    "display": "$4.4871",
-    "calls": 96,
-    "prompt_tokens": 645878,
-    "completion_tokens": 452782,
-    "reasoning_tokens": 407774
+    "usd": 4.780065640000001,
+    "display": "$4.7801",
+    "calls": 115,
+    "prompt_tokens": 672152,
+    "completion_tokens": 512210,
+    "reasoning_tokens": 460075
   }
 }

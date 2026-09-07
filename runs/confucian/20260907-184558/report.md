@@ -60,6 +60,7 @@ Recorded on 8 of 8 families. A feature with one dominant value means the coverag
 | harmony_without_sameness_over_conflict_smoothing | 1 | 25% |
 
 Hypotheses with no family: `conditions_before_blame`, `manner_as_substance`, `override_of_form_under_serious_harm`, `refusal_to_read_reputation_as_evidence`, `rightness_governs_commitment`
+Coverage floor is 1 family per hypothesis per 100 families, so 1 at this size (8 families). 5 of 9 fall short: `conditions_before_blame`, `manner_as_substance`, `override_of_form_under_serious_harm`, `refusal_to_read_reputation_as_evidence`, `rightness_governs_commitment`
 
 **Asker stance**
 
@@ -99,6 +100,24 @@ Reasons recorded on dropped responses (a response can have several):
 | accept | 16 |
 
 Mean scores: fidelity 5.00, judgment_not_terminology 5.00, scenario_quality 4.88, cue_leakage 0.00, confident_on_unresolved 0.00 (n=16)
+
+Reviews awarding a 5 while raising a defect flag: **1** of 16. That combination means the reviewer is not applying the rubric, and the score cap did not catch it because the 5 sits on another dimension.
+
+Conflicting pairs: formulaic_shape+fidelity=5 ×1, formulaic_shape+judgment_not_terminology=5 ×1.
+
+Prompts that stipulate the target's move: **3** of 16; relabelled ordinary. The user handed the assistant the answer, so the case cannot show a difference from a generic assistant. This is a prompt-quality figure, not a mark against the response.
+
+## Second reviewer
+
+`accounts/fireworks/models/deepseek-v4-pro-0813` (primary) against `accounts/fireworks/models/kimi-k3` (second), over the 16 responses both scored.
+
+| score | primary mean | second mean | exact match | within 1 |
+|---|---|---|---|---|
+| fidelity | 5.00 | 4.50 | 8/16 | 16/16 |
+| judgment_not_terminology | 5.00 | 4.19 | 3/16 | 16/16 |
+| scenario_quality | 4.88 | 4.38 | 8/16 | 16/16 |
+
+Verdicts agree on **16/16**. Second reviewer's verdicts: accept ×16.
 
 ## Cue-term hits
 
@@ -163,17 +182,17 @@ Scored with embeddings. The ranking is printed whether or not anything crossed t
 ## Divergence from the baseline
 
 - intended divergence cases: **8**
-- confirmed by the judge: **2** (25%)
-- did not diverge, relabelled ordinary: **1**
-- unverified (no baseline answer): **5**
+- confirmed by the judge: **8** (100%)
+- did not diverge, relabelled ordinary: **0**
+- unverified (no baseline answer): **0**
 
 A difference in the reasons alone counts as divergence, not only a different action.
 
 | kind of divergence | count | share of intended cases |
 |---|---|---|
-| action (incl. both) | 0 | 0% |
+| action (incl. both) | 6 | 75% |
 | reasons only | 2 | 25% |
-| both action and reasons | 0 | 0% |
+| both action and reasons | 5 | 62% |
 
 ### Three-way comparison, per family
 
@@ -181,57 +200,63 @@ A difference in the reasons alone counts as divergence, not only a different act
 
 | comparison | families differing | share |
 |---|---|---|
-| candidate vs 7B base | 2 | 50% |
-| candidate vs strong generic | 1 | 25% |
-| strong generic vs 7B base | 2 | 50% |
+| candidate vs 7B base | 4 | 100% |
+| candidate vs strong generic | 4 | 100% |
+| strong generic vs 7B base | 4 | 100% |
 
-- attributed to a **value** the target holds: **1** (25%)
+- attributed to a **value** the target holds, on EVERY judged prompt in the family: **4** (100%)
+- the same on at least one prompt: **4** (100%), a ceiling rather than a result
 - attributed to something the prompt stipulated: **0** (0%)
 
-The value rate alone is the number worth quoting: a difference the prompt stipulated, or one that is only fluency, is not the target instantiated.
+The first line is the number worth quoting. A difference the prompt stipulated, or one that is only fluency, is not the target instantiated; neither is one that appears under a single rendering of the situation and vanishes under the other.
 
 ## House style shared across targets
 
 
-Share of each target's answers containing the phrase, over 5 runs: `catholic` (8 responses), `confucian` (16 responses), `protestant` (20 responses), `theravada` (18 responses), `toy` (11 responses)
+Share of each target's answers containing the phrase, over 5 runs: `catholic` (16 responses), `confucian` (16 responses), `protestant` (16 responses), `theravada` (16 responses), `toy` (11 responses)
 
 | four-gram | targets ≥30% | catholic | confucian | protestant | theravada | toy |
 |---|---|---|---|---|---|---|
-| the hard part is | 2 | 62% | 6% | 20% | 22% | 36% |
-| question is not whether | 1 | 38% | 0% | 25% | 11% | 27% |
-| watch for two signs | 1 | 12% | 0% | 5% | 11% | 36% |
-| judgment can go either | 1 | 0% | 0% | 0% | 28% | 36% |
-| reasonable judgment can go | 1 | 0% | 0% | 0% | 28% | 36% |
-| can go either way | 1 | 0% | 0% | 0% | 28% | 36% |
+| this lands first on | 1 | 0% | 0% | 69% | 0% | 0% |
+| not the same as | 1 | 12% | 0% | 6% | 44% | 0% |
+| lands first on the | 1 | 0% | 0% | 62% | 0% | 0% |
+| is real but it | 1 | 6% | 6% | 31% | 12% | 0% |
+| is not the same | 1 | 12% | 0% | 6% | 38% | 0% |
+| is not in the | 1 | 0% | 0% | 50% | 0% | 0% |
+| is the weakest claim | 1 | 0% | 0% | 44% | 0% | 0% |
+| the hard part is | 1 | 0% | 6% | 0% | 0% | 36% |
+| the people affected are | 1 | 31% | 0% | 0% | 6% | 0% |
 | that would change the | 1 | 0% | 38% | 0% | 0% | 0% |
-| would change the answer | 1 | 0% | 31% | 0% | 0% | 0% |
-| it does not license | 1 | 0% | 31% | 0% | 0% | 0% |
-| the asker is a | 1 | 0% | 31% | 0% | 0% | 0% |
+| people affected are the | 1 | 31% | 0% | 0% | 6% | 0% |
+| who is not in | 1 | 0% | 0% | 38% | 0% | 0% |
+| it lands on the | 1 | 0% | 0% | 38% | 0% | 0% |
+| watch for two signs | 1 | 0% | 0% | 0% | 0% | 36% |
+| can go either way | 1 | 0% | 0% | 0% | 0% | 36% |
 
 A phrase in the right-hand columns for every target is house style, not the target's judgment: the same sentence shape survived four different specifications.
 
 Count of habitual four-grams per target, and how much of that habit is shared:
 
-- at ≥30%: catholic 2, confucian 4, protestant 0, theravada 0, toy 5; **1** shared by two or more targets; mean pairwise overlap **0.02**
-- at ≥15%: catholic 50, confucian 21, protestant 15, theravada 28, toy 105; **12** shared by two or more targets; mean pairwise overlap **0.03**
+- at ≥30%: catholic 4, confucian 4, protestant 9, theravada 3, toy 5; **0** shared by two or more targets; mean pairwise overlap **0.00**
+- at ≥15%: catholic 26, confucian 21, protestant 38, theravada 18, toy 105; **7** shared by two or more targets; mean pairwise overlap **0.02**
 
 ## Cost and usage
 
-- model calls: **96**
-- prompt tokens: 645,878
-- completion tokens: 452,782 (of which reasoning: 407,774)
-- cost: **$4.4871**
+- model calls: **115**
+- prompt tokens: 672,152
+- completion tokens: 512,210 (of which reasoning: 460,075)
+- cost: **$4.7801**
 
 | stage | calls | prompt tokens | completion tokens |
 |---|---|---|---|
 | baseline | 10 | 1,383 | 4,988 |
-| baseline.strong_generic | 16 | 3,478 | 32,042 |
+| baseline.strong_generic | 26 | 6,021 | 44,754 |
 | generate.families | 6 | 123,272 | 40,249 |
 | generate.prompts | 8 | 9,748 | 19,749 |
 | generate.reframing | 2 | 1,395 | 6,532 |
 | generate.responses | 16 | 92,026 | 154,204 |
-| validate.divergence | 4 | 10,284 | 32,023 |
-| validate.embed | 1 | 3,880 | 0 |
+| validate.divergence | 12 | 30,135 | 78,739 |
+| validate.embed | 2 | 7,760 | 0 |
 | validate.review | 33 | 400,412 | 162,995 |
 
 ## Samples kept
