@@ -16,7 +16,6 @@ from pipeline.export import (
     check_license_metadata,
     derive_grading_key,
     source_licenses,
-    unwrap_passage_id,
     failure_note,
     find_placeholders,
     is_public_domain,
@@ -451,12 +450,18 @@ def test_every_row_carries_the_licence_of_the_source_it_cites(tmp_path, pilot_co
     assert meta["source_licenses"][0]["source_id"] != "unmapped"
 
 
-def test_writers_cite_passages_three_ways_and_all_three_resolve():
-    """Round-1 responses wrote the bare id, a bracketed id, and a bracketed id plus title."""
-    assert unwrap_passage_id("MN 58") == "MN 58"
-    assert unwrap_passage_id("[MN 58]") == "MN 58"
-    assert unwrap_passage_id("[MN 58] the six cases of speech") == "MN 58"
-    assert unwrap_passage_id("  [Analects 4.16]  ") == "Analects 4.16"
+def test_a_citation_clause_is_kept_beside_the_passage_id(tmp_path, pilot_config, toy_spec):
+    """A5 has the writer say what each passage grounded; that clause is the only record of why."""
+    run_dir = build_run(tmp_path)
+    responses = records.read_jsonl(run_dir / records.RESPONSES_FILE, Response)
+    responses[0].hidden["source_passages"] = ["HCP 1.1: what you owe a supplier who is late"]
+    records.write_jsonl(run_dir / records.RESPONSES_FILE, responses)
+    run_stage(pilot_config, toy_spec, run_dir)
+    meta = list(records.iter_jsonl(run_dir / SFT_FILE))[0]["meta"]
+    assert meta["source_passages"] == ["HCP 1.1"]
+    assert meta["source_passage_notes"] == [
+        {"passage_id": "HCP 1.1", "grounds": "what you owe a supplier who is late"}
+    ]
 
 
 def test_a_passage_matching_no_source_format_falls_back_to_the_compiled_licence(toy_spec):

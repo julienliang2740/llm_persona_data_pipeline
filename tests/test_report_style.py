@@ -132,19 +132,42 @@ def test_coverage_reports_asker_stance_and_the_eval_mix(tmp_path):
 # -- closest pairs and three-way divergence ----------------------------------
 
 
+CALIBRATION = {"statistic": "median + 3 x robust_sd", "centre": 0.19, "spread": 0.04, "sigmas": 3}
+
+
 def test_the_closest_pairs_table_is_read_from_the_similarity_file(tmp_path):
     run_dir = tmp_path / "run"
     run_dir.mkdir()
     records.write_jsonl(
         run_dir / SIMILARITY_FILE,
         [
-            {"kind": "dedupe", "a_id": "pr_a", "b_id": "pr_b", "score": 0.784, "method": "jaccard", "flagged": False},
-            {"kind": "leakage", "a_id": "pr_c", "b_id": "pr_d", "score": 0.21, "method": "jaccard", "flagged": False},
+            {"kind": "dedupe", "a_id": "pr_a", "b_id": "pr_b", "score": 0.784, "method": "jaccard",
+             "flagged": True, "threshold": 0.31, "calibration": CALIBRATION},
+            {"kind": "dedupe", "a_id": "pr_e", "b_id": "pr_f", "score": 0.21, "method": "jaccard",
+             "flagged": False, "threshold": 0.31, "calibration": CALIBRATION},
+            {"kind": "leakage", "a_id": "pr_c", "b_id": "pr_d", "score": 0.19, "method": "jaccard",
+             "flagged": False, "threshold": 0.4, "calibration": CALIBRATION},
         ],
     )
     text = "\n".join(top_similarity_pairs(run_dir, []))
     assert "0.784" in text
     assert text.index("0.784") < text.index("0.210")  # ranked, highest first
+    assert text.index("(dedupe)") < text.index("(leakage)")
+
+
+def test_the_pairs_table_states_the_cut_the_way_validate_computed_it(tmp_path):
+    """The statistic is read off the row, never assumed: it is not mean plus three sd."""
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    records.write_jsonl(
+        run_dir / SIMILARITY_FILE,
+        [{"kind": "dedupe", "a_id": "a", "b_id": "b", "score": 0.5, "method": "jaccard",
+          "flagged": True, "threshold": 0.31, "calibration": CALIBRATION}],
+    )
+    text = "\n".join(top_similarity_pairs(run_dir, []))
+    assert "median + 3 x robust_sd" in text
+    assert "0.310" in text
+    assert "centre 0.190, spread 0.040" in text
 
 
 def test_without_the_similarity_file_the_report_says_what_is_missing(tmp_path):

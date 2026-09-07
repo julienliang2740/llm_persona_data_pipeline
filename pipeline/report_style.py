@@ -340,29 +340,75 @@ def _eval_composition(run_dir: Path, families: list[Family], prompts: list[Promp
     return lines
 
 
+def _calibration_line(row: dict[str, Any]) -> str:
+    """State the cut the way validate computed it, from the row's own self-description."""
+    calibration = row.get("calibration") or {}
+    threshold = row.get("threshold")
+    statistic = calibration.get("statistic", "an unrecorded statistic")
+    centre, spread = calibration.get("centre"), calibration.get("spread")
+    cut = f"{float(threshold):.3f}" if threshold is not None else "not recorded"
+    if centre is None or spread is None:
+        return f"Flagged above **{cut}**, from {statistic}."
+    return (
+        f"Flagged above **{cut}**, from {statistic} over the whole pair distribution "
+        f"(centre {float(centre):.3f}, spread {float(spread):.3f})."
+    )
+
+
 def top_similarity_pairs(run_dir: Path, decisions: list[Decision], limit: int = 10) -> list[str]:
-    """The ten closest pairs with their scores, whether or not any crossed a threshold."""
+    """The closest pairs with their scores, whether or not any crossed a threshold.
+
+    Round 1 printed "none above the threshold" on a run holding a 0.784 near-repeat, so
+    the ranking is shown unconditionally and the cut is stated next to it.
+    """
     rows = list(records.iter_jsonl(run_dir / SIMILARITY_FILE))
-    lines = ["", "### Ten closest pairs", ""]
-    if rows:
-        rows.sort(key=lambda row: float(row.get("score") or 0.0), reverse=True)
-        lines += ["| a | b | score | method | kind | flagged |", "|---|---|---|---|---|---|"]
-        for row in rows[:limit]:
+    lines = ["", "### Closest pairs", ""]
+    if not rows:
+        # The decisions record only each eval response's single closest training row, and
+        # the leakage section below already prints that, so name what is missing instead
+        # of printing it twice.
+        recorded = sum(1 for decision in decisions if decision.max_leakage is not None)
+        lines.append(
+            f"This run kept no `{SIMILARITY_FILE}`, so the pair distribution the calibrated "
+            f"threshold is drawn from was not recorded. The leakage section below still shows "
+            f"the closest training row for each of the {recorded} scored eval responses; it "
+            f"covers no train-to-train or eval-to-eval pair."
+        )
+        return lines
+
+    titles = {
+        "dedupe": "Within the corpus, any two prompts",
+        "leakage": "Across the split, an eval prompt against a training prompt",
+    }
+    for kind in sorted({str(row.get("kind", "")) for row in rows}):
+        subset = sorted(
+            (row for row in rows if row.get("kind") == kind),
+            key=lambda row: float(row.get("score") or 0.0),
+            reverse=True,
+        )
+        if not subset:
+            continue
+        lines += [
+            f"**{titles.get(kind, kind)}** ({kind})",
+            "",
+            _calibration_line(subset[0]),
+            "",
+            "| a | b | score | families | splits | flagged |",
+            "|---|---|---|---|---|---|",
+        ]
+        for row in subset[:limit]:
             lines.append(
                 f"| `{row.get('a_id', '?')}` | `{row.get('b_id', '?')}` "
-                f"| {float(row.get('score') or 0.0):.3f} | {row.get('method', '?')} "
-                f"| {row.get('kind', '?')} | {'yes' if row.get('flagged') else 'no'} |"
+                f"| {float(row.get('score') or 0.0):.3f} "
+                f"| {row.get('a_family', '?')} / {row.get('b_family', '?')} "
+                f"| {row.get('a_split', '?')} / {row.get('b_split', '?')} "
+                f"| {'yes' if row.get('flagged') else 'no'} |"
             )
-        return lines
-    # No calibrated pair file. The decisions record only each eval response's single
-    # closest training row, and the leakage section below already prints that, so name
-    # what is missing instead of printing it twice.
-    recorded = sum(1 for decision in decisions if decision.max_leakage is not None)
+        lines.append("")
     lines.append(
-        f"This run kept no `{SIMILARITY_FILE}`, so the pair distribution the calibrated "
-        f"threshold is drawn from was not recorded. The leakage section below still shows "
-        f"the closest training row for each of the {recorded} scored eval responses; it "
-        f"covers no train-to-train or eval-to-eval pair."
+        f"Scored with {rows[0].get('method', 'an unrecorded method')}. The ranking is printed "
+        f"whether or not anything crossed the cut, because a corpus can hold a near-repeat "
+        f"that no threshold on this distribution would reach."
     )
     return lines
 

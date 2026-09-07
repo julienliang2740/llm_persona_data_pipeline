@@ -26,7 +26,7 @@ from pipeline import records
 from pipeline.config import REPO_ROOT, RunConfig
 from pipeline.model import format_cost, summarise_usage
 from pipeline.records import Decision, Family, Prompt, Response, Review
-from pipeline.target import KEY_PASSAGES_SUFFIX, TargetSpec, normalise_passage_ids
+from pipeline.target import KEY_PASSAGES_SUFFIX, TargetSpec, split_passage_citation
 from pipeline.validate import find_cue_hits
 
 logger = logging.getLogger("pipeline.export")
@@ -236,20 +236,6 @@ def _passage_ids_in_assistant_text(
     for text in _assistant_texts(train_rows, eval_rows):
         found.update(find_cue_hits(text, ids))
     return found
-
-
-def unwrap_passage_id(claimed: Any) -> str:
-    """Recover the bare id from what a writer actually wrote.
-
-    Round-1 responses cite passages three ways: "MN 58", "[MN 58]", and
-    "[MN 58] the six cases of speech" with the passage title appended. Only the first
-    resolves against the spec, so the licence lookup sees an unmapped source for the
-    other two unless the wrapper and the trailing title come off first.
-    """
-    text = " ".join(str(claimed).split())
-    if text.startswith("[") and "]" in text:
-        return text[1 : text.index("]")].strip()
-    return text.strip("[]").strip()
 
 
 def find_placeholders(spec: TargetSpec, text: str) -> list[str]:
@@ -495,13 +481,14 @@ def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[str, A
             readmitted_eval.append(response.response_id)
 
         review = review_by_response.get(response.response_id)
-        passages = normalise_passage_ids(
-            spec,
-            [
-                unwrap_passage_id(claimed)
-                for claimed in (response.hidden.get("source_passages") or [])
-            ],
-        )
+        # A citation carries the passage id and, since A5, a clause saying what it
+        # grounded. Both are kept: the id for the licence lookup, the clause because it
+        # is the only record of why that passage was used.
+        citations = [
+            split_passage_citation(spec, str(claimed))
+            for claimed in (response.hidden.get("source_passages") or [])
+        ]
+        passages = [passage_id for passage_id, _clause in citations if passage_id]
         meta = {
             "response_id": response.response_id,
             "prompt_id": prompt.prompt_id,
@@ -523,6 +510,11 @@ def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[str, A
             "principles_applied": response.hidden.get("principles_applied") or [],
             # Repaired here too, so runs generated before the fix still export usable ids.
             "source_passages": passages,
+            "source_passage_notes": [
+                {"passage_id": passage_id, "grounds": clause}
+                for passage_id, clause in citations
+                if passage_id and clause
+            ],
             "source_licenses": source_licenses(spec, passages),
             "generator_model": response.generator_model,
             "divergence_status": decision.divergence_status,

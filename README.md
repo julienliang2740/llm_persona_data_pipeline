@@ -161,6 +161,22 @@ of quality on the cases inspected. Reasoning tokens count against `max_tokens`, 
 budget is too small returns reasoning and no answer; the client raises a clear error naming the
 role and the limit when that happens.
 
+## How near-duplicates and leakage are judged
+
+Similarity is measured on the user prompt and the family's seed situation, never on the
+answers: generated answers share register and structure, which washes the scenario signal
+out. One round-1 pair scored 0.784 on prompts alone and 0.412 once its answers were included.
+
+The cut is calibrated per run at the median plus three robust deviations of that run's own
+pair distribution, using the median absolute deviation scaled by 1.4826 rather than a mean and
+a standard deviation. The reason is that the duplicates are precisely the values in the tail,
+so they poison a mean-based cut: on a clean distribution holding one near-duplicate at 0.784,
+mean plus three standard deviations lands at 1.14 and the duplicate hides behind the threshold
+it raised itself, while the robust cut lands at 0.16 and flags it. The robust cut still cannot
+resolve a set where duplicates are not a minority, which is why the closest pairs are always
+written to `similarity_pairs.jsonl` and printed in the report whether or not any crossed the
+threshold.
+
 ## Known limits
 
 - The reviewer sees the whole target on every call, about 11,000 input tokens on a real spec,
