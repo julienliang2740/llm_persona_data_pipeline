@@ -144,6 +144,40 @@ numbered-list advice, so "divergence" partly measures a capability gap rather th
 
 The round-2 change list derived from these is `docs/round2-changes.md`.
 
+### Round 2 (same sizes; whole-unit splits, planned features, three-way judge, second reviewer)
+
+| target | kept | fidelity (primary / kimi-k3) | divergence confirmed | value-attributed (judge) | critic-defended | cost |
+|---|---|---|---|---|---|---|
+| confucian | 15/16 | 5.00 / 4.50 | 2/8 (5 unverified) | 1 | 0 of 2 judged | $4.49 |
+| catholic | 15/16 | 5.00 / n.a. | 6/8 | 4/4 families | 3 of 4 | $5.87 |
+| protestant | 16/16 | 4.94 / 4.81 | 7/8 | 4/4 | 3 of 4 | $5.44 |
+| theravada | 14/16 | 4.94 / 4.69 | 8/8 | 4/4 | 4 of 4 | $5.85 |
+
+Numbers are before the re-judge described below; "critic-defended" is the round-2 divergence critic's
+re-read of every verdict against all three answers.
+
+What round 2 fixed (per the second critique pass, `runs/critique/round2_*.md`): the shared house style
+("watch for" paragraph 52/83 → 1/64; shared four-grams from dozens to one); the round-1 33/34 divergence
+illusion (per-family, three-way, value-attributed rates with quoted evidence); unresolved tradeoffs now get
+families before any repeat; eval is exactly the configured fraction; calibrated dedupe fires (8–13 pairs per
+run against zero); reframing variants are genuinely reframed; grading keys name the concrete choice; the
+prompt-stipulation leak is detected and relabelled.
+
+What round 2 did not fix or newly broke:
+- **The reviewer still filters nothing**: 127 reviews, zero rejections; the primary gives fidelity 5 on 61
+  of 63; the second reviewer is a uniform one-point-lower copy. Evidence quotes are verbatim but not
+  selective.
+- **Per-target deliberation shapes became per-target templates**: the shape's own wording opens 15–16 of 16
+  responses per target, a stronger learnable cue than the shared style it replaced.
+- **The strong-generic control was mis-specified** (same model with reasoning off and a fifteenth of the
+  budget), the judge was not blind (candidate always Reply A), and five "value" verdicts echo a claim the
+  no-spec reply also makes. The critic defends 7 of 16 value-attributed families, not 13.
+- **The diversity plan is degenerate at eight families**: the institution walk starts at the same index for
+  every target (28 of 32 families clinical), role type never advances (32 of 32 "no authority"), a lone
+  counterfactual pair can never reach eval, and the eval and divergence draws coincide (13 of 14 eval rows
+  divergence).
+- The Confucian run's strong-generic leg ran before the config fix and lost five verdicts.
+
 ## 6. Failures discovered by running real pilots
 
 1. Generator sometimes returned `{"family": [...]}` (singular); the reader accepted only the plural
@@ -208,4 +242,23 @@ projects to roughly $40-60. Both exceed the brief's $10-20; the brief's estimate
 
 ## 9. Recommended next step before generating the full Part 1 dataset
 
-(filled after the critique round)
+Do not scale yet. Three things must be true first, each checkable on one more 8-family run per target:
+
+1. **A reviewer that rejects.** Replace per-response scoring as the filter with forced ranking inside each
+   family (two responses per family, one must lose) plus the "would a strong no-spec assistant write this
+   sentence" test on the evidence quote; keep per-response scores only as metadata. Gate: at least 15% of
+   responses rejected or ranked-out per target, with a human reading 20 of them agreeing on most.
+2. **A fair, blind divergence judge.** Strong-generic leg = generator settings minus the spec; shuffled
+   labels; `generic_echo` required; value rate reported per family. Gate: value-attributed divergence of at
+   least 35% of intended-divergence families per target under the fixed judge, and a human agreeing on a
+   sample.
+3. **A plan that varies what it claims to vary.** Institution and role mixes per target, varied axis cycled
+   across pairs, pairs reaching eval, eval mix matching intent. Gate: the report's coverage tables show no
+   feature with one dominant value, and no two targets sharing more than two institutions.
+
+Also before scaling: decide the deliberation policy (visible deliberation as an ablation slice, and a shape
+that describes what to consider without supplying phrasing), resolve the per-spec `unresolved_choices` that
+need a human (confessional vs neutral mode, naturalised kamma, Protestant grace-and-agency), and clear the
+licensing status of Theravada (NC/SA) and Catholic (Vatican quotation-scale) material for the intended
+distribution. Then run `configs/full.yaml` for one target first (about 300 families × 2 prompts, projected
+$30–40 with the low-effort generator), read it, and only then the other three.
