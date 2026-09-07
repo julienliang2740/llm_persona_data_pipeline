@@ -1,3 +1,5 @@
+# Round-2 experiment E4: identical to pilot.yaml except generator reasoning_effort=low
+# and no second reviewer. Compare reviewer scores and cost against the pilot.yaml run.
 # Small pilot: a handful of families, enough to inspect every artifact by hand.
 # Sizes here are deliberately tiny; see full.yaml for the 500/50 run.
 
@@ -77,7 +79,7 @@ validation:
   revise_rounds: 1
   # Set to another model role (e.g. a second Fireworks model) to review everything twice
   # and record agreement. Leave empty for one reviewer.
-  second_reviewer_role: reviewer_second   # round-2 experiment E2: agreement with a second model family
+  second_reviewer_role: ""   # round-2 experiment E2: agreement with a second model family
   # The reviewer flags a response that quotes or closely echoes source wording. That is a
   # licensing control; set true to drop those rather than only report them.
   reject_on_quoted_source: false
@@ -104,7 +106,7 @@ models:
     # Cost lever, measured on a real generation call: extra_body: {reasoning_effort: low}
     # cuts reasoning tokens about fourfold and the per-response cost about in half.
     # Not every model accepts every value ("none" is rejected by gpt-oss-120b).
-    extra_body: {}
+    extra_body: {reasoning_effort: low}   # round-2 experiment E4
   reviewer:
     model: accounts/fireworks/models/deepseek-v4-pro-0813
     base_url: https://api.fireworks.ai/inference/v1
