@@ -162,3 +162,6 @@ models:
     max_concurrency: 4
     temperature: 0.7
     max_tokens: 12000
+    # The judge compares this leg at the base model's answer budget (1600 doubled once),
+    # which a reasoning model spends on thinking; answer directly instead.
+    extra_body: {reasoning_effort: none}
