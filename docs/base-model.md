@@ -104,6 +104,21 @@ and a half hours. This is the slowest stage in the pipeline by a wide margin, so
 be independently re-runnable and should skip prompts already answered, which the per-stage JSONL
 layout already gives us.
 
+### These numbers assume the box is otherwise idle
+
+They were measured with nothing else running. This is a shared 8-core machine and the other
+pipeline stages run on it too, so the figures above are a ceiling, not a promise.
+
+Re-measured on 2026-09-07 while two other pipeline runs were active and the CPU was pegged at 100%:
+single-stream generation fell from 7.4 to **3.1 tokens/s**, and 4-way aggregate from 16.9 to
+**8.8 tokens/s**, with per-request latency spreading from a tight 71 s to 70-136 s. Roughly half
+throughput and much less predictable tail latency.
+
+Two consequences for scheduling. Baseline is the only stage that needs this server, and it is the
+long pole, so run it on its own rather than overlapping it with `generate` or `validate` on other
+targets. And when estimating how long a baseline run will take, use the loaded figure of about
+9 tokens/s aggregate if anything else is running, not the idle 17.
+
 Going above 4 slots is not worth it: there are only 8 cores, and slots beyond that contend rather
 than batch. Raising `CTX_PER_SLOT` is cheap in memory (about 56 KB per token of KV cache) but the
 prompts here are short.
