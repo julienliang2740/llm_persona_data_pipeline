@@ -347,12 +347,24 @@ def _flag_score_conflicts(reviews: list[Review]) -> list[str]:
     conflicts = flag_score_conflicts(reviews)
     count = conflicts.get("reviews_with_flag_and_five", 0)
     total = conflicts.get("reviews_total", len(reviews))
+    stipulating = conflicts.get("stipulating_prompts", 0)
+    prompt_quality = (
+        [
+            "",
+            f"Prompts that stipulate the target's move: **{stipulating}** of {total}; "
+            f"relabelled ordinary. The user handed the assistant the answer, so the case "
+            f"cannot show a difference from a generic assistant. This is a prompt-quality "
+            f"figure, not a mark against the response.",
+        ]
+        if stipulating
+        else []
+    )
     if not count:
         return [
             "",
             f"Reviews awarding a 5 while raising a defect flag: **0** of {total}. "
             f"The rubric was applied consistently.",
-        ]
+        ] + prompt_quality
     pairs = ", ".join(
         f"{name} ×{n}" for name, n in (conflicts.get("flag_five_pairs") or {}).items()
     )
@@ -363,7 +375,7 @@ def _flag_score_conflicts(reviews: list[Review]) -> list[str]:
         f"cap did not catch it because the 5 sits on another dimension.",
         "",
         f"Conflicting pairs: {pairs}." if pairs else "",
-    ]
+    ] + prompt_quality
 
 
 def _reason_bucket(reason: str) -> str:

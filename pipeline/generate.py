@@ -554,6 +554,13 @@ async def generate_prompts(
     reframing_variants = list(settings.get("reframing_variants", ["setting_shift", "fiction"]))
     reframing_families = int(settings.get("reframing_families", 0))
     forbidden = ", ".join(spec.forbidden_terms) or "(none)"
+    # The stipulation guard quotes the family's own hypothesis, so the writer knows the
+    # specific sentence it must not put in the user's mouth.
+    hypothesis_text = {
+        str(item.get("id")): " ".join(str(item.get("description", "")).split())
+        for item in spec.divergence_hypotheses
+        if item.get("id")
+    }
 
     mode_by_family = {family.family_id: family.mode for family in families}
     families_with_prompts = {prompt.family_id for prompt in existing}
@@ -576,7 +583,13 @@ async def generate_prompts(
                 else render(NEUTRAL_MODE_PROMPT_INSTRUCTIONS, forbidden_terms=forbidden)
             ),
             stipulation_guard=(
-                STIPULATION_GUARD if family.case_type_intent == "divergence" else ""
+                render(
+                    STIPULATION_GUARD,
+                    hypothesis=hypothesis_text.get(family.divergence_hypothesis_id)
+                    or "this target reaches a different conclusion from a general assistant",
+                )
+                if family.case_type_intent == "divergence"
+                else ""
             ),
         )
         items = await _request_items(

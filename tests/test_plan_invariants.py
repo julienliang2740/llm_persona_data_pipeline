@@ -364,3 +364,26 @@ def test_reviewer_render_honours_the_selected_layers(real_specs):
     non_core = [p for p in layered if p.get("layer") != "core"]
     if non_core:
         assert non_core[0]["id"] not in core_only
+
+
+def test_the_stipulation_guard_quotes_the_hypothesis_and_demands_a_self_check(real_specs):
+    """Four of sixteen Protestant prompts got through the earlier, generic wording."""
+    from prompts import render
+    from prompts.generation import STIPULATION_GUARD
+
+    hypothesis = "the target refuses to lie where a generic assistant would soften"
+    guard = render(STIPULATION_GUARD, hypothesis=hypothesis)
+    assert hypothesis in guard
+    assert "SELF-CHECK" in guard
+    assert "sentence by sentence" in guard
+    assert "rule out its opposite" in guard
+
+
+def test_the_guard_is_only_rendered_for_divergence_families(real_specs):
+    """An ordinary family has no move to stipulate, so the guard would be noise."""
+    import inspect
+
+    from pipeline import generate
+
+    source = inspect.getsource(generate.generate_prompts)
+    assert 'family.case_type_intent == "divergence"' in source

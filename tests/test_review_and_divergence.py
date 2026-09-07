@@ -277,3 +277,55 @@ def test_flag_score_conflicts_handles_no_reviews():
     from pipeline.review import flag_score_conflicts
 
     assert flag_score_conflicts([])["reviews_total"] == 0
+
+
+# -- a prompt flag is not a rubric contradiction ------------------------------
+
+
+def test_prompt_stipulates_move_is_not_counted_as_a_conflict():
+    """It describes the prompt, not the response; the answer can honestly be a 5.
+
+    Four of sixteen Protestant round-2 reviews were reported as rubric contradictions on
+    this basis, and none of them were.
+    """
+    from pipeline.review import flag_score_conflicts
+
+    summary = flag_score_conflicts(
+        [make_review(fidelity=5, prompt_stipulates_move=True) for _ in range(4)]
+    )
+    assert summary["reviews_with_flag_and_five"] == 0
+    assert summary["flag_five_pairs"] == {}
+    assert summary["stipulating_prompts"] == 4
+
+
+def test_response_flags_are_still_counted_alongside_a_stipulating_prompt():
+    from pipeline.review import flag_score_conflicts
+
+    summary = flag_score_conflicts(
+        [make_review(fidelity=5, prompt_stipulates_move=True, formulaic_shape=True)]
+    )
+    assert summary["reviews_with_flag_and_five"] == 1
+    assert summary["flag_five_pairs"] == {"formulaic_shape+fidelity=5": 1}
+    assert summary["stipulating_prompts"] == 1
+
+
+def test_the_defect_flags_are_response_flags_only():
+    from pipeline.review import DEFECT_FLAGS, PROMPT_QUALITY_FLAGS
+
+    assert "prompt_stipulates_move" not in DEFECT_FLAGS
+    assert "prompt_stipulates_move" in PROMPT_QUALITY_FLAGS
+    assert not set(DEFECT_FLAGS) & set(PROMPT_QUALITY_FLAGS)
+
+
+def test_stipulating_prompts_is_zero_when_none_are_flagged():
+    from pipeline.review import flag_score_conflicts
+
+    assert flag_score_conflicts([make_review(fidelity=5)])["stipulating_prompts"] == 0
+
+
+def test_a_stipulating_prompt_still_does_not_cap_the_score():
+    """The response may be excellent; only the case type changes."""
+    scores = dict(payload()["scores"], prompt_stipulates_move=True)
+    review = _review_from_payload(payload(scores=scores), a_response(), "m")
+    assert review.scores["judgment_not_terminology"] == 5
+    assert review.issues == []

@@ -317,3 +317,34 @@ def test_the_report_omits_the_section_without_a_second_reviewer(
     run_dir = build_run(tmp_path)
     export_stage(pilot_config, toy_spec, run_dir)
     assert "## Second reviewer" not in build_report(run_dir, "toy")
+
+
+def test_the_report_separates_stipulating_prompts_from_rubric_conflicts():
+    from pipeline.report import _flag_score_conflicts
+
+    reviews = [a_review(f"r{i}", prompt_stipulates_move=True, fidelity=5) for i in range(4)]
+    reviews += [a_review(f"c{i}") for i in range(12)]
+    text = "\n".join(_flag_score_conflicts(reviews))
+    assert "raising a defect flag: **0** of 16" in text
+    assert "stipulate the target's move: **4** of 16" in text
+    assert "prompt-quality figure, not a mark against the response" in text
+
+
+def test_the_report_omits_the_stipulation_line_when_there_are_none():
+    from pipeline.report import _flag_score_conflicts
+
+    text = "\n".join(_flag_score_conflicts([a_review("r0")]))
+    assert "stipulate the target's move" not in text
+
+
+def test_the_report_shows_both_lines_when_both_apply():
+    from pipeline.report import _flag_score_conflicts
+
+    reviews = [
+        a_review("r0", prompt_stipulates_move=True, fidelity=5),
+        a_review("r1", formulaic_shape=True, fidelity=5),
+    ]
+    text = "\n".join(_flag_score_conflicts(reviews))
+    assert "raising a defect flag: **1** of 2" in text
+    assert "formulaic_shape+fidelity=5" in text
+    assert "stipulate the target's move: **1** of 2" in text

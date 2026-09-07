@@ -219,15 +219,24 @@ def _review_from_payload(payload: dict[str, Any], response: Response, reviewer_m
     )
 
 
-#: Boolean score keys that mark a defect. A 5 alongside any of these is a contradiction.
+#: Boolean score keys that describe a defect in the RESPONSE. A 5 alongside any of these
+#: is the reviewer contradicting itself, because each one is a reason the answer is not an
+#: exemplar of the target's judgment.
+#:
+#: `prompt_stipulates_move` is deliberately absent. It describes the PROMPT, not the
+#: response: the user handed over the move, so any assistant would make it. The answer can
+#: still be a fine answer and score five honestly, and the case is relabelled ordinary
+#: either way. Counting it as a contradiction reported four false positives of sixteen on
+#: the Protestant round-2 run. It is reported separately as a prompt-quality figure.
 DEFECT_FLAGS = (
     "cue_leakage",
     "confident_on_unresolved",
     "formulaic_shape",
-    "prompt_stipulates_move",
     "quoted_source_text",
     "archaic_register",
 )
+#: A defect in the prompt rather than in the response.
+PROMPT_QUALITY_FLAGS = ("prompt_stipulates_move",)
 NUMERIC_SCORES = ("fidelity", "judgment_not_terminology", "scenario_quality")
 
 
@@ -253,6 +262,13 @@ def flag_score_conflicts(reviews: list[Review]) -> dict[str, Any]:
         "reviews_with_flag_and_five": conflicted_reviews,
         "reviews_total": len(reviews),
         "flag_five_pairs": dict(conflicts.most_common()),
+        # Reported next to the conflicts because it is the figure they used to be
+        # confused with, not because it is the same kind of problem.
+        "stipulating_prompts": sum(
+            1
+            for review in reviews
+            if any(review.scores.get(flag) for flag in PROMPT_QUALITY_FLAGS)
+        ),
     }
 
 
