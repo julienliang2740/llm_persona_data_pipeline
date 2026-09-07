@@ -91,8 +91,18 @@ Round 1 (one pass, then six critics):
   the same rubric as the 7B base (base passed 1/7, adapter 0/7). This proves the path, not a result;
   a real result needs the GPU recipe in `training/`.
 
-Round 2 experiments (results in section 5): E1 three-way divergence; E2 second-reviewer agreement;
-E3 house-style metric before/after; E4 `reasoning_effort: low` on the generator (cost vs scores).
+Round 2 experiments:
+- **E1 three-way divergence**: see section 5; after the judge fixes the conservative value-attributed rate
+  is 1/4, 2/4, 3/4, 4/4 families (Confucian, Catholic, Protestant, Theravāda) on the original judge; the
+  re-judged numbers with the fair control and blind labels are in the round-2 run reports.
+- **E2 second reviewer (kimi-k3 vs DeepSeek)**: every pair within one point; kimi-k3 runs about 0.3–0.8
+  lower on every dimension and still accepts everything. Leniency is not model-specific.
+- **E3 house style**: "watch for" paragraph 52/83 → 1/64; shared four-grams from dozens to one. But the
+  per-target deliberation shapes were copied as openers in 15–16 of 16 responses per target.
+- **E4 generator at `reasoning_effort: low` (Confucian)**: generate-stage cost $0.94 vs $1.78, reasoning
+  tokens 55k vs 199k, fidelity 4.81 vs 5.00, same keep rate (15/16), but 8 of 16 responses were sent to
+  the revise round versus 0 at full effort. Cheaper first drafts, more repair work; net run cost $2.43 vs
+  $4.49 (the low-effort run also had no second reviewer).
 
 ## 5. What the four pilots showed
 
