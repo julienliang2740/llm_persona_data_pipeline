@@ -15,6 +15,8 @@ from pipeline.export import (
     SPEC_COPY_FILE,
     check_license_metadata,
     derive_grading_key,
+    source_licenses,
+    unwrap_passage_id,
     failure_note,
     find_placeholders,
     is_public_domain,
@@ -446,6 +448,28 @@ def test_every_row_carries_the_licence_of_the_source_it_cites(tmp_path, pilot_co
     run_stage(pilot_config, toy_spec, run_dir)
     meta = list(records.iter_jsonl(run_dir / SFT_FILE))[0]["meta"]
     assert meta["source_licenses"] and "license" in meta["source_licenses"][0]
+    assert meta["source_licenses"][0]["source_id"] != "unmapped"
+
+
+def test_writers_cite_passages_three_ways_and_all_three_resolve():
+    """Round-1 responses wrote the bare id, a bracketed id, and a bracketed id plus title."""
+    assert unwrap_passage_id("MN 58") == "MN 58"
+    assert unwrap_passage_id("[MN 58]") == "MN 58"
+    assert unwrap_passage_id("[MN 58] the six cases of speech") == "MN 58"
+    assert unwrap_passage_id("  [Analects 4.16]  ") == "Analects 4.16"
+
+
+def test_a_passage_matching_no_source_format_falls_back_to_the_compiled_licence(toy_spec):
+    """key_passages.md carries the most restrictive terms of everything it compiles."""
+    licences = source_licenses(toy_spec, [toy_spec.key_passages[0].id])
+    assert licences[0]["source_id"] == "key_passages"
+    assert licences[0]["license"] == "none; written for this repository"
+
+
+def test_an_unknown_passage_id_is_reported_as_unmapped_rather_than_guessed(toy_spec):
+    assert source_licenses(toy_spec, ["ZZZ 9.9"]) == [
+        {"source_id": "unmapped", "license": "not recorded"}
+    ]
 
 
 def test_the_manifest_records_what_the_run_can_be_reproduced_from(tmp_path, pilot_config, toy_spec):

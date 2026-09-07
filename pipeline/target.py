@@ -30,6 +30,12 @@ class KeyPassage:
     id: str
     title: str
     text: str
+    # The reference_material entry this passage came from, matched on the literal prefix
+    # of that entry's `passage_id_format`. `source_ids` holds every entry that matches;
+    # some formats overlap (two Theravada entries both claim "DN 26" under different
+    # licences), so licence aggregation should use the list and take the most restrictive.
+    source_id: str = ""
+    source_ids: list[str] = field(default_factory=list)
 
     def render(self) -> str:
         header = f"[{self.id}]" + (f" {self.title}" if self.title else "")
@@ -149,6 +155,51 @@ class TargetSpec:
         return [(domain_id, weight / total) for domain_id, weight in pairs]
 
 
+def _format_prefixes(passage_id_format: str) -> list[str]:
+    """The literal prefixes a passage_id_format can produce.
+
+    A format may list alternatives ("DV / LG / VS / CDF 1998 / CSDC <section>"), so each
+    alternative becomes its own prefix; placeholders and section marks end a prefix.
+    """
+    prefixes: list[str] = []
+    for alternative in str(passage_id_format or "").split("/"):
+        text = alternative
+        for marker in ("<", "§", "("):
+            index = text.find(marker)
+            if index != -1:
+                text = text[:index]
+        text = text.strip()
+        if text:
+            prefixes.append(text)
+    return prefixes
+
+
+def attach_passage_sources(
+    passages: list[KeyPassage], reference_material: list[dict[str, Any]]
+) -> None:
+    """Match each passage to the reference entries whose id format it starts with."""
+    candidates = [
+        (prefix, str(entry.get("id", "")))
+        for entry in reference_material
+        if entry.get("passage_id_format") and entry.get("id")
+        for prefix in _format_prefixes(entry.get("passage_id_format", ""))
+    ]
+    for passage in passages:
+        matches = [
+            (prefix, entry_id)
+            for prefix, entry_id in candidates
+            if prefix and passage.id.lower().startswith(prefix.lower())
+        ]
+        matches.sort(key=lambda pair: len(pair[0]), reverse=True)
+        seen: set[str] = set()
+        passage.source_ids = [
+            entry_id
+            for _prefix, entry_id in matches
+            if not (entry_id in seen or seen.add(entry_id))
+        ]
+        passage.source_id = passage.source_ids[0] if passage.source_ids else ""
+
+
 def parse_key_passages(text: str) -> list[KeyPassage]:
     """Split key_passages.md into passages keyed by their heading id."""
     passages: list[KeyPassage] = []
@@ -233,6 +284,17 @@ def validate_spec(raw: dict[str, Any], key_passages: list[KeyPassage], spec_path
             )
 
     cue_policy = raw.get("cue_policy") or {}
+    forbidden = {str(t).strip().lower() for t in (cue_policy.get("forbidden_terms") or [])}
+    for list_name in ("allowed_terms", "soft_terms"):
+        overlap = sorted(
+            {str(t).strip().lower() for t in (cue_policy.get(list_name) or [])} & forbidden
+        )
+        if overlap:
+            problems.append(
+                f"{spec_path}: cue_policy.{list_name} overlaps forbidden_terms on "
+                f"{overlap}. A term cannot be both permitted and rejected. "
+                f"(allowed_terms and soft_terms may overlap each other; that is fine.)"
+            )
     if cue_policy and not cue_policy.get("forbidden_terms"):
         problems.append(
             f"{spec_path}: cue_policy has no 'forbidden_terms'; the cue check needs the "
@@ -287,6 +349,7 @@ def load_target(targets_dir: Path, target_id: str) -> TargetSpec:
             passages_path = default_path
     if passages_path is not None and passages_path.exists():
         key_passages = parse_key_passages(passages_path.read_text(encoding="utf-8"))
+        attach_passage_sources(key_passages, raw.get("reference_material") or [])
     elif passages_path is not None:
         raise SpecError(
             f"{spec_path}: reference_material points at {passages_path}, which does not exist."

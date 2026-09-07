@@ -182,3 +182,94 @@ def test_divergence_fraction_is_respected(real_specs):
         wanted = round(size * PLAN_SETTINGS["divergence_fraction"])
         # Counted in families, so a pair contributing two does not skew the total.
         assert divergence == wanted, f"{target_id} n={size}: {divergence} vs {wanted}"
+
+
+# -- A3: structural diversity -------------------------------------------------
+
+
+def test_asker_stance_matches_the_planned_mix(real_specs):
+    """Round 1 recorded stance as free text and got one dominant value per axis."""
+    from pipeline.records import ASKER_STANCE_MIX
+
+    for target_id, _spec, size, slots in plans(real_specs, sizes=(240,)):
+        counts = Counter(slot.asker_stance for slot in slots)
+        assert set(counts) == set(ASKER_STANCE_MIX), target_id
+        for stance, share in ASKER_STANCE_MIX.items():
+            actual = counts[stance] / size
+            assert abs(actual - share) < 0.05, f"{target_id} {stance}: {actual:.3f} vs {share}"
+
+
+def test_every_slot_carries_the_closed_enum_features(real_specs):
+    from pipeline.records import HARM_SEVERITY, PUBLIC_OR_PRIVATE, ROLE_TYPE, URGENCY
+
+    for target_id, _spec, size, slots in plans(real_specs):
+        for slot in slots:
+            assert slot.role_type in ROLE_TYPE, target_id
+            assert slot.harm_severity in HARM_SEVERITY
+            assert slot.urgency in URGENCY
+            assert slot.public_or_private in PUBLIC_OR_PRIVATE
+            assert slot.asker_stance
+
+
+def test_all_severities_and_urgencies_appear(real_specs):
+    """A run of nothing but minor private matters is the failure this prevents."""
+    from pipeline.records import HARM_SEVERITY, URGENCY
+
+    for target_id, _spec, size, slots in plans(real_specs, sizes=(32, 240)):
+        assert set(s.harm_severity for s in slots) == set(HARM_SEVERITY), target_id
+        assert set(s.urgency for s in slots) == set(URGENCY), target_id
+
+
+def test_structural_keys_are_unique_within_a_domain_at_pilot_size(real_specs):
+    """Four round-1 pairs were the same situation twice inside one domain."""
+    for target_id, _spec, size, slots in plans(real_specs, sizes=(8, 32)):
+        keys = Counter(
+            slot.structural_key for slot in slots if not slot.counterfactual_group
+        )
+        repeats = {key: n for key, n in keys.items() if n > 1}
+        assert not repeats, f"{target_id} n={size}: {repeats}"
+
+
+def test_a_contrastive_pair_varies_severity_and_holds_the_setting(real_specs):
+    for target_id, _spec, size, slots in plans(real_specs, sizes=(32,)):
+        for members in counterfactual_groups(slots).values():
+            first, second = (slots[i] for i in members)
+            assert first.institution == second.institution, target_id
+            assert first.role_type == second.role_type
+            assert first.asker_stance == second.asker_stance
+            assert first.harm_severity != second.harm_severity
+
+
+def test_institutions_are_sampled_not_repeated_at_pilot_size(real_specs):
+    from pipeline.institutions import INSTITUTIONS
+
+    for target_id, _spec, size, slots in plans(real_specs, sizes=(8, 32)):
+        distinct = {slot.institution for slot in slots}
+        pairs = len(counterfactual_groups(slots))
+        assert len(distinct) >= size - pairs - 1, f"{target_id} n={size}: {len(distinct)}"
+        assert distinct <= set(INSTITUTIONS)
+
+
+def test_the_institution_list_is_large_and_unique():
+    from pipeline.institutions import INSTITUTIONS, INSTITUTIONS_BY_SECTOR, SECTOR_OF
+
+    assert len(INSTITUTIONS) >= 40
+    assert len(set(INSTITUTIONS)) == len(INSTITUTIONS)
+    assert len(INSTITUTIONS_BY_SECTOR) >= 6
+    assert all(SECTOR_OF[name] for name in INSTITUTIONS)
+
+
+def test_the_proportional_cycle_interleaves_rather_than_blocking():
+    """A truncated run must still hold the mixture, so the labels cannot come in blocks."""
+    from pipeline.plan import _proportional_cycle
+
+    out = _proportional_cycle({"a": 0.5, "b": 0.5}, 10)
+    assert out.count("a") == 5 and out.count("b") == 5
+    assert out[:4] != ["a", "a", "a", "a"]
+
+
+def test_the_proportional_cycle_handles_small_counts():
+    from pipeline.plan import _proportional_cycle
+
+    assert _proportional_cycle({"a": 0.9, "b": 0.1}, 1) == ["a"]
+    assert _proportional_cycle({"a": 0.5, "b": 0.5}, 0) == []

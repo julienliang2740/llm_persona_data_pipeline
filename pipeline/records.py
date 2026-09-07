@@ -20,6 +20,7 @@ BASELINE_FILE = "baseline.jsonl"
 REVIEWS_FILE = "reviews.jsonl"
 DIVERGENCE_FILE = "divergence.jsonl"
 DECISIONS_FILE = "decisions.jsonl"
+SIMILARITY_FILE = "similarity_pairs.jsonl"
 STRONG_BASELINE_FILE = "baseline_strong.jsonl"
 REVIEWS_SECOND_FILE = "reviews_second.jsonl"
 USAGE_FILE = "usage.jsonl"
@@ -152,8 +153,12 @@ class Response:
     revise_rounds: int = 0
     mode: str = "neutral"  # neutral | explicit, copied from the prompt
     # 2-4 sentences naming the concrete choice this prompt turns on. Leads the exported
-    # grading key, so it is written by the same model that wrote the answer.
+    # grading key, so it is written by the same model that wrote the answer. Plain prose:
+    # no principle ids and no passage ids, because a judge sees it verbatim.
     expected_actions: str = ""
+    # For a family in a counterfactual group: what the varied fact changes about the right
+    # answer here. Only the writer knows this, and the grading key cannot state it otherwise.
+    varied_fact_effect: str = ""
 
 
 @dataclass
@@ -220,6 +225,12 @@ class DivergenceVerdict:
     base_action: str = ""
     generic_action: str = ""
     closer_to: str = ""  # generic | candidate | equidistant
+    # The three pairwise comparisons the report needs, kept apart because "the candidate
+    # differs from the weak 7B answer" and "it differs from a strong generic answer" are
+    # different claims, and only the second is evidence of a value difference.
+    diverges_vs_base: bool = False
+    diverges_vs_generic: bool = False
+    generic_differs_from_base: bool = False
     # The sentence a generic assistant would not have written. Empty forces diverges=false.
     value_named: str = ""
     divergence_source: str = ""  # value | capability | stipulated | none

@@ -81,8 +81,12 @@ async def judge_answers(
                 "family_id": item["family_id"],
                 "case_type": item["case_type"],
                 "variant": item["variant"],
+                # Carried so a before/after table can show whether the model held up on
+                # reframed prompts and on both members of a contrastive pair.
+                "counterfactual_group_id": item["meta"].get("counterfactual_group_id"),
                 "judge": {
                     "pass": bool(payload.get("pass")),
+                    "action_summary": str(payload.get("action_summary", "")).strip(),
                     "principle_notes": [str(n) for n in (payload.get("principle_notes") or [])],
                     "failure_modes_hit": [str(f) for f in (payload.get("failure_modes_hit") or [])],
                     "rationale": str(payload.get("rationale", "")).strip(),
@@ -208,19 +212,26 @@ async def run_stage(
     return _summarise(rows, label)
 
 
-def _summarise(rows: list[dict[str, Any]], label: str) -> dict[str, Any]:
-    by_case: dict[str, dict[str, int]] = {}
+def _tally(rows: list[dict[str, Any]], key: str) -> dict[str, dict[str, int]]:
+    buckets: dict[str, dict[str, int]] = {}
     for row in rows:
-        bucket = by_case.setdefault(row.get("case_type", "unknown"), {"n": 0, "pass": 0})
+        bucket = buckets.setdefault(str(row.get(key) or "unknown"), {"n": 0, "pass": 0})
         bucket["n"] += 1
         bucket["pass"] += 1 if _passed(row) else 0
+    return buckets
+
+
+def _summarise(rows: list[dict[str, Any]], label: str) -> dict[str, Any]:
     passed = sum(1 for row in rows if _passed(row))
     return {
         "endpoint": label,
         "n": len(rows),
         "pass": passed,
         "pass_rate": round(passed / len(rows), 3) if rows else 0.0,
-        "by_case_type": by_case,
+        "by_case_type": _tally(rows, "case_type"),
+        # Reframed prompts are the transfer test: a model that only passes `base` has
+        # learned the training situations, not the target.
+        "by_variant": _tally(rows, "variant"),
     }
 
 
@@ -236,9 +247,11 @@ def before_after_table(before_path: Path, after_path: Path) -> str:
     if not shared:
         return f"No prompts in common between {before_path.name} and {after_path.name}."
 
-    buckets: dict[str, list[str]] = {}
-    for prompt_id in shared:
-        buckets.setdefault(before[prompt_id].get("case_type", "unknown"), []).append(prompt_id)
+    def group(key: str) -> dict[str, list[str]]:
+        buckets: dict[str, list[str]] = {}
+        for prompt_id in shared:
+            buckets.setdefault(str(before[prompt_id].get(key) or "unknown"), []).append(prompt_id)
+        return buckets
 
     lines = [
         f"# Before / after on {len(shared)} evaluation prompts",
@@ -249,7 +262,7 @@ def before_after_table(before_path: Path, after_path: Path) -> str:
         "| case type | n | before pass | after pass | change |",
         "|---|---|---|---|---|",
     ]
-    for case_type, prompt_ids in sorted(buckets.items()):
+    for case_type, prompt_ids in sorted(group("case_type").items()):
         before_pass = sum(1 for pid in prompt_ids if _passed(before[pid]))
         after_pass = sum(1 for pid in prompt_ids if _passed(after[pid]))
         lines.append(
@@ -262,6 +275,22 @@ def before_after_table(before_path: Path, after_path: Path) -> str:
         f"| **all** | {len(shared)} | {total_before} | {total_after} "
         f"| {total_after - total_before:+d} |"
     )
+
+    lines += [
+        "",
+        "By prompt variant. A gain confined to `base` is a gain on the training "
+        "situations, not on the target.",
+        "",
+        "| variant | n | before pass | after pass | change |",
+        "|---|---|---|---|---|",
+    ]
+    for variant, prompt_ids in sorted(group("variant").items()):
+        before_pass = sum(1 for pid in prompt_ids if _passed(before[pid]))
+        after_pass = sum(1 for pid in prompt_ids if _passed(after[pid]))
+        lines.append(
+            f"| {variant} | {len(prompt_ids)} | {before_pass} | {after_pass} "
+            f"| {after_pass - before_pass:+d} |"
+        )
 
     gained = [pid for pid in shared if _passed(after[pid]) and not before[pid].get("pass")]
     lost = [pid for pid in shared if _passed(before[pid]) and not after[pid].get("pass")]

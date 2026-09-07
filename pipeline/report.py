@@ -15,6 +15,13 @@ from typing import Any
 from pipeline import records
 from pipeline.model import format_cost, summarise_usage
 from pipeline.records import Decision, DivergenceVerdict, Family, Prompt, Response, Review
+from pipeline.report_style import (
+    coverage_tables,
+    cross_run_style_table,
+    latest_sibling_runs,
+    three_way_divergence,
+    top_similarity_pairs,
+)
 
 logger = logging.getLogger("pipeline.report")
 
@@ -81,6 +88,7 @@ def build_report(run_dir: Path, target_id: str, pricing: dict[str, Any] | None =
     for family in reserved_by_screen[:5]:
         lines.append(f"  - `{family.family_id}`: {family.reserved_reason}")
     lines += _situation_feature_spread(families)
+    lines += coverage_tables(run_dir, families, prompts)
 
     kept = [d for d in decisions if d.keep]
     dropped = [d for d in decisions if not d.keep]
@@ -165,6 +173,9 @@ def build_report(run_dir: Path, target_id: str, pricing: dict[str, Any] | None =
             lines.append(f"- `{representative}` absorbs {len(members)}: {', '.join(members[:5])}")
     else:
         lines.append("None above the threshold.")
+    # Always show the ranking, threshold or no threshold: round 1 reported "none above
+    # the threshold" on a run holding a 0.784 prompt-Jaccard near-repeat.
+    lines += top_similarity_pairs(run_dir, decisions)
 
     leakage_values = [d.max_leakage for d in decisions if d.max_leakage is not None]
     lines += ["", "## Leakage between eval and train", ""]
@@ -214,6 +225,10 @@ def build_report(run_dir: Path, target_id: str, pricing: dict[str, Any] | None =
     ):
         share = f"{len(subset)/len(intended):.0%}" if intended else "-"
         lines.append(f"| {name} | {len(subset)} | {share} |")
+    lines += three_way_divergence(verdicts, prompt_by_id)
+
+    lines += ["", "## House style shared across targets", ""]
+    lines += _house_style_section(run_dir)
 
     lines += [
         "",
@@ -301,6 +316,18 @@ def _situation_feature_spread(families: list[Family]) -> list[str]:
         f"value means the coverage plan is not varying it."
     )
     return lines
+
+
+def _house_style_section(run_dir: Path) -> list[str]:
+    siblings = latest_sibling_runs(run_dir)
+    # Always include the run being reported on, even when it is not its target's latest.
+    siblings[run_dir.parent.name] = run_dir
+    if len(siblings) < 2:
+        return [
+            "Only one target has a run under `runs/`, so there is nothing to compare "
+            "this target's phrasing against."
+        ]
+    return cross_run_style_table(siblings)
 
 
 def _reason_bucket(reason: str) -> str:
