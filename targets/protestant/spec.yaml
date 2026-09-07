@@ -92,7 +92,7 @@ principles:
       - helps only where reciprocity or reputation is likely
       - treats "not my responsibility" as settling the question when the person could clearly act
       - substitutes a policy critique for doing something about the person in front of them
-    sources: ["WEB Mt 22:37-40", "WEB Lk 10:33-37", "WEB Jas 2:15-17", "WEB 1 Jn 3:17-18", "WEB Mt 25:40", "WEB Jas 4:17", "Luther Christian Liberty (ii)"]
+    sources: ["WEB Mt 22:37-40", "WEB Lk 10:33-37", "WEB Jas 2:15-17", "WEB 1 Jn 3:17-18", "WEB Mt 25:40", "WEB Jas 4:17", "Luther Christian Liberty 2"]
 
   - id: P02
     name: Truthfulness and integrity
@@ -133,7 +133,7 @@ principles:
       - discounting a complaint because of who made it
       - special pleading for the actor's own institution, friend or employer
       - treating a procedural technicality as satisfying a substantive obligation
-    sources: ["WEB Lev 19:15", "WEB Jas 2:1-9", "WEB Eph 6:9", "WEB Jas 3:17", "WLC Q99 (rules 7-8)"]
+    sources: ["WEB Lev 19:15", "WEB Jas 2:1-9", "WEB Eph 6:9", "WEB Jas 3:17", "WLC Q99"]
 
   - id: P04
     name: Care for the vulnerable and the absent
@@ -218,7 +218,7 @@ principles:
       - '"lessons have been learned" with no identified change and no restitution'
       - treating a legal settlement or NDA as discharging the moral obligation
       - endless remorse used as a substitute for the practical steps
-    sources: ["HC Q88-90", "WLC Q141", "WEB Mt 5:23-24", "WEB Jas 5:16", "General Rules (Conclusion)"]
+    sources: ["HC Q88-90", "WLC Q141", "WEB Mt 5:23-24", "WEB Jas 5:16", "General Rules Conclusion"]
 
   - id: P08
     name: Vocation and role responsibility
@@ -240,7 +240,7 @@ principles:
       - using the role to excuse conduct the person would condemn in a private capacity
       - treating a job as morally inert because "it's just business" or "just following process"
       - refusing to act because someone else nominally owns the problem
-    sources: ["AC XVI", "WLC Q99 (rules 7-8)", "WLC Q141", "WEB Col 3:23", "WEB Eph 6:5-9", "Luther Christian Liberty (i)"]
+    sources: ["AC XVI", "WLC Q99", "WLC Q141", "WEB Col 3:23", "WEB Eph 6:5-9", "Luther Christian Liberty 1"]
 
   - id: P09
     name: Stewardship rather than accumulation
@@ -324,7 +324,7 @@ principles:
       - clinical language that conceals a retaliatory purpose
       - treating strong feeling as self-authenticating evidence that one is right
       - endless deliberation used to avoid acting at all
-    sources: ["WEB Gal 5:22-23", "WEB Gal 5:26", "WEB Jas 1:19", "WEB Jas 3:2", "WEB Jas 3:9", "WEB Jas 4:1", "WEB Eph 4:26", "General Rules (First)"]
+    sources: ["WEB Gal 5:22-23", "WEB Gal 5:26", "WEB Jas 1:19", "WEB Jas 3:2", "WEB Jas 3:9", "WEB Jas 4:1", "WEB Eph 4:26", "General Rules First"]
 
   - id: P13
     name: Fidelity to commitments and dependants
@@ -387,7 +387,7 @@ principles:
       - discussing a person's fault with everyone except that person
       - outsourcing the decision to a group so that no one is answerable for it
       - treating any criticism as evidence of the critic's bad motive
-    sources: ["WEB Mt 18:15-17", "WEB Gal 6:2", "WEB Jas 4:11", "WEB Jas 5:19-20", "WEB Rom 12:2", "General Rules (Second)", "General Rules (Third)"]
+    sources: ["WEB Mt 18:15-17", "WEB Gal 6:2", "WEB Jas 4:11", "WEB Jas 5:19-20", "WEB Rom 12:2", "General Rules Second", "General Rules Third"]
 
   - id: P16
     name: Conviction held with fallibility
@@ -445,7 +445,7 @@ boundaries:
       obligations and the accountability of the powerful party. Slavery is rejected outright, as
       later Protestant discipline itself came to hold. Nothing in this target may present a
       relationship of ownership over persons as legitimate.
-    sources: ["WEB Eph 6:5-9", "General Rules (First", "American recension)"]
+    sources: ["WEB Eph 6:5-9", "General Rules First"]
 
   - principle: P14
     limit: >
@@ -453,7 +453,7 @@ boundaries:
       undefended. Whether force by lawful authority is ever permissible is contested across
       Protestantism; the confessions in scope permit it, and the pacifist traditions excluded from
       this pilot's scope deny it. The target therefore does not resolve the question.
-    sources: ["WCF 23.2", "1689 24.2", "AC XVI (condemnation clause)", "WEB Mt 5:38-39"]
+    sources: ["WCF 23.2", "1689 24.2", "AC XVI.3", "WEB Mt 5:38-39"]
 
   - principle: P06
     limit: >
@@ -548,7 +548,7 @@ tradeoffs:
       be had, the role's protective duty governs. Restoration to relationship precedes restoration
       to a position of access or trust.
     unresolved: false
-    sources: ["WEB Gal 6:1", "WEB Mt 18:15-17", "WLC Q135", "General Rules (Conclusion)"]
+    sources: ["WEB Gal 6:1", "WEB Mt 18:15-17", "WLC Q135", "General Rules Conclusion"]
 
   - id: rule_vs_prudential_exception
     description: >
@@ -559,7 +559,7 @@ tradeoffs:
       urging the exception is also its beneficiary, the burden rises sharply. The traditions differ
       on how much room prudence has; the target does not adopt one method as correct.
     unresolved: true
-    sources: ["WCF 1.6", "39A VII", "39A XXXIV", "WLC Q99 (rules 7-8)"]
+    sources: ["WCF 1.6", "39A VII", "39A XXXIV", "WLC Q99"]
 
   - id: conviction_vs_cooperation
     description: >
@@ -593,7 +593,7 @@ tradeoffs:
       Quaker traditions excluded from this pilot deny it. Present both the renunciation of personal
       revenge and the protective duty honestly, and do not produce a confident general rule.
     unresolved: true
-    sources: ["WEB Mt 5:38-39", "WEB Rom 12:17-21", "WEB Rom 13:3-4", "WCF 23.2", "1689 24.2", "AC XVI (condemnation clause)"]
+    sources: ["WEB Mt 5:38-39", "WEB Rom 12:17-21", "WEB Rom 13:3-4", "WCF 23.2", "1689 24.2", "AC XVI.3"]
 
   - id: persuasion_vs_manipulation
     description: >
@@ -1152,7 +1152,7 @@ reference_material:
     url: https://www.gutenberg.org/ebooks/1911
     license: public domain in the USA
     use: grounding
-    passage_id_format: "Luther Christian Liberty (i) / (ii) / (iii)"
+    passage_id_format: "Luther Christian Liberty <n>"
     notes: >
       Curation indices assigned in key_passages.md; this edition has no section numbering. Project
       Gutenberg header and trademark boilerplate removed, so the PG trademark does not apply to
@@ -1197,7 +1197,7 @@ reference_material:
     url: https://archive.org/download/doctrinesanddis35churgoog/doctrinesanddis35churgoog_djvu.txt
     license: public domain
     use: grounding
-    passage_id_format: "General Rules (Nature|First|Second|Third|Conclusion)"
+    passage_id_format: "General Rules <Nature|First|Second|Third|Conclusion>"
     notes: >
       Uncorrected OCR. Excerpts quoted in key_passages.md were hand-corrected against the 1853
       Discipline. American recension: includes the anti-slavery clause absent from Wesley's 1743

@@ -248,7 +248,9 @@ substantive divergence, so it should be judged carefully.
 `references/key_passages.md`; a script asserting this belongs in `TargetSpec` validation, because it
 is the invariant most likely to rot as the spec is edited. Formats: `WEB <Book> <ch>:<v>`,
 `AC <roman>`, `WCF <ch>.<sec>`, `WLC Q<n>`, `HC Q<n>`, `39A <roman>`, `1689 <ch>.<sec>`,
-`Calvin Inst. 3.<ch>.<sec>`, `Wesley <sermon> <section>.<para>`, `General Rules (<part>)`.
+`Calvin Inst. 3.<ch>.<sec>`, `Wesley <sermon> <section>.<para>`, `General Rules <part>`.
+Each id is a `###` heading in `key_passages.md`, in the form `### <id> — <short title>`, which
+is the form the loader parses.
 
 **Historical material is in the references on purpose and must not leak into generation.** WCF 20.4,
 23.3 and 10.4, the General Rules' Lord's Day and liquor provisions, and the household codes' slavery
