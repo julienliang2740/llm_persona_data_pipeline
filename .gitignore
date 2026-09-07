@@ -1,0 +1,17 @@
+# Secrets: never commit credentials
+fireworks_api_key.txt
+Fireworks*API*.txt
+*api_key*.txt
+.env
+.env.*
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# Local scratch
+scratch/
+*.log
