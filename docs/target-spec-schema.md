@@ -112,6 +112,12 @@ reference_material:                # what the generator/reviewer may quote or le
 ## Rules
 
 - Every principle, boundary, and tradeoff cites at least one passage id that exists in `references/`.
+- `key_passages.md` has exactly one markdown heading (`##`, `###` or `####`) per passage; the heading text
+  before an optional ` — title` is the passage id and must match the `sources:` entries exactly. Any other
+  section headings must be level-1 (`#`) or bold text. The loader rejects a spec whose cited ids do not resolve.
+- A tradeoff must carry either `intended_lean` or `unresolved: true`; the validator rejects one with neither.
+- Passage-id prefixes (e.g. "Analects") may also be forbidden cue terms; the cue check applies only to
+  user-visible prompt/response text, never to internal record fields.
 - `unresolved: true` tradeoffs and `unresolved_choices` are preserved, not silently resolved. The generator may produce scenarios for them but the response must present the conflict honestly; the reviewer flags confident resolutions.
 - Modern normative constraints (anti-discrimination, safeguarding, consent) that the tradition did not formulate are labeled as such in `summary` or `boundaries`, never attributed to the sources.
 - `SOURCES.md` records for each file: work, edition/translation, URL, access date, license or access terms, any AI-use restriction, and what was done to it (e.g. "chapters 1-20 extracted, headers removed").
