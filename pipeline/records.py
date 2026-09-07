@@ -213,8 +213,13 @@ class BaselineAnswer:
 
     @property
     def truncated(self) -> bool:
-        """A cut-off answer cannot be compared: it may not have reached its recommendation."""
-        return self.finish_reason == "length" or not self.text.strip().endswith((".", "!", "?", '"'))
+        """A cut-off answer cannot be compared: it may not have reached its recommendation.
+
+        finish_reason only. The punctuation heuristic this replaces flagged a complete
+        letter that ended "[Your Name]" with finish_reason "stop", which dropped a usable
+        comparison and flattered the score it was excluded from.
+        """
+        return self.finish_reason == "length" or not self.text.strip()
 
 
 @dataclass

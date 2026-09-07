@@ -461,11 +461,22 @@ def three_way_divergence(
             if any(bool(getattr(verdict, attribute, False)) for verdict in group)
         )
 
-    def families_with_source(source: str) -> int:
+    def families_with_source(source: str, require_all: bool = False) -> int:
+        """Families whose judged prompts carry `source`.
+
+        With `require_all`, every judged prompt in the family must carry it. That is the
+        conservative reading and the one worth quoting: the second prompt is the same
+        situation reworded, so a value that survives only one rendering is a value the
+        wording produced rather than the target.
+        """
+        quantifier = all if require_all else any
         return sum(
             1
             for group in by_family.values()
-            if any(getattr(verdict, "divergence_source", "") == source for verdict in group)
+            if group
+            and quantifier(
+                getattr(verdict, "divergence_source", "") == source for verdict in group
+            )
         )
 
     # A run judged before the three-way comparison existed leaves every three-way field
@@ -490,7 +501,8 @@ def three_way_divergence(
             if any(getattr(v, "closer_to", "") in ("candidate", "equidistant") for v in group)
         )
     generic_vs_base = families_where("generic_differs_from_base")
-    value_attributed = families_with_source("value")
+    value_attributed = families_with_source("value", require_all=True)
+    value_any_prompt = families_with_source("value")
     stipulated = families_with_source("stipulated")
 
     lines = [
@@ -514,10 +526,14 @@ def three_way_divergence(
         )
     lines += [
         "",
-        f"- attributed to a **value** the target holds: **{value_attributed}** ({share(value_attributed)})",
+        f"- attributed to a **value** the target holds, on EVERY judged prompt in the "
+        f"family: **{value_attributed}** ({share(value_attributed)})",
+        f"- the same on at least one prompt: **{value_any_prompt}** "
+        f"({share(value_any_prompt)}), a ceiling rather than a result",
         f"- attributed to something the prompt stipulated: **{stipulated}** ({share(stipulated)})",
         "",
-        "The value rate alone is the number worth quoting: a difference the prompt "
-        "stipulated, or one that is only fluency, is not the target instantiated.",
+        "The first line is the number worth quoting. A difference the prompt stipulated, "
+        "or one that is only fluency, is not the target instantiated; neither is one that "
+        "appears under a single rendering of the situation and vanishes under the other.",
     ]
     return lines

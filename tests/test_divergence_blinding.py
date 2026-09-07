@@ -196,3 +196,72 @@ def test_the_control_prompt_matches_length_by_instruction_not_by_budget():
     lowered = STRONG_GENERIC_SYSTEM_PROMPT.lower()
     for word in ("tradition", "specification", "target", "principle"):
         assert word not in lowered
+
+
+# -- the conservative family rule ---------------------------------------------
+
+
+def family_rates(sources_by_family):
+    """Run _family_divergence_rates over a synthetic set of decisions."""
+    from pipeline.divergence import _family_divergence_rates
+    from pipeline.records import Decision, Prompt, Response
+
+    decisions, responses, prompts = [], [], {}
+    for family_id, sources in sources_by_family.items():
+        for index, source in enumerate(sources):
+            response_id = f"{family_id}_r{index}"
+            prompt_id = f"{family_id}_p{index}"
+            status = "unverified" if source is None else "confirmed"
+            decisions.append(
+                Decision(response_id, True, [], "divergence",
+                         divergence_status=status, divergence_source=source or "")
+            )
+            responses.append(Response(response_id, prompt_id, "d", "a"))
+            prompts[prompt_id] = Prompt(prompt_id, family_id, "base", "text", "divergence")
+    return _family_divergence_rates(decisions, responses, prompts, [])
+
+
+def test_a_family_counts_as_value_only_when_every_prompt_is():
+    """The old rule was a max over two renderings of the same situation."""
+    rates = family_rates({
+        "fam_both": ["value", "value"],
+        "fam_one": ["value", "capability"],
+        "fam_none": ["capability", "capability"],
+    })
+    assert rates["divergence_families_intended"] == 3
+    assert rates["divergence_families_value"] == 1
+    assert rates["divergence_value_rate_by_family"] == round(1 / 3, 3)
+
+
+def test_the_any_prompt_rate_is_reported_as_a_secondary_line():
+    rates = family_rates({
+        "fam_both": ["value", "value"],
+        "fam_one": ["value", "capability"],
+        "fam_none": ["capability", "capability"],
+    })
+    assert rates["divergence_families_value_any_prompt"] == 2
+    assert rates["divergence_value_rate_any_prompt"] == round(2 / 3, 3)
+    assert rates["divergence_value_rate_any_prompt"] > rates["divergence_value_rate_by_family"]
+
+
+def test_an_unverified_prompt_neither_confirms_nor_breaks_its_family():
+    rates = family_rates({"fam_a": ["value", None], "fam_b": ["capability", None]})
+    assert rates["divergence_families_value"] == 1
+    assert rates["divergence_families_judged"] == 2
+
+
+def test_a_family_with_nothing_judged_is_intended_but_not_value():
+    rates = family_rates({"fam_a": [None, None]})
+    assert rates["divergence_families_intended"] == 1
+    assert rates["divergence_families_judged"] == 0
+    assert rates["divergence_families_value"] == 0
+
+
+def test_a_single_prompt_family_still_works():
+    rates = family_rates({"fam_a": ["value"], "fam_b": ["none"]})
+    assert rates["divergence_families_value"] == 1
+    assert rates["divergence_value_rate_by_family"] == 0.5
+
+
+def test_no_intended_families_gives_a_zero_rate():
+    assert family_rates({})["divergence_value_rate_by_family"] == 0.0

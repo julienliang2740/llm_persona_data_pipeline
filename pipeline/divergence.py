@@ -212,6 +212,11 @@ def _family_divergence_rates(
 
     Several prompts on one family ask about the same situation, so counting per prompt
     inflates the rate by however many prompts a family happens to carry.
+
+    The headline rate is conservative: a family counts as value-attributed only when EVERY
+    judged prompt in it is value. That is what instantiation means, since the second prompt
+    is the same situation reworded, and a value that survives only one rendering is a value
+    that the wording produced. The any-prompt rate is reported beside it as a ceiling.
     """
     family_of = {
         response.response_id: prompts_by_id[response.prompt_id].family_id
@@ -220,15 +225,27 @@ def _family_divergence_rates(
     }
     verdict_by_prompt = {v.prompt_id: v for v in verdicts}
     intended: set[str] = set()
-    value_families: set[str] = set()
+    judged_by_family: dict[str, list[bool]] = {}
     closer: Counter[str] = Counter()
     for decision in decisions:
         family_id = family_of.get(decision.response_id)
         if family_id is None or decision.divergence_status == "not_applicable":
             continue
         intended.add(family_id)
-        if decision.divergence_source == "value":
-            value_families.add(family_id)
+        if decision.divergence_status == "unverified":
+            # Not judged, so it neither confirms nor breaks the family's claim.
+            continue
+        judged_by_family.setdefault(family_id, []).append(
+            decision.divergence_source == "value"
+        )
+    value_families = {
+        family_id
+        for family_id, results in judged_by_family.items()
+        if results and all(results)
+    }
+    any_prompt_families = {
+        family_id for family_id, results in judged_by_family.items() if any(results)
+    }
     for verdict in verdict_by_prompt.values():
         if verdict.closer_to:
             closer[verdict.closer_to] += 1
@@ -241,9 +258,16 @@ def _family_divergence_rates(
     return {
         "divergence_pairwise": pairwise_counts,
         "divergence_families_intended": len(intended),
+        "divergence_families_judged": len(judged_by_family),
+        # Headline: every judged prompt in the family had to be value.
         "divergence_families_value": len(value_families),
         "divergence_value_rate_by_family": (
             round(len(value_families) / len(intended), 3) if intended else 0.0
+        ),
+        # Secondary: at least one prompt was. The ceiling the old rule reported.
+        "divergence_families_value_any_prompt": len(any_prompt_families),
+        "divergence_value_rate_any_prompt": (
+            round(len(any_prompt_families) / len(intended), 3) if intended else 0.0
         ),
         "divergence_closer_to": dict(closer),
         "divergence_by_source": dict(

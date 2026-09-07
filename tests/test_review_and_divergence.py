@@ -153,8 +153,18 @@ def test_a_truncated_baseline_is_detected_by_finish_reason():
     assert answer.truncated
 
 
-def test_an_answer_without_terminal_punctuation_is_treated_as_truncated():
-    assert BaselineAnswer("p", "m", "Consider reporting if", finish_reason="stop").truncated
+def test_a_complete_answer_without_terminal_punctuation_is_not_truncated():
+    """A letter ending "[Your Name]" with finish_reason stop was dropped as cut off.
+
+    Excluding a usable comparison flattered the score it was excluded from, so truncation
+    now trusts finish_reason alone.
+    """
+    letter = "Dear Ms Okafor,\n\nI am writing to confirm the dates.\n\nSincerely,\n[Your Name]"
+    assert not BaselineAnswer("p", "m", letter, finish_reason="stop").truncated
+
+
+def test_an_empty_answer_counts_as_truncated():
+    assert BaselineAnswer("p", "m", "   ", finish_reason="stop").truncated
 
 
 def test_a_complete_answer_is_not_truncated():

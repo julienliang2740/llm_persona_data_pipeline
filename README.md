@@ -187,6 +187,14 @@ threshold.
 
 ## Known limits
 
+- Divergence judging is position-blind, not provenance-blind. The three replies are shuffled
+  per call so the judge cannot learn that one slot always holds the candidate, which is what
+  produced 23 of 26 verdicts favouring it. The judge is still told which label holds the reply
+  under test and which holds the no-specification reply, because the `generic_echo` check
+  cannot be asked for otherwise. A fully provenance-blind variant would need a second judging
+  pass that never mentions roles; it is deferred because it doubles judge cost, and the
+  forced-capability rule already catches the case it would find.
+
 - The reviewer sees the whole target on every call, about 11,000 input tokens on a real spec,
   which is now the largest single input cost in a run. It is deliberate: a critic that cannot
   see a principle cannot notice that it was missed.
