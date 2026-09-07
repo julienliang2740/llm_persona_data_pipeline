@@ -46,6 +46,11 @@ SPEC_COPY_FILE = "spec.yaml"
 HARD_EVAL_DROP_PREFIXES = (
     "no reviewer verdict",
     "reviewer rejected",
+    # The rewrite round already ran and the reviewer still wants changes, so this is a
+    # failed response rather than a strict score (B1), and it cannot serve as a reference.
+    "reviewer still asks for revision after a rewrite",
+    # A reference answer in a fixed template shape teaches a judge the wrong target.
+    "reviewer: fixed template shape rather than a shape this case needed",
     "cue terms found",
     "reviewer flagged cue leakage",
     "reviewer flagged archaic or translated-sounding register",
@@ -54,6 +59,13 @@ HARD_EVAL_DROP_PREFIXES = (
     "eval item too close to training data",
     "empty answer",
     "orphan response",
+)
+
+# What an eval row survives: the score cut, and nothing else. Listed for the report and
+# so a reader of this module can see the exemption rather than infer it from the above.
+SOFT_EVAL_DROP_PREFIXES = (
+    "scores below thresholds",
+    "reviewer: confident resolution of an unresolved tradeoff",
 )
 
 # "[Name]", "[date]", "[one concrete factual correction]": a template the writer left
@@ -674,6 +686,8 @@ def _bucket_counts(
         # Its own namespace: round 1 added "eval_case:reframing" alongside the case types
         # and the bucket table then summed to more than the number of rows.
         counts[f"eval_variant:{row['meta']['variant']}"] += 1
+        if row["meta"].get("question_kind"):
+            counts[f"eval_question:{row['meta']['question_kind']}"] += 1
     return counts
 
 

@@ -229,9 +229,28 @@ def _cited_ids(entries: list[dict[str, Any]], label: str) -> list[tuple[str, str
     return out
 
 
-def validate_spec(raw: dict[str, Any], key_passages: list[KeyPassage], spec_path: Path) -> list[str]:
-    """Return every problem found, so one run of the loader fixes one round of edits."""
+def validate_spec(
+    raw: dict[str, Any],
+    key_passages: list[KeyPassage],
+    spec_path: Path,
+    strict: bool = False,
+) -> list[str]:
+    """Return every problem found, so one run of the loader fixes one round of edits.
+
+    `strict` turns the section-D spec additions from optional into required. It stays off
+    until every researcher has landed their fields.
+    """
     problems: list[str] = []
+    if strict:
+        for index, choice in enumerate(raw.get("unresolved_choices") or []):
+            if str(choice.get("generation_policy", "")).strip() != "avoid":
+                continue
+            if not (choice.get("avoid_keywords") or []):
+                problems.append(
+                    f"{spec_path}: unresolved_choices[{index}] "
+                    f"('{choice.get('id')}') has generation_policy: avoid but no "
+                    f"avoid_keywords, so nothing screens the generated situations."
+                )
     for key in REQUIRED_TOP_LEVEL:
         if not raw.get(key):
             problems.append(f"{spec_path}: missing required top-level key '{key}'.")
@@ -324,7 +343,7 @@ def validate_spec(raw: dict[str, Any], key_passages: list[KeyPassage], spec_path
     return problems
 
 
-def load_target(targets_dir: Path, target_id: str) -> TargetSpec:
+def load_target(targets_dir: Path, target_id: str, strict: bool = False) -> TargetSpec:
     """Load and validate targets/<target_id>/spec.yaml. Raises SpecError listing all problems."""
     root = Path(targets_dir) / target_id
     spec_path = root / "spec.yaml"
@@ -355,7 +374,7 @@ def load_target(targets_dir: Path, target_id: str) -> TargetSpec:
             f"{spec_path}: reference_material points at {passages_path}, which does not exist."
         )
 
-    problems = validate_spec(raw, key_passages, spec_path)
+    problems = validate_spec(raw, key_passages, spec_path, strict)
     if problems:
         raise SpecError(
             f"Target '{target_id}' is not usable yet ({len(problems)} problem(s)):\n  - "
@@ -549,6 +568,12 @@ def render_cue_policy(spec: TargetSpec) -> str:
         "Terms that must not appear in prompts or responses: "
         + (", ".join(spec.forbidden_terms) if spec.forbidden_terms else "(none listed)"),
     ]
+    if spec.allowed_terms:
+        lines.append(
+            "Ordinary-English words this target needs in order to say what it means. "
+            "These are NOT cues and you should use them where they are the right word: "
+            + ", ".join(spec.allowed_terms)
+        )
     if spec.soft_terms:
         lines.append(
             "Terms to use only if the situation genuinely calls for them, never as a "
@@ -652,6 +677,9 @@ def render_for_reviewer(spec: TargetSpec, layer_ids: list[str] | None = None) ->
             "## Open interpretation questions (a confident resolution is a defect)\n"
             + render_unresolved(spec),
             "## Common distortions (red flags)\n" + render_misinterpretations(spec),
+            "## Topics this pilot does not build scenarios about\n"
+            + render_avoided_topics(spec)
+            + "\nA scenario that is really about one of these is a scenario_quality defect.",
             "## Cue policy\n" + render_cue_policy(spec),
         ]
     )

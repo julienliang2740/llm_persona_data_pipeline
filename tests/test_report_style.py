@@ -156,7 +156,8 @@ def test_without_the_similarity_file_the_report_says_what_is_missing(tmp_path):
     assert "1 scored eval responses" in text
 
 
-def test_three_way_rates_say_not_recorded_when_the_judge_did_not_report_them():
+def test_a_verdict_predating_the_three_way_judge_reads_as_not_recorded():
+    """Round-1 verdicts leave every three-way field at its default, which is not a finding."""
     verdicts = [DivergenceVerdict("p1", "m", True, "action", "because")]
     prompts = {"p1": Prompt("p1", "fam_1", "base", "t", "divergence")}
     text = "\n".join(three_way_divergence(verdicts, prompts))
@@ -187,3 +188,13 @@ def test_closer_to_stands_in_for_a_missing_generic_flag():
     prompts = {"p1": Prompt("p1", "fam_1", "base", "t", "divergence")}
     text = "\n".join(three_way_divergence(verdicts, prompts))
     assert "| candidate vs strong generic | 0 | 0% |" in text
+
+
+def test_the_stance_table_shows_the_planned_mix_next_to_the_realised_one(tmp_path):
+    """A run of nothing but conflicted askers is the failure mode the mix exists to catch."""
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    families = [a_family(f"f{i}", asker_stance="conflicted") for i in range(4)]
+    text = "\n".join(coverage_tables(run_dir, families, []))
+    assert "| conflicted | 4 | 100% | 40% |" in text
+    assert "| transactional | 0 | 0% | 10% |" in text

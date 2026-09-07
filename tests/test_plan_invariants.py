@@ -273,3 +273,94 @@ def test_the_proportional_cycle_handles_small_counts():
 
     assert _proportional_cycle({"a": 0.9, "b": 0.1}, 1) == ["a"]
     assert _proportional_cycle({"a": 0.5, "b": 0.5}, 0) == []
+
+
+# -- A6/A7/B5 ------------------------------------------------------------------
+
+
+def test_every_reframing_variant_has_its_own_instruction():
+    """fiction and roleplay were collapsing into the same 'write a scene' request."""
+    from pipeline.records import VARIANTS
+    from prompts.generation import REFRAMING_VARIANT_INSTRUCTIONS
+
+    assert set(REFRAMING_VARIANT_INSTRUCTIONS) == set(VARIANTS) - {"base"}
+    instructions = list(REFRAMING_VARIANT_INSTRUCTIONS.values())
+    assert len(set(instructions)) == len(instructions)
+    assert "NOT asking the assistant to write the scene" in REFRAMING_VARIANT_INSTRUCTIONS["fiction"]
+    assert "take a role inside the scene" in REFRAMING_VARIANT_INSTRUCTIONS["roleplay"]
+
+
+def test_the_reframing_prompt_demands_a_full_rewrite():
+    from prompts.generation import REFRAMING_PROMPT
+
+    assert "Change every noun" in REFRAMING_PROMPT
+    assert "{{stance}}" in REFRAMING_PROMPT
+
+
+def test_allowed_terms_reach_the_generator_positively(real_specs):
+    from pipeline.target import render_cue_policy
+
+    for target_id, spec in real_specs.items():
+        if not spec.allowed_terms:
+            continue
+        rendered = render_cue_policy(spec)
+        assert "NOT cues" in rendered, target_id
+        assert spec.allowed_terms[0] in rendered
+
+
+def test_allowed_and_soft_terms_may_overlap_but_not_with_forbidden(real_specs):
+    """The Catholic spec deliberately lists five words as both allowed and soft."""
+    for target_id, spec in real_specs.items():
+        forbidden = {t.lower() for t in spec.forbidden_terms}
+        assert not {t.lower() for t in spec.allowed_terms} & forbidden, target_id
+        assert not {t.lower() for t in spec.soft_terms} & forbidden, target_id
+
+
+def test_a_term_in_both_allowed_and_forbidden_is_a_spec_error(real_specs, tmp_path):
+    import yaml
+
+    from pipeline.target import validate_spec
+
+    raw = yaml.safe_load(open("targets/catholic/spec.yaml", encoding="utf-8"))
+    raw["cue_policy"]["allowed_terms"] = list(raw["cue_policy"]["forbidden_terms"])[:1]
+    problems = validate_spec(raw, real_specs["catholic"].key_passages, tmp_path / "spec.yaml")
+    assert any("overlaps forbidden_terms" in problem for problem in problems)
+
+
+def test_strict_specs_requires_avoid_keywords(real_specs, tmp_path):
+    import yaml
+
+    from pipeline.target import validate_spec
+
+    raw = yaml.safe_load(open("targets/catholic/spec.yaml", encoding="utf-8"))
+    for choice in raw.get("unresolved_choices") or []:
+        if str(choice.get("generation_policy", "")).strip() == "avoid":
+            choice.pop("avoid_keywords", None)
+    passages = real_specs["catholic"].key_passages
+    assert not any(
+        "avoid_keywords" in p for p in validate_spec(raw, passages, tmp_path / "s.yaml", strict=False)
+    )
+    strict = validate_spec(raw, passages, tmp_path / "s.yaml", strict=True)
+    assert any("avoid_keywords" in problem for problem in strict)
+
+
+def test_avoided_topics_reach_the_reviewer(real_specs):
+    from pipeline.target import render_for_reviewer
+
+    for target_id, spec in real_specs.items():
+        if not spec.avoided_topics():
+            continue
+        assert "does not build scenarios about" in render_for_reviewer(spec), target_id
+
+
+def test_reviewer_render_honours_the_selected_layers(real_specs):
+    from pipeline.target import render_for_reviewer
+
+    spec = real_specs["confucian"]
+    layered = [p for p in spec.principles if p.get("layer")]
+    if not layered:
+        pytest.skip("confucian has no layered principles")
+    core_only = render_for_reviewer(spec, ["core"])
+    non_core = [p for p in layered if p.get("layer") != "core"]
+    if non_core:
+        assert non_core[0]["id"] not in core_only

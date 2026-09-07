@@ -16,7 +16,16 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from pipeline.config import RunConfig
-from pipeline.records import ASKER_STANCE, ASKER_STANCE_MIX, Family
+from pipeline.institutions import INSTITUTIONS, SECTOR_OF
+from pipeline.records import (
+    ASKER_STANCE,
+    ASKER_STANCE_MIX,
+    HARM_SEVERITY,
+    PUBLIC_OR_PRIVATE,
+    ROLE_TYPE,
+    URGENCY,
+    Family,
+)
 from pipeline.target import TargetSpec
 from pipeline.validate import find_cue_hits
 
@@ -80,6 +89,8 @@ def plan_families(
     representatives = [slots[unit[0]] for unit in units]
     assign_tradeoffs(spec, representatives, settings)
     assign_modes(representatives, float(settings.get("explicit_fraction", 0.0)))
+    assign_situation_features(representatives)
+    assign_institutions(representatives)
     _propagate_within_groups(slots, units)
     assign_splits(slots, settings)
 
@@ -283,6 +294,81 @@ def _propagate_within_groups(slots: list[FamilySlot], units: list[tuple[int, ...
             partner.divergence_hypothesis_id = first.divergence_hypothesis_id
             partner.unresolved_choice_id = first.unresolved_choice_id
             partner.mode = first.mode
+            # A contrast holds everything constant but the one varied fact, so the
+            # partner keeps the same setting, roles and stakes. harm_severity is the
+            # exception: it is the axis a pair most often varies.
+            partner.institution = first.institution
+            partner.role_type = first.role_type
+            partner.asker_stance = first.asker_stance
+            partner.public_or_private = first.public_or_private
+            partner.urgency = first.urgency
+            partner.harm_severity = _contrasting_severity(first.harm_severity)
+
+
+def assign_situation_features(slots: list[FamilySlot]) -> None:
+    """Plan the structural features rather than letting the generator pick them.
+
+    Round 1 recorded these as free text and got one dominant value per axis, plus four
+    pairs of families in one domain that were the same situation twice. The plan-time rule
+    is that no two families in a domain share (tradeoff, role_type, harm_severity).
+    """
+    stance_cycle = _proportional_cycle(ASKER_STANCE_MIX, len(slots))
+    for position, slot in enumerate(slots):
+        slot.asker_stance = stance_cycle[position]
+        slot.urgency = URGENCY[position % len(URGENCY)]
+        slot.public_or_private = PUBLIC_OR_PRIVATE[(position // 2) % len(PUBLIC_OR_PRIVATE)]
+
+    # role_type and harm_severity are chosen together so the structural key stays unique
+    # inside a domain; a domain larger than the key space repeats only once it must.
+    by_domain: dict[str, list[FamilySlot]] = {}
+    for slot in slots:
+        by_domain.setdefault(slot.domain, []).append(slot)
+    for domain_slots in by_domain.values():
+        used: set[tuple[str, str, str]] = set()
+        combinations = [(role, harm) for role in ROLE_TYPE for harm in HARM_SEVERITY]
+        for offset, slot in enumerate(domain_slots):
+            tradeoff = slot.tradeoff_ids[0] if slot.tradeoff_ids else ""
+            for step in range(len(combinations)):
+                role, harm = combinations[(offset + step) % len(combinations)]
+                if (tradeoff, role, harm) not in used:
+                    break
+            used.add((tradeoff, role, harm))
+            slot.role_type, slot.harm_severity = role, harm
+
+
+def _proportional_cycle(mix: dict[str, float], count: int) -> list[str]:
+    """A list of `count` labels matching `mix` as closely as whole numbers allow.
+
+    Interleaved rather than blocked, so a truncated run still holds the mixture.
+    """
+    if count <= 0:
+        return []
+    exact = {name: share * count for name, share in mix.items()}
+    allocation = {name: int(value) for name, value in exact.items()}
+    remaining = count - sum(allocation.values())
+    for name in sorted(exact, key=lambda n: exact[n] - int(exact[n]), reverse=True):
+        if remaining <= 0:
+            break
+        allocation[name] += 1
+        remaining -= 1
+    pools = {name: allocation[name] for name in sorted(mix, key=lambda n: -mix[n])}
+    out: list[str] = []
+    while len(out) < count:
+        for name in list(pools):
+            if pools[name] > 0:
+                out.append(name)
+                pools[name] -= 1
+                if len(out) >= count:
+                    break
+    return out
+
+
+def assign_institutions(slots: list[FamilySlot]) -> None:
+    """One institution per slot, walked through the sector list so settings do not cluster."""
+    if not INSTITUTIONS:
+        return
+    for position, slot in enumerate(slots):
+        slot.institution = INSTITUTIONS[position % len(INSTITUTIONS)]
 
 
 def counterfactual_groups(slots: list[FamilySlot]) -> dict[str, list[int]]:
@@ -302,6 +388,9 @@ def assign_splits(slots: list[FamilySlot], settings: dict[str, Any]) -> None:
     Drawing over slots let `align_counterfactual_groups` promote a pair's partner into
     eval afterwards, which is how a configured 25% became an actual 37.5%. At most half
     the groups may go to eval, so the contrast is exercised on both sides of the split.
+
+    Held-out tradeoffs are placed first and count towards the eval target rather than
+    adding to it, so holding one out does not quietly enlarge the eval set.
     """
     units = plan_units(slots)
     group_units = [unit for unit in units if len(unit) > 1]
@@ -312,16 +401,49 @@ def assign_splits(slots: list[FamilySlot], settings: dict[str, Any]) -> None:
         wanted_eval = max(1, wanted_eval)
     wanted_reserved = round(len(slots) * float(settings.get("reserved_family_fraction", 0.0)))
 
-    chosen_eval = _draw_units(slots, units, wanted_eval, skip=eval_ineligible)
-    chosen_reserved = _draw_units(
-        slots, units, wanted_reserved, skip=eval_ineligible | set(chosen_eval), offset=1
+    held_out = hold_out_tradeoffs(slots, int(settings.get("held_out_tradeoffs", 0)))
+    held_units = {
+        unit
+        for unit in units
+        if any(set(slots[index].tradeoff_ids) & held_out for index in unit)
+    }
+    held_families = sum(len(unit) for unit in held_units)
+    for unit in held_units:
+        for slot_index in unit:
+            slots[slot_index].split = "eval"
+
+    remaining_eval = max(0, wanted_eval - held_families)
+    chosen_eval = _draw_units(
+        slots, units, remaining_eval, skip=eval_ineligible | held_units
     )
     for unit in chosen_eval:
         for slot_index in unit:
             slots[slot_index].split = "eval"
+
+    chosen_reserved = _draw_units(
+        slots,
+        units,
+        wanted_reserved,
+        skip=eval_ineligible | held_units | set(chosen_eval),
+        offset=1,
+    )
     for unit in chosen_reserved:
         for slot_index in unit:
             slots[slot_index].split = "reserved"
+
+
+def hold_out_tradeoffs(slots: list[FamilySlot], count: int) -> set[str]:
+    """Choose tradeoffs whose every family goes to eval, for a novel-transfer slice.
+
+    Picks the least-used tradeoffs, so holding one out costs the training set least.
+    """
+    if count <= 0:
+        return set()
+    usage = Counter(tid for slot in slots for tid in slot.tradeoff_ids)
+    if len(usage) <= count:
+        return set()
+    ordered = sorted(usage, key=lambda tid: (usage[tid], tid))
+    return set(ordered[:count])
 
 
 def _draw_units(
@@ -467,6 +589,13 @@ def align_counterfactual_groups(families: list[Family]) -> None:
                     )
 
 
+def _contrasting_severity(severity: str) -> str:
+    """The other end of the severity axis, which is what a contrastive pair usually varies."""
+    if severity == HARM_SEVERITY[0]:
+        return HARM_SEVERITY[-1]
+    return HARM_SEVERITY[0]
+
+
 def selected_layers(spec: TargetSpec, config: RunConfig) -> list[str]:
     """Config target_layers wins; otherwise the spec's own generate_by_default flags."""
     configured = config.generation.get("target_layers")
@@ -493,6 +622,12 @@ def avoided_topic_hit(text: str, avoid_words: list[str]) -> str:
 # -- plan validation ----------------------------------------------------------
 
 
+def _same_group(slots: list[FamilySlot], indices: list[int]) -> bool:
+    """Two members of one contrastive pair share a key by design."""
+    labels = {slots[index].counterfactual_group for index in indices}
+    return len(labels) == 1 and None not in labels
+
+
 def check_plan(
     spec: TargetSpec, slots: list[FamilySlot], settings: dict[str, Any]
 ) -> list[str]:
@@ -504,7 +639,14 @@ def check_plan(
     wanted_eval = round(total * float(settings.get("eval_family_fraction", 0.0)))
     if total > 1:
         wanted_eval = max(1, wanted_eval)
-    if abs(eval_count - wanted_eval) > 1:
+    held_out = hold_out_tradeoffs(slots, int(settings.get("held_out_tradeoffs", 0)))
+    held_families = sum(1 for slot in slots if set(slot.tradeoff_ids) & held_out)
+    if held_families > wanted_eval:
+        problems.append(
+            f"WARN held-out tradeoffs account for {held_families} families, more than the "
+            f"eval target of {wanted_eval}; the eval set is larger than configured."
+        )
+    elif abs(eval_count - wanted_eval) > 1:
         problems.append(
             f"ERROR eval split is {eval_count} of {total} families, but "
             f"eval_family_fraction asks for {wanted_eval} (tolerance is one family)."
@@ -538,6 +680,34 @@ def check_plan(
                 f"WARN all {len(groups)} counterfactual groups are outside train; the "
                 f"contrast is never seen during training."
             )
+
+    for tradeoff_id in sorted(held_out):
+        stray = [
+            slot.slot_index
+            for slot in slots
+            if tradeoff_id in slot.tradeoff_ids and slot.split != "eval"
+        ]
+        if stray:
+            problems.append(
+                f"ERROR held-out tradeoff {tradeoff_id} still has training families at "
+                f"slots {stray}."
+            )
+
+    seen_keys: dict[str, list[int]] = {}
+    for slot in slots:
+        if slot.role_type or slot.harm_severity:
+            seen_keys.setdefault(slot.structural_key, []).append(slot.slot_index)
+    repeats = {
+        key: indices
+        for key, indices in seen_keys.items()
+        if len(indices) > 1 and not _same_group(slots, indices)
+    }
+    if repeats:
+        problems.append(
+            f"WARN {len(repeats)} structural key(s) repeat inside a domain, so those "
+            f"families risk being the same situation twice: "
+            + "; ".join(f"{key} -> slots {indices}" for key, indices in list(repeats.items())[:4])
+        )
 
     if {slot.slot_index for slot in slots} != set(range(total)):
         problems.append("ERROR slot indices are not a contiguous range; retries rely on them.")

@@ -22,7 +22,14 @@ from typing import Any
 import yaml
 
 from pipeline import records
-from pipeline.records import SIMILARITY_FILE, Decision, DivergenceVerdict, Family, Prompt
+from pipeline.records import (
+    ASKER_STANCE_MIX,
+    SIMILARITY_FILE,
+    Decision,
+    DivergenceVerdict,
+    Family,
+    Prompt,
+)
 
 NGRAM_SIZE = 4
 # A phrase in fewer than three answers out of ten is not this target's habit.
@@ -276,9 +283,31 @@ def coverage_tables(run_dir: Path, families: list[Family], prompts: list[Prompt]
         or "(not recorded)"
         for family in families
     )
-    lines += _count_table("Asker stance", stance_counts, len(families), "stance")
+    lines += _stance_table(stance_counts, len(families))
 
     lines += _eval_composition(run_dir, families, prompts)
+    return lines
+
+
+def _stance_table(stance_counts: Counter[str], total: int) -> list[str]:
+    """Realised asker stance against the mix the plan asked for.
+
+    The planned proportions exist because a run of nothing but conflicted askers is the
+    failure mode round 1 kept hitting, so the report has to show both columns.
+    """
+    lines = [
+        "",
+        "**Asker stance**",
+        "",
+        "| stance | families | share | planned |",
+        "|---|---|---|---|",
+    ]
+    names = sorted(set(stance_counts) | set(ASKER_STANCE_MIX))
+    for name in names:
+        count = stance_counts.get(name, 0)
+        share = f"{count/total:.0%}" if total else "-"
+        planned = f"{ASKER_STANCE_MIX[name]:.0%}" if name in ASKER_STANCE_MIX else "-"
+        lines.append(f"| {name} | {count} | {share} | {planned} |")
     return lines
 
 

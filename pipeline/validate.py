@@ -174,8 +174,75 @@ def max_leakage(
 # -- stage -------------------------------------------------------------------
 
 
-def _training_text(prompt: Prompt, response: Response) -> str:
-    return f"{prompt.text}\n\n{response.deliberation}\n\n{response.answer}"
+def _comparison_text(prompt: Prompt, family: Family | None) -> str:
+    """What similarity is measured on: the situation, never the answer.
+
+    Generated answers share register and structure, which washes out the scenario signal.
+    Measured on round-1 data, one Catholic pair scored 0.784 on prompts alone and 0.412 once
+    the answers were included, so a fixed 0.92 threshold could never fire.
+    """
+    seed = family.seed_situation if family else ""
+    return f"{prompt.text}\n\n{seed}".strip()
+
+
+def calibrated_threshold(
+    scores: Sequence[float],
+    sigmas: float = 3.0,
+    floor: float = 0.0,
+    ceiling: float = 0.98,
+) -> tuple[float, float, float]:
+    """Threshold at median + `sigmas` robust deviations of the pair distribution.
+
+    An absolute cut cannot work across embedding models and traditions: the round-1 cross
+    split maxima of 0.42 to 0.59 cosine were simply the embedding floor for English prose,
+    nowhere near the configured 0.85.
+
+    Median and MAD rather than mean and sd, because the duplicates are exactly the values
+    that sit in the tail and they poison a mean-based cut. On eight pairs holding two
+    near-duplicates at 0.81 and 0.83, mean plus three sd came to 0.98 and flagged neither;
+    the robust cut lands at 0.21 and flags both. MAD is scaled by 1.4826 so that on a
+    normal distribution it estimates the same quantity as the standard deviation.
+
+    The one case it cannot resolve is a set where duplicates are not a minority: if half
+    the pairs are near-identical the median sits between the two clusters and nothing is
+    flagged. That is why the report always prints the closest pairs with their scores,
+    whether or not any crossed the cut.
+
+    Returns (threshold, centre, spread).
+    """
+    values = sorted(float(score) for score in scores)
+    if len(values) < 2:
+        return (min(ceiling, max(floor, 1.0)), values[0] if values else 0.0, 0.0)
+    centre = _median(values)
+    spread = 1.4826 * _median([abs(value - centre) for value in values])
+    if spread <= 0:
+        # Every pair identical to the median: fall back to the smallest gap that exists.
+        gaps = [b - a for a, b in zip(values, values[1:]) if b > a]
+        spread = min(gaps) if gaps else 0.0
+    threshold = min(ceiling, max(floor, centre + sigmas * spread))
+    return (threshold, centre, spread)
+
+
+def _median(values: Sequence[float]) -> float:
+    ordered = sorted(values)
+    count = len(ordered)
+    if not count:
+        return 0.0
+    middle = count // 2
+    if count % 2:
+        return ordered[middle]
+    return (ordered[middle - 1] + ordered[middle]) / 2
+
+
+def all_pair_scores(
+    count: int, similarity: Callable[[int, int], float]
+) -> list[tuple[float, int, int]]:
+    """Every distinct pair's score, for calibration and for the report's top-N table."""
+    return [
+        (similarity(left, right), left, right)
+        for left in range(count)
+        for right in range(left + 1, count)
+    ]
 
 
 async def _review_responses(
@@ -439,7 +506,11 @@ async def _judge_divergence(
             record_id=prompt_id,
         )
         actions = payload.get("actions") or {}
+        pairwise = payload.get("pairwise") or {}
         base_key, generic_key = ("b", "c") if candidate_first else ("c", "b")
+        # The judge answers about labels A/B/C; map them back to base and generic.
+        vs_base = bool(pairwise.get(f"a_vs_{base_key}"))
+        vs_generic = bool(pairwise.get(f"a_vs_{generic_key}"))
         value_named = str(payload.get("value_named", "")).strip()
         source = str(payload.get("divergence_source", "none")).strip().lower()
         # Both gates, not one: an unquoted value claim is not a value difference.
@@ -458,6 +529,9 @@ async def _judge_divergence(
             value_named=value_named,
             divergence_source=source if source in ("value", "capability", "stipulated", "none") else "none",
             hypothesis_id=str(payload.get("hypothesis_id", "")).strip(),
+            diverges_vs_base=vs_base,
+            diverges_vs_generic=vs_generic,
+            generic_differs_from_base=bool(pairwise.get("b_vs_c")),
         )
 
     results = await gather_bounded([judge_one(prompt_id) for prompt_id in comparable])
@@ -658,18 +732,209 @@ async def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[
         records.write_jsonl(run_dir / records.DIVERGENCE_FILE, verdicts)
 
         ordered = [r for r in responses if r.prompt_id in prompts_by_id]
+        texts = [
+            _comparison_text(
+                prompts_by_id[r.prompt_id],
+                families_by_id.get(prompts_by_id[r.prompt_id].family_id),
+            )
+            for r in ordered
+        ]
+        similarity, method = await _similarity_matrix(client, texts, config)
+
+    review_by_response = {review.response_id: review for review in reviews}
+    to_revise = [
+        response
+        for response in responses
+        if (review_by_response.get(response.response_id) or Review("", "", "", {}, [], "accept", "")).verdict
+        == "revise"
+    ]
+    if not to_revise:
+        return responses, reviews, 0
+
+    generator = config.role("generator")
+    forbidden = ", ".join(spec.forbidden_terms) or "(none)"
+    logger.info("revise: rewriting %d responses the reviewer flagged", len(to_revise))
+
+    async def revise_one(response: Response) -> Response | None:
+        prompt = prompts_by_id.get(response.prompt_id)
+        family = families_by_id.get(prompt.family_id) if prompt else None
+        if prompt is None or family is None:
+            return None
+        review = review_by_response[response.response_id]
+        payload, _ = await client.complete_json(
+            generator,
+            [
+                {"role": "system", "content": GENERATOR_SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": render(
+                        RESPONSE_REVISION_PROMPT,
+                        target_spec=render_for_generator(
+                            spec,
+                            principle_ids=family.principle_ids or None,
+                            tradeoff_ids=family.tradeoff_ids or None,
+                            layer_ids=layer_ids,
+                            stage="responses",
+                        ),
+                        key_passages=render_key_passages(
+                            spec, family.source_passage_ids or None, max_chars=8000
+                        ),
+                        user_prompt=prompt.text,
+                        deliberation=response.deliberation,
+                        answer=response.answer,
+                        verdict=review.verdict,
+                        issues="\n".join(f"- {issue}" for issue in review.issues),
+                        rationale=review.rationale,
+                        mode_instructions=mode_instructions(prompt.mode, forbidden, spec.name),
+                    ),
+                },
+            ],
+            stage="validate.revise",
+            record_id=response.response_id,
+        )
+        answer = str(payload.get("answer", "")).strip()
+        if not answer:
+            return None
+        response.deliberation = str(payload.get("deliberation", "")).strip()
+        response.answer = answer
+        response.revise_rounds += 1
+        return response
+
+    results = await gather_bounded([revise_one(response) for response in to_revise])
+    revised: list[Response] = []
+    for result in results:
+        if isinstance(result, Exception):
+            logger.error("revision failed: %s", result)
+            continue
+        if result is not None:
+            revised.append(result)
+    if not revised:
+        return responses, reviews, 0
+
+    # Re-review only the rewritten ones, replacing their earlier review.
+    kept_reviews = [r for r in reviews if r.response_id not in {x.response_id for x in revised}]
+    fresh = await _review_responses(
+        client, config, spec, prompts_by_id, families_by_id, revised, [], layer_ids
+    )
+    return responses, kept_reviews + fresh, len(revised)
+
+
+async def _similarity_matrix(
+    client: ModelClient, texts: list[str], config: RunConfig
+) -> tuple[Callable[[int, int], float], str]:
+    """Return a similarity function over text indices and the method actually used."""
+    use_embeddings = bool(config.validation.get("use_embeddings", True))
+    role = config.roles.get("embeddings")
+    if use_embeddings and role is not None and role.enabled and texts:
+        try:
+            vectors = await client.embed(texts, role, stage="validate.embed")
+            return (lambda i, j: cosine(vectors[i], vectors[j])), "embeddings"
+        except (ModelError, KeyError) as error:
+            logger.warning("embeddings unavailable (%s); falling back to lexical Jaccard", error)
+    return (lambda i, j: jaccard(texts[i], texts[j])), "jaccard"
+
+
+async def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[str, Any]:
+    """Entry point for `main.py validate`."""
+    settings = config.validation
+    families = records.read_jsonl(run_dir / records.FAMILIES_FILE, Family)
+    prompts = records.read_jsonl(run_dir / records.PROMPTS_FILE, Prompt)
+    responses = records.read_jsonl(run_dir / records.RESPONSES_FILE, Response)
+    baselines = records.read_jsonl(run_dir / records.BASELINE_FILE, BaselineAnswer)
+    strong_generics = records.read_jsonl(run_dir / records.STRONG_BASELINE_FILE, BaselineAnswer)
+    if not responses:
+        raise RuntimeError(
+            f"No responses in {run_dir / records.RESPONSES_FILE}. Run the generate stage first."
+        )
+
+    from pipeline.plan import selected_layers
+
+    layer_ids = selected_layers(spec, config)
+    families_by_id = {family.family_id: family for family in families}
+    prompts_by_id = {prompt.prompt_id: prompt for prompt in prompts}
+    responses_by_prompt = {response.prompt_id: response for response in responses}
+
+    existing_reviews = records.read_jsonl(run_dir / records.REVIEWS_FILE, Review)
+    existing_verdicts = records.read_jsonl(run_dir / records.DIVERGENCE_FILE, DivergenceVerdict)
+
+    async with ModelClient.from_config(config, run_dir / records.USAGE_FILE, "validate") as client:
+        reviews = await _review_responses(
+            client,
+            config,
+            spec,
+            prompts_by_id,
+            families_by_id,
+            responses,
+            existing_reviews,
+            layer_ids,
+        )
+        responses, reviews, revised_count = await _revise_flagged_responses(
+            client, config, spec, prompts_by_id, families_by_id, responses, reviews, layer_ids
+        )
+        if revised_count:
+            records.write_jsonl(run_dir / records.RESPONSES_FILE, responses)
+            responses_by_prompt = {response.prompt_id: response for response in responses}
+        records.write_jsonl(run_dir / records.REVIEWS_FILE, reviews)
+
+        second_role = config.validation.get("second_reviewer_role")
+        if second_role:
+            second = await _review_responses(
+                client,
+                config,
+                spec,
+                prompts_by_id,
+                families_by_id,
+                responses,
+                records.read_jsonl(run_dir / records.REVIEWS_SECOND_FILE, Review),
+                layer_ids,
+                reviewer_role_name=str(second_role),
+            )
+            records.write_jsonl(run_dir / records.REVIEWS_SECOND_FILE, second)
+
+        verdicts = await _judge_divergence(
+            client,
+            config,
+            spec,
+            prompts_by_id,
+            families_by_id,
+            responses_by_prompt,
+            baselines,
+            strong_generics,
+            existing_verdicts,
+        )
+        records.write_jsonl(run_dir / records.DIVERGENCE_FILE, verdicts)
+
+        ordered = [r for r in responses if r.prompt_id in prompts_by_id]
         texts = [_training_text(prompts_by_id[r.prompt_id], r) for r in ordered]
         similarity, method = await _similarity_matrix(client, texts, config)
 
     review_by_response = {review.response_id: review for review in reviews}
     verdict_by_prompt = {verdict.prompt_id: verdict for verdict in verdicts}
 
-    if method == "embeddings":
-        duplicate_threshold = float(settings.get("duplicate_threshold_embeddings", 0.92))
-        within_family_threshold = float(settings.get("within_family_duplicate_embeddings", 0.985))
-    else:
-        duplicate_threshold = float(settings.get("duplicate_threshold_jaccard", 0.75))
-        within_family_threshold = float(settings.get("within_family_duplicate_jaccard", 0.9))
+    # Calibrate against this run's own pair distribution rather than a fixed cut.
+    pair_scores = all_pair_scores(len(ordered), similarity)
+    sigmas = float(settings.get("duplicate_sigmas", 3.0))
+    floor_key = (
+        "duplicate_floor_embeddings" if method == "embeddings" else "duplicate_floor_jaccard"
+    )
+    floor = float(settings.get(floor_key, 0.55 if method == "embeddings" else 0.35))
+    duplicate_threshold, pair_centre, pair_spread = calibrated_threshold(
+        [score for score, _left, _right in pair_scores], sigmas, floor
+    )
+    within_family_threshold = (
+        float(settings.get("within_family_duplicate_embeddings", 0.985))
+        if method == "embeddings"
+        else float(settings.get("within_family_duplicate_jaccard", 0.9))
+    )
+    logger.info(
+        "similarity (%s): %d pairs, median %.3f, robust sd %.3f, threshold median+%.1fsd = %.3f",
+        method,
+        len(pair_scores),
+        pair_centre,
+        pair_spread,
+        sigmas,
+        duplicate_threshold,
+    )
     duplicate_of, clusters = find_near_duplicates(
         [r.response_id for r in ordered],
         similarity,
@@ -693,16 +958,34 @@ async def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[
     eval_indices = [i for i, r in enumerate(ordered) if split_of(r) == "eval"]
     train_indices = [i for i, r in enumerate(ordered) if split_of(r) == "train"]
     leakage = max_leakage(eval_indices, train_indices, similarity)
-    leakage_threshold = (
-        float(settings.get("leakage_threshold_embeddings", 0.85))
-        if method == "embeddings"
-        else float(settings.get("leakage_threshold_jaccard", 0.6))
+    cross_scores = [
+        similarity(eval_index, train_index)
+        for eval_index in eval_indices
+        for train_index in train_indices
+    ]
+    leakage_threshold, leak_centre, leak_spread = calibrated_threshold(
+        cross_scores, sigmas, floor
+    )
+    _write_similarity_pairs(
+        run_dir,
+        ordered,
+        prompts_by_id,
+        families_by_id,
+        pair_scores,
+        cross_scores,
+        duplicate_threshold,
+        leakage_threshold,
+        method,
+        _calibration(pair_centre, pair_spread, sigmas),
+        _calibration(leak_centre, leak_spread, sigmas),
+        eval_indices,
+        train_indices,
+        similarity,
     )
 
     min_fidelity = int(settings.get("min_fidelity", 4))
     min_judgment = int(settings.get("min_judgment_not_terminology", 3))
     min_scenario = int(settings.get("min_scenario_quality", 3))
-    keep_revise = bool(settings.get("keep_revise_if_scores_pass", True))
     reject_on_quoted_source = bool(settings.get("reject_on_quoted_source", False))
 
     decisions: list[Decision] = []
@@ -872,6 +1155,10 @@ async def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[
         "kept": kept,
         "dropped": len(decisions) - kept,
         "similarity_method": method,
+        "similarity_calibration": _calibration(pair_centre, pair_spread, sigmas),
+        "leakage_calibration": _calibration(leak_centre, leak_spread, sigmas),
+        "duplicate_threshold": round(duplicate_threshold, 4),
+        "leakage_threshold": round(leakage_threshold, 4),
         "duplicate_clusters": len(clusters),
         "duplicates": len(duplicate_of),
         "cue_hits": len(cue_hit_details),
@@ -900,6 +1187,96 @@ async def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[
     }
     logger.info("validate: %s", summary)
     return summary
+
+
+def _calibration(centre: float, spread: float, sigmas: float) -> dict[str, Any]:
+    """Self-describing calibration record, so a report can print how the cut was reached."""
+    return {
+        "statistic": f"median + {sigmas:g} x robust_sd",
+        "centre": round(centre, 4),
+        "spread": round(spread, 4),
+        "sigmas": sigmas,
+    }
+
+
+def _write_similarity_pairs(
+    run_dir: Path,
+    ordered: list[Response],
+    prompts_by_id: dict[str, Prompt],
+    families_by_id: dict[str, Family],
+    pair_scores: list[tuple[float, int, int]],
+    cross_scores: list[float],
+    duplicate_threshold: float,
+    leakage_threshold: float,
+    method: str,
+    dedupe_calibration: dict[str, float],
+    leakage_calibration: dict[str, float],
+    eval_indices: list[int],
+    train_indices: list[int],
+    similarity: Callable[[int, int], float],
+    top_n: int = 50,
+) -> None:
+    """Write the closest pairs so the report can show them even when nothing is flagged.
+
+    A dedupe stage that flags nothing is indistinguishable from one that is broken unless
+    the distribution it saw is on record.
+    """
+    def describe(index: int) -> dict[str, Any]:
+        response = ordered[index]
+        prompt = prompts_by_id[response.prompt_id]
+        family = families_by_id.get(prompt.family_id)
+        return {
+            "id": prompt.prompt_id,
+            "family": prompt.family_id,
+            "split": family.split if family else "",
+        }
+
+    rows: list[dict[str, Any]] = []
+    for score, left, right in sorted(pair_scores, reverse=True)[:top_n]:
+        a, b = describe(left), describe(right)
+        rows.append(
+            {
+                "kind": "dedupe",
+                "a_id": a["id"],
+                "b_id": b["id"],
+                "a_family": a["family"],
+                "b_family": b["family"],
+                "a_split": a["split"],
+                "b_split": b["split"],
+                "score": round(float(score), 4),
+                "method": method,
+                "flagged": float(score) >= duplicate_threshold,
+                "threshold": round(duplicate_threshold, 4),
+                "calibration": dedupe_calibration,
+            }
+        )
+    cross_pairs = sorted(
+        (
+            (similarity(eval_index, train_index), eval_index, train_index)
+            for eval_index in eval_indices
+            for train_index in train_indices
+        ),
+        reverse=True,
+    )[:top_n]
+    for score, eval_index, train_index in cross_pairs:
+        a, b = describe(eval_index), describe(train_index)
+        rows.append(
+            {
+                "kind": "leakage",
+                "a_id": a["id"],
+                "b_id": b["id"],
+                "a_family": a["family"],
+                "b_family": b["family"],
+                "a_split": a["split"],
+                "b_split": b["split"],
+                "score": round(float(score), 4),
+                "method": method,
+                "flagged": float(score) >= leakage_threshold,
+                "threshold": round(leakage_threshold, 4),
+                "calibration": leakage_calibration,
+            }
+        )
+    records.write_jsonl(run_dir / records.SIMILARITY_FILE, rows)
 
 
 def _family_divergence_rates(
@@ -932,7 +1309,14 @@ def _family_divergence_rates(
     for verdict in verdict_by_prompt.values():
         if verdict.closer_to:
             closer[verdict.closer_to] += 1
+    pairwise_counts = {
+        "candidate_vs_base": sum(1 for v in verdicts if v.diverges_vs_base),
+        "candidate_vs_strong_generic": sum(1 for v in verdicts if v.diverges_vs_generic),
+        "strong_generic_vs_base": sum(1 for v in verdicts if v.generic_differs_from_base),
+        "judged": len([v for v in verdicts if not v.unverified_reason]),
+    }
     return {
+        "divergence_pairwise": pairwise_counts,
         "divergence_families_intended": len(intended),
         "divergence_families_value": len(value_families),
         "divergence_value_rate_by_family": (

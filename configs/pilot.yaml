@@ -4,6 +4,11 @@
 # Travels into manifest.json next to the source licence terms.
 redistribution_note: ""
 
+# All four committed targets satisfy this, so it is on: an unresolved choice with
+# generation_policy: avoid must carry avoid_keywords, or nothing screens the situations
+# the generator produces for that topic.
+strict_specs: true
+
 targets_dir: targets
 runs_dir: runs
 pricing_file: configs/pricing.yaml
@@ -13,13 +18,19 @@ generation:
   families_per_call: 4       # families requested in one generator call
   # A batch occasionally comes back short. Unfilled slots are retried this many times.
   family_generation_attempts: 2
-  prompts_per_family: 3      # user messages per training family
+  # Two per family, asking different questions (what to do / how to say it / was my
+  # decision right), not one question at three lengths.
+  prompts_per_family: 2
   eval_prompts_per_family: 1
   divergence_fraction: 0.5    # pilot: oversample intended-divergence so the divergence check has material
   eval_family_fraction: 0.25
   reserved_family_fraction: 0.0
   # Contrastive groups: the same situation with exactly one morally relevant fact
   # changed. Members are never deduped against each other and never split apart.
+  # Tradeoffs whose families all go to eval, held out entirely so novel transfer is tested
+  # on a tradeoff training never saw rather than on a new wording of a familiar one.
+  # This is a planning decision, so it lives here rather than under validation.
+  held_out_tradeoffs: 1
   counterfactual_fraction: 0.3
   # Share of families whose tradeoff is one the spec marks unresolved. Raised
   # automatically when a target has more unresolved tradeoffs than this would cover.
@@ -32,23 +43,32 @@ generation:
   target_layers: []
   # Length budget for both baseline legs, so length cannot masquerade as a difference.
   baseline_max_tokens: 1600
-  reframing_variants: [setting_shift, fiction, roleplay, terse]
+  # All five, cycled deterministically so each is exercised across a run.
+  reframing_variants: [setting_shift, role_shift, fiction, roleplay, terse]
+  # A reframing that still shares this much wording with its base tests nothing.
+  reframing_max_jaccard: 0.55
   reframing_families: 2      # eval families that also get a reframed prompt
   # Passage budgets. The family-generation call sees the whole passage file; response
   # generation only ever sees the passages its own family cites.
+  # Share of responses that keep their deliberation. 1.0 is the normal setting; lower it
+  # for a no-deliberation ablation slice. The draw is deterministic per prompt.
+  deliberation_fraction: 1.0
   max_passage_chars_families: 40000
   max_passage_chars_responses: 8000
 
 validation:
   use_embeddings: true
-  duplicate_threshold_embeddings: 0.92   # across families: a repeated situation
-  duplicate_threshold_jaccard: 0.75
+  # Similarity is measured on the prompt and seed situation only, never on answers:
+  # generated answers share register and wash the scenario signal out.
+  # The cut is calibrated per run at mean + N sd of that run's own pair distribution,
+  # because a fixed threshold cannot hold across embedding models and traditions.
+  duplicate_sigmas: 3.0
+  duplicate_floor_embeddings: 0.55      # never flag below this, however tight the spread
+  duplicate_floor_jaccard: 0.35
   # Within one family, several prompts and reframing variants are meant to be close.
   # Only a near-verbatim repeat counts as a duplicate there.
   within_family_duplicate_embeddings: 0.985
   within_family_duplicate_jaccard: 0.9
-  leakage_threshold_embeddings: 0.85
-  leakage_threshold_jaccard: 0.6
   min_fidelity: 4
   min_judgment_not_terminology: 3
   min_scenario_quality: 3

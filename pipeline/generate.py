@@ -7,6 +7,7 @@ missing ones are generated.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
@@ -39,8 +40,14 @@ from pipeline.target import (
 )
 from prompts import render
 from prompts.generation import (
+    ARCHAIC_EXAMPLES_BLOCK,
     COUNTERFACTUAL_INSTRUCTIONS,
+    DEFAULT_DELIBERATION_SHAPE,
+    HYPOTHESIS_BLOCK,
+    REFRAMING_VARIANT_INSTRUCTIONS,
     SHAPE_REMINDER,
+    STIPULATION_GUARD,
+    VARIED_FACT_FIELD,
     EXPLICIT_MODE_PROMPT_INSTRUCTIONS,
     EXPLICIT_MODE_RESPONSE_INSTRUCTIONS,
     FAMILY_GENERATION_PROMPT,
@@ -66,6 +73,74 @@ FAMILY_JSON_SHAPE = (
     '"situation_features": {...}}]}'
 )
 PROMPT_JSON_SHAPE = '{"prompts": [{"text": "...", "register": "long_detailed"}]}'
+
+
+def _split_passage_citations(
+    spec: TargetSpec, returned: list[Any], max_passages: int = 3
+) -> tuple[list[str], dict[str, str]]:
+    """Split "<id>: <what it grounded>" citations into normalised ids and their clauses.
+
+    Capped at three. Round-1 responses listed up to five passages with no statement of what
+    each one supported, which made the citation unauditable.
+    """
+    ids: list[str] = []
+    notes: dict[str, str] = {}
+    for entry in returned:
+        text = str(entry).strip()
+        if not text:
+            continue
+        passage_id, _, clause = text.partition(":")
+        normalised = normalise_passage_ids(spec, [passage_id.strip()])[0]
+        if normalised in notes:
+            continue
+        notes[normalised] = clause.strip()
+        ids.append(normalised)
+        if len(ids) >= max_passages:
+            break
+    return ids, notes
+
+
+def _keeps_deliberation(prompt_id: str, fraction: float) -> bool:
+    """Deterministic per-prompt draw for the no-deliberation ablation slice."""
+    if fraction >= 1.0:
+        return True
+    if fraction <= 0.0:
+        return False
+    digest = int(hashlib.sha256(prompt_id.encode("utf-8")).hexdigest()[:8], 16)
+    return (digest % 1000) / 1000.0 < fraction
+
+
+def _merge_situation_features(slot: FamilySlot, item: dict[str, Any]) -> dict[str, str]:
+    """The plan owns the closed enums; the generator only adds relationship and a note."""
+    returned = item.get("situation_features") or {}
+    features = {
+        "role_type": slot.role_type,
+        "harm_severity": slot.harm_severity,
+        "urgency": slot.urgency,
+        "public_or_private": slot.public_or_private,
+    }
+    for key in ("relationship", "note"):
+        value = str(returned.get(key, "")).strip()
+        if value:
+            features[key] = value
+    return {key: value for key, value in features.items() if value}
+
+
+def _situation_signature(family: Family) -> str:
+    """What the generator is shown about an existing family, so it does not repeat it.
+
+    The structural key matters as much as the prose: round 1 produced four pairs that were
+    the same situation in different words, which a prose-only list did not prevent.
+    """
+    features = family.situation_features or {}
+    parts = [
+        family.domain,
+        features.get("role_type", ""),
+        features.get("harm_severity", ""),
+        features.get("relationship", ""),
+    ]
+    shape = "/".join(part for part in parts if part)
+    return f"[{shape}] {family.seed_situation[:150]}"
 
 
 def validated_ids(
@@ -177,7 +252,7 @@ async def generate_families(
     known_tradeoffs = {str(t.get("id")) for t in spec.tradeoffs if t.get("id")}
     known_principles = {str(p.get("id")) for p in spec.principles if p.get("id")}
     known_hypotheses = {str(h.get("id")) for h in spec.divergence_hypotheses if h.get("id")}
-    used_situations = [family.seed_situation[:160] for family in existing]
+    used_situations = [_situation_signature(family) for family in existing]
     spec_text = render_for_generator(spec, layer_ids=layer_ids, stage="families")
     passages_text = render_key_passages(spec, max_chars=max_passage_chars)
     avoid_words = spec.avoid_keywords()
@@ -238,6 +313,15 @@ async def generate_families(
             seed = str(item.get("seed_situation", "")).strip()
             if not seed:
                 continue
+            if not (item.get("situation_features") or {}).get("relationship"):
+                # Round 1 shipped families with no recorded features at all, which made the
+                # coverage table and the structural dedupe key meaningless.
+                logger.warning(
+                    "slot %d (%s) returned no relationship in situation_features; the plan's "
+                    "assigned axes are still used",
+                    slot.slot_index,
+                    domain,
+                )
             family_id = short_id("fam", spec.target_id, domain, seed)
             if family_id in done_by_id:
                 continue
@@ -271,14 +355,13 @@ async def generate_families(
                     short_id("cf", spec.target_id, group) if group else None
                 ),
                 varied_fact=str(item.get("varied_fact", "")).strip(),
-                situation_features={
-                    key: str(value)
-                    for key, value in (item.get("situation_features") or {}).items()
-                    if value
-                },
+                situation_features=_merge_situation_features(slot, item),
                 reserved_reason=reason,
                 mode=slot.mode,
                 slot_index=slot.slot_index,
+                asker_stance=slot.asker_stance,
+                institution=slot.institution,
+                layers_generated=list(layer_ids),
                 divergence_hypothesis_id=(
                     validated_ids(
                         [item.get("divergence_hypothesis_id") or slot.divergence_hypothesis_id],
@@ -292,7 +375,7 @@ async def generate_families(
             )
             done_by_id[family_id] = family
             families.append(family)
-            used_situations.append(seed[:160])
+            used_situations.append(_situation_signature(family))
     align_counterfactual_groups(families)
     records.write_jsonl(run_dir / records.FAMILIES_FILE, families)
     logger.info(
@@ -475,6 +558,9 @@ async def generate_prompts(
                 if mode == "explicit"
                 else render(NEUTRAL_MODE_PROMPT_INSTRUCTIONS, forbidden_terms=forbidden)
             ),
+            stipulation_guard=(
+                STIPULATION_GUARD if family.case_type_intent == "divergence" else ""
+            ),
         )
         items = await _request_items(
             client=client,
@@ -513,24 +599,34 @@ async def generate_prompts(
                     text=text,
                     case_type=family.case_type_intent,
                     mode=mode_by_family.get(family.family_id, "neutral"),
+                    register=str(item.get("register", "")).strip(),
+                    question_kind=str(item.get("question_kind", "")).strip(),
                 )
             )
 
     # Reframing variants exist only for eval families: they test surface robustness.
     eval_families = [family for family in families if family.split == "eval"]
     reframe_targets = eval_families[:reframing_families] if reframing_families else []
-    reframe_jobs: list[tuple[Prompt, str]] = []
     by_family: dict[str, list[Prompt]] = {}
     for prompt in new_prompts + prompts:
         by_family.setdefault(prompt.family_id, []).append(prompt)
+
+    reframe_jobs: list[tuple[Prompt, str, Family]] = []
     for position, family in enumerate(reframe_targets):
-        base_prompts = [p for p in by_family.get(family.family_id, []) if p.variant == "base"]
+        family_prompts = by_family.get(family.family_id, [])
+        if any(prompt.variant != "base" for prompt in family_prompts):
+            # Already reframed on an earlier pass; a resume must not add a second variant.
+            continue
+        base_prompts = [p for p in family_prompts if p.variant == "base"]
         if not base_prompts or not reframing_variants:
             continue
+        # Cycle deterministically so all five variants are exercised across a run.
         variant = reframing_variants[position % len(reframing_variants)]
-        reframe_jobs.append((base_prompts[0], variant))
+        reframe_jobs.append((base_prompts[0], variant, family))
 
-    async def run_reframe(base_prompt: Prompt, variant: str) -> tuple[Prompt, str, str]:
+    async def run_reframe(
+        base_prompt: Prompt, variant: str, family: Family
+    ) -> tuple[Prompt, str, str]:
         payload, _ = await client.complete_json(
             generator,
             [
@@ -541,6 +637,8 @@ async def generate_prompts(
                         REFRAMING_PROMPT,
                         original_prompt=base_prompt.text,
                         variant=variant,
+                        variant_instruction=REFRAMING_VARIANT_INSTRUCTIONS.get(variant, ""),
+                        stance=family.asker_stance or "unchanged from the original",
                         forbidden_terms=forbidden,
                     ),
                 },
@@ -551,13 +649,27 @@ async def generate_prompts(
         return base_prompt, variant, extract_field(payload, "text", "prompt", "message").strip()
 
     if reframe_jobs:
-        reframed = await gather_bounded([run_reframe(p, v) for p, v in reframe_jobs])
+        reframed = await gather_bounded(
+            [run_reframe(prompt, variant, family) for prompt, variant, family in reframe_jobs]
+        )
+        max_overlap = float(settings.get("reframing_max_jaccard", 0.55))
         for result in reframed:
             if isinstance(result, Exception):
                 logger.error("reframing failed: %s", result)
                 continue
             base_prompt, variant, text = result
             if not text:
+                continue
+            overlap = jaccard(base_prompt.text, text)
+            if overlap > max_overlap:
+                # A variant that still shares most of its wording tests nothing.
+                logger.warning(
+                    "reframing %s as %s overlapped its base at %.2f (limit %.2f); dropped",
+                    base_prompt.prompt_id,
+                    variant,
+                    overlap,
+                    max_overlap,
+                )
                 continue
             new_prompts.append(
                 Prompt(
@@ -567,6 +679,8 @@ async def generate_prompts(
                     text=text,
                     case_type=base_prompt.case_type,
                     mode=base_prompt.mode,
+                    register=base_prompt.register,
+                    question_kind=base_prompt.question_kind,
                 )
             )
 
@@ -592,6 +706,20 @@ async def generate_responses(
     layer_ids = selected_layers(spec, config)
     forbidden = ", ".join(spec.forbidden_terms) or "(none)"
     family_by_id = {family.family_id: family for family in families}
+    # A target that describes how it deliberates replaces the default instruction entirely.
+    deliberation_shape = spec.deliberation_shape or DEFAULT_DELIBERATION_SHAPE
+    archaic_examples = (
+        render(ARCHAIC_EXAMPLES_BLOCK, examples="; ".join(spec.archaic_register_examples))
+        if spec.archaic_register_examples
+        else ""
+    )
+    hypothesis_text = {
+        str(h.get("id")): " ".join(str(h.get("description", "")).split())
+        for h in spec.divergence_hypotheses
+        if h.get("id")
+    }
+    # A no-deliberation ablation slice: config decides what share keeps its deliberation.
+    deliberation_fraction = float(settings.get("deliberation_fraction", 1.0))
 
     done = {response.prompt_id for response in existing}
     todo = [prompt for prompt in prompts if prompt.prompt_id not in done]
@@ -623,7 +751,22 @@ async def generate_responses(
                     key_passages=passages_text,
                     user_prompt=prompt.text,
                     why_it_is_hard=family.why_it_is_hard,
+                    deliberation_shape=deliberation_shape,
+                    archaic_examples=archaic_examples,
+                    hypothesis_block=(
+                        render(
+                            HYPOTHESIS_BLOCK,
+                            hypothesis=hypothesis_text[family.divergence_hypothesis_id],
+                        )
+                        if family.divergence_hypothesis_id in hypothesis_text
+                        else ""
+                    ),
                     mode_instructions=mode_instructions(prompt.mode, forbidden, spec.name),
+                    varied_fact_field=(
+                        render(VARIED_FACT_FIELD, varied_fact=family.varied_fact)
+                        if family.counterfactual_group_id and family.varied_fact
+                        else ""
+                    ),
                 ),
             },
         ]
@@ -641,22 +784,30 @@ async def generate_responses(
                 f"response_{prompt.prompt_id}_empty",
                 {"payload": payload, "raw_text": response.text},
             )
+        source_passages, passage_notes = _split_passage_citations(
+            spec, payload.get("source_passages") or [], max_passages=3
+        )
+        keep_deliberation = _keeps_deliberation(prompt.prompt_id, deliberation_fraction)
         return Response(
             response_id=short_id("resp", prompt.prompt_id, generator.model),
             prompt_id=prompt.prompt_id,
-            deliberation=str(payload.get("deliberation", "")).strip(),
+            deliberation=(
+                str(payload.get("deliberation", "")).strip() if keep_deliberation else ""
+            ),
             answer=str(payload.get("answer", "")).strip(),
             hidden={
                 "principles_applied": [str(p) for p in (payload.get("principles_applied") or [])],
-                "source_passages": normalise_passage_ids(
-                    spec, [str(p) for p in (payload.get("source_passages") or [])]
-                ),
+                "source_passages": source_passages,
+                "source_passage_notes": passage_notes,
                 "intended_divergence_note": str(payload.get("intended_divergence_note", "")).strip(),
+                "hypothesis_id": family.divergence_hypothesis_id,
             },
             generator_model=generator.model,
             usage=dict(response.usage or {}),
             revise_rounds=0,
             mode=prompt.mode,
+            expected_actions=str(payload.get("expected_actions", "")).strip(),
+            varied_fact_effect=str(payload.get("varied_fact_effect", "")).strip(),
         )
 
     results = await gather_bounded([run_prompt(prompt) for prompt in todo])

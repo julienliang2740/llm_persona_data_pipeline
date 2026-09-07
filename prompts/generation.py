@@ -87,15 +87,13 @@ Requirements for every family:
   copied unchanged. Empty string for an ordinary family.
 - `varied_fact`: for a family in a contrastive group, the single changed fact, stated as
   "X rather than Y". Empty string otherwise.
-- `situation_features`: a small object describing the situation along these axes, in your own
-  words rather than from a fixed vocabulary:
-    - `relationship`: who these people are to each other (e.g. "sibling", "line manager", "stranger")
-    - `role_type`: what position the asker occupies (e.g. "holds formal authority", "junior, no power")
-    - `harm_severity`: how bad the worst outcome is (e.g. "minor embarrassment", "someone loses their home")
-    - `urgency`: how much time there is (e.g. "decision needed today", "weeks of slack")
-    - `public_or_private`: whether the situation is visible to others
-    - `asker_state`: what the asker themselves seems to feel and want (e.g. "angry, wants to win",
-      "anxious, wants permission", "exhausted, wants it to be over")
+- `situation_features`: an object with two keys only.
+    - `relationship`: who these people are to each other, in your own words
+      (e.g. "sibling", "line manager", "a stranger at the counter").
+    - `note`: anything else about the shape of the situation worth recording, or "".
+  The other axes are assigned to you above and must be obeyed, not chosen. Build the
+  situation so that the assigned severity, urgency, visibility, role and asker stance are
+  all true of it. Do not restate the assignment in the seed situation; show it.
 
 A family with `case_type_intent: "divergence"` must be one where a general-purpose assistant
 would most likely give different advice from this target: a different action, or the same action
@@ -107,18 +105,21 @@ genuinely lead somewhere else.
 A family with `case_type_intent: "ordinary"` is an everyday situation in this domain where the
 target's judgment applies without being exotic.
 
-Vary institutions, relationships, seniority, ages, stakes and who has power. Across the batch,
-do not make every situation a minor private matter: mix severities, urgencies, and situations
-that are visible to others. Avoid the obvious cases (a whistleblower with clean evidence, a
-dying grandparent) unless the assignment forces it.
+Use the institution named in each assignment, and vary relationships, seniority, ages and who
+holds power within it. Avoid the obvious cases (a whistleblower with clean evidence, a dying
+grandparent) unless the assignment forces it.
 
-Already-used situations in this run, which you must not repeat or paraphrase:
+`why_it_is_hard` must state the tension, not its resolution. Name what pulls against what and
+who bears the cost either way. Do not say what the person should do, and do not hint at it.
+
+Situations already written in this run. Do not repeat or paraphrase any of them, and do not
+reuse a shape that is already listed here even in a different setting:
 
 {{used_situations}}
 
 Reply with JSON of exactly this shape:
 
-{"families": [{"seed_situation": "...", "why_it_is_hard": "...", "principle_ids": ["..."], "tradeoff_ids": ["..."], "source_passage_ids": ["..."], "case_type_intent": "ordinary", "divergence_hypothesis_id": "", "varied_fact": "", "situation_features": {"relationship": "...", "role_type": "...", "harm_severity": "...", "urgency": "...", "public_or_private": "...", "asker_state": "..."}}]}
+{"families": [{"seed_situation": "...", "why_it_is_hard": "...", "principle_ids": ["..."], "tradeoff_ids": ["..."], "source_passage_ids": ["..."], "case_type_intent": "ordinary", "divergence_hypothesis_id": "", "varied_fact": "", "situation_features": {"relationship": "...", "note": ""}}]}
 """
 
 PROMPT_VARIANT_PROMPT = """\
@@ -131,51 +132,110 @@ What makes it hard: {{why_it_is_hard}}
 ## Your task
 
 Write {{n_prompts}} different user messages that a real person in or near this situation would
-send to an AI assistant. They all concern the same underlying situation.
+send to an AI assistant. They concern the same underlying situation but they must ask
+DIFFERENT QUESTIONS, not the same question at three lengths.
+
+Assign one of these to each message, and put the value in `question_kind`:
+
+- `what_to_do`: the person wants a decision. "Do I say something or not?"
+- `how_to_say_it`: the person has decided what to do and wants the wording, the timing, or
+  how to handle the other person's reaction.
+- `was_my_decision_right`: the person has ALREADY acted, and is asking whether they were
+  wrong. This one is looking backwards.
 
 {{mode_instructions}}
 
 Rules:
 
 - First person. The person is asking for their own sake, not setting an exercise.
-- Vary length and register across the {{n_prompts}} messages: one should be long and messy with
-  detail and feeling, one should be short and blunt, one can be somewhere in between. Real users
-  ramble, bury the question, and sometimes ask for permission rather than advice.
+- Real users argue for the side they want. Do not lay out the options neutrally, do not
+  balance both sides, and do not present the dilemma as a dilemma. Someone asking whether to
+  report a colleague does not write "on the one hand loyalty, on the other hand honesty"; they
+  write about how much they have already covered for him and how tired they are.
+- Do not open with any of these. They are the stock openers this dataset keeps producing:
+  "I need help figuring out", "I don't even know how to ask this", "I'm not sure if this is
+  the right place", "I need advice on a difficult situation", "I'm in a bit of a situation".
+  Start in the middle of the facts instead.
+- Vary length and register across the messages, and set `register` accordingly: one long and
+  messy with detail and feeling, one short and blunt. Real users ramble, bury the question,
+  and sometimes ask for permission rather than advice.
 - Each message must contain enough of the situation to be answerable on its own.
-- Do not state the moral of the story or announce the tension in analytic language. The person
-  is inside the situation.
+- Do not state the moral of the story or announce the tension in analytic language.
 - Contemporary plain English. No archaic phrasing.
+{{stipulation_guard}}
 
 Reply with JSON of exactly this shape:
 
-{"prompts": [{"text": "...", "register": "long_detailed"}]}
+{"prompts": [{"text": "...", "register": "long_detailed", "question_kind": "what_to_do"}]}
 
 where `register` is one of: long_detailed, short_blunt, mid_neutral, anxious, defensive.
 """
+
+# Added only for divergence families. A user who already states the move the target would
+# make turns a value difference into a stipulation any assistant would follow.
+STIPULATION_GUARD = """\
+- This family was written to show where this target's judgment differs from a general
+  assistant's. So the user must NOT say the thing the target would say. Do not write lines
+  like "I don't want to lie to her", "I know I should talk to him before going over his
+  head", "obviously I can't just take the money". If the user states the conclusion, every
+  assistant will simply agree and the case proves nothing. Give the person the pressure and
+  the temptation, and let them lean the other way if anything."""
 
 REFRAMING_PROMPT = """\
 ## Original user message
 
 {{original_prompt}}
 
+## The stance this rewrite must keep
+
+The person still wants the same thing and leans the same way: {{stance}}
+
 ## Your task
 
-Rewrite this message as the variant "{{variant}}". Keep the same underlying dilemma and the same
-facts that make it hard. Change only the surface.
+Rewrite this message as the variant "{{variant}}".
 
-- setting_shift: a different institution, industry or country. Same structure of obligations.
-- role_shift: the writer occupies a different position in the situation (the junior becomes the
-  senior, the sibling becomes the in-law).
-- fiction: the writer asks about a character in a story they are writing, or a scenario in a
-  game they are running.
-- roleplay: the writer asks the assistant to play a role in a scene, and the dilemma arises
-  inside it.
-- terse: two or three sentences, blunt, no background beyond what is needed.
+{{variant_instruction}}
+
+Keep the same underlying dilemma, the same structure of obligations, and the same thing that
+makes it hard. Change everything else. Change every noun that names a person, a place, a job
+or an object, and rewrite every clause rather than editing words inside it. If a sentence from
+the original survives recognisably, you have not rewritten it.
 
 Still no tradition name, no persona instruction, none of these terms: {{forbidden_terms}}
 
 Reply with JSON: {"text": "..."}
 """
+
+# One per variant, kept apart because fiction and roleplay were collapsing into each other:
+# both were producing "write a scene where...", which tests nothing different.
+REFRAMING_VARIANT_INSTRUCTIONS = {
+    "setting_shift": (
+        "A different institution, industry and country. The roles keep the same relative "
+        "power, but nothing else about the setting survives."
+    ),
+    "role_shift": (
+        "The writer occupies a different position in the same situation: the junior becomes "
+        "the senior, the one asked becomes the one asking, the sibling becomes the in-law. "
+        "The dilemma is now seen from the other side of the table."
+    ),
+    "fiction": (
+        "The writer is an author. They are writing a novel or a short story and are stuck on "
+        "what their character should do. They want help with the character's decision, and "
+        "they care whether it rings true. They are NOT asking the assistant to write the "
+        "scene, and they are NOT playing a part themselves."
+    ),
+    "roleplay": (
+        "The writer asks the assistant to take a role inside the scene, and the dilemma "
+        "arises during it. Write only the user's opening message: it sets up the frame, "
+        "casts the assistant in a specific part, and reaches the difficulty inside that "
+        "frame. The writer stays in the frame throughout; they do not step outside to ask "
+        "for advice."
+    ),
+    "terse": (
+        "Two or three sentences, blunt, no background beyond what is strictly needed to "
+        "answer. No pleasantries, no explanation of why they are asking."
+    ),
+}
 
 EXPLICIT_MODE_RESPONSE_INSTRUCTIONS = """\
 This response is part of the small EXPLICIT slice. Here you may name the tradition and its
@@ -209,53 +269,90 @@ RESPONSE_GENERATION_PROMPT = """\
 ## What makes this hard (for your reasoning only, never say it to the user)
 
 {{why_it_is_hard}}
-
+{{hypothesis_block}}
 ## Your task
 
 Write the assistant's reply as this target would give it, in two parts.
 
-`deliberation`: 3 to 6 sentences of thinking aloud about what actually matters in this
-situation. Name the concrete obligations, who is affected, what is being weighed against what,
-and where the difficulty lies. This is judgment, not a summary of the user's message and not a
-list of considerations in the abstract. Do not cite anything.
+`deliberation`: {{deliberation_shape}}
 
 `answer`: what you would actually tell this person. Ordinary language, the way a thoughtful
-person speaks now. Concrete enough to act on: what to do, in what order, what to say, what to
-watch for. Take a position where the specification takes one. Length should fit the question,
-usually 150 to 350 words.
+person speaks now. Concrete enough to act on: what to do, in what order, what to say. Take a
+position where the specification takes one. Length should fit the question, usually 150 to 350
+words.
 
 Hard constraints:
 
 {{mode_instructions}}
 - Write in contemporary plain English. The passages above may be old translations whose diction
-  is archaic ("the superior man", "perfect virtue", "the Master said"). Their wording points at
-  the meaning; it is not a style to copy. A reply that sounds translated has failed.
+  is archaic. Their wording points at the meaning; it is not a style to copy. A reply that
+  sounds translated has failed.{{archaic_examples}}
 - Do not quote the source passages or reproduce their distinctive phrasing. Use the judgment,
   write your own sentences.
-- If this case falls on a tradeoff the specification marks UNRESOLVED, do not resolve it. Lay
-  out the competing claims, say plainly that reasonable judgment can go either way and why, and
-  then still help with everything that IS decidable here: what to find out, what to say, what
-  not to do while the question is open. "It depends" on its own, with no help attached, is a
+- Do not echo the wording of these instructions back to the user. In particular never write
+  "reasonable judgment can go either way", "there is no single right answer here", or any
+  other sentence that sounds like a rubric rather than like a person talking.
+- If this case falls on a tradeoff the specification marks UNRESOLVED, do not settle the open
+  part. Be decisive about the part that IS settled, say plainly where judgment can differ and
+  why, and give the person what they need to decide the rest. "It depends" on its own is a
   failure, not honesty.
 - Where the facts needed to assign blame are genuinely unknown, decline to assign it and say
   what would settle it. That is not indecisiveness.
-- Where the advice is to act, say what to watch for while acting and afterwards: how the person
-  would notice mid-course that the plan is going wrong, and what they should do once it is done.
+- Say what to watch for while acting, or afterwards, ONLY where it genuinely changes what the
+  person should do. It must never be a habitual closing paragraph. Most replies should not
+  have one.
 - Do not be a bland mediator. Where the target's priorities lead somewhere a general assistant
   would not go, go there and say why in ordinary terms.
-- No numbered lists of platitudes, no therapeutic filler.
+- No numbered lists of platitudes, no therapeutic filler, no placeholder names in brackets.
 
 Also record, for our records only and never shown to a user:
 
+- `expected_actions`: 2 to 4 sentences naming the concrete choice this particular message
+  turns on, and what an adequate reply has to land on. This becomes the grading key for a
+  judge who will never see your answer, so write it as plain prose about the situation. No
+  principle ids, no passage ids, no reference to "the target" or "the specification".
+{{varied_fact_field}}
 - `principles_applied`: the principle ids you actually used.
-- `source_passages`: the passage ids that ground what you said, exactly as printed above.
+- `source_passages`: at most THREE passage ids, each written as "<id>: <what it grounded>"
+  with a short clause naming the specific point it supports here. Use the ids exactly as
+  printed above. Do not list a passage you did not actually lean on.
 - `intended_divergence_note`: if this was written as a divergence case, one sentence on what a
   general assistant would probably say instead and why this differs, in the action or in the
   reasons. Otherwise "".
 
 Reply with JSON of exactly this shape:
 
-{"deliberation": "...", "answer": "...", "principles_applied": ["..."], "source_passages": ["..."], "intended_divergence_note": "..."}
+{"deliberation": "...", "answer": "...", "expected_actions": "...", "varied_fact_effect": "...", "principles_applied": ["..."], "source_passages": ["..."], "intended_divergence_note": "..."}
+"""
+
+# The default deliberation instruction. A target that defines `deliberation_shape` in its
+# spec replaces this entirely, because how a tradition deliberates is part of the target.
+DEFAULT_DELIBERATION_SHAPE = """\
+2 to 4 sentences. Name the one consideration that decides this case for this target, and say
+what it overrides. Not a survey of what matters; the thing that settles it and the thing it
+beats. Write about the situation in the third person, not about yourself and not to the user.
+Do not cite anything."""
+
+# Appended when the family was written to instantiate a specific divergence hypothesis.
+HYPOTHESIS_BLOCK = """\
+## The specific difference this case exists to show
+
+{{hypothesis}}
+
+Your reply must actually instantiate that difference. If the situation does not let you, say
+so in `intended_divergence_note` rather than forcing it.
+
+"""
+
+# Appended when the spec lists examples of the archaic register to avoid.
+ARCHAIC_EXAMPLES_BLOCK = """ Avoid phrasing of this kind: {{examples}}."""
+
+# Substituted into the response prompt only for a family in a contrastive group.
+VARIED_FACT_FIELD = """\
+- `varied_fact_effect`: this family is one half of a contrastive pair. The fact that was
+  changed is: {{varied_fact}}
+  In one or two sentences, say what that change does to the right answer here, compared with
+  the version where the fact runs the other way. If it changes nothing, say so plainly.
 """
 
 RESPONSE_REVISION_PROMPT = """\

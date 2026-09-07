@@ -99,7 +99,7 @@ async def run(args: argparse.Namespace) -> int:
         print(path.read_text(encoding="utf-8"))
         return 0
 
-    spec = load_target(targets_dir, args.target)
+    spec = load_target(targets_dir, args.target, strict=bool(config.raw.get("strict_specs")))
     logger.info(
         "target %s v%s (%d principles, %d tradeoffs, %d key passages); run dir %s",
         spec.target_id,
