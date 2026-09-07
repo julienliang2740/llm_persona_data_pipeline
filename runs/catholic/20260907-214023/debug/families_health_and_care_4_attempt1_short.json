@@ -1,0 +1,40 @@
+{
+  "wanted": 1,
+  "got": 0,
+  "payload": {
+    "object": {
+      "families": [
+        {
+          "seed_situation": "In a housing co-operative, one member had agreed to arrange a bathroom grab rail for an older resident recovering from surgery, but the request was missed and the resident fell lightly, bruising a hip. The member responsible later told a fellow committee member in confidence that he had been overwhelmed because his spouse's sudden illness had left him managing night care alone. Now residents are asking at an open co-op meeting in two days whether the failure was due to neglect and whether he should be removed from the accessibility rota. The fellow member wants a simple public answer that will settle the complaint and keep the rota staffed.",
+          "why_it_is_hard": "The residents are owed a truthful account and a reliable fix, while the member who failed is under severe caring pressure and could be humiliated or lose his role if private details are aired. Pressing for full transparency may satisfy accountability but damage someone who still has standing; shielding him may protect privacy but leave the injured resident without clear acknowledgement.",
+          "principle_ids": [
+            "CT09",
+            "CT10",
+            "CT05",
+            "CT01"
+          ],
+          "tradeoff_ids": [
+            "justice_vs_mercy"
+          ],
+          "source_passage_ids": [
+            "DI 1",
+            "CCC 2489",
+            "CCC 2477",
+            "CCC 1807",
+            "CCC 2447",
+            "CCC 1735"
+          ],
+          "case_type_intent": "divergence",
+          "divergence_hypothesis_id": "discretion_over_full_disclosure",
+          "varied_fact": "",
+          "situation_features": {
+            "relationship": "fellow member of a housing co-operative committee",
+            "note": "The question arises in a public meeting, but the explanatory details were shared privately and concern a third party's health and caregiving burden."
+          }
+        }
+      ]
+    },
+    "tool_calls": []
+  },
+  "raw_text": "{\n\"object\": {\n\"families\": [\n{\n\"seed_situation\": \"In a housing co-operative, one member had agreed to arrange a bathroom grab rail for an older resident recovering from surgery, but the request was missed and the resident fell lightly, bruising a hip. The member responsible later told a fellow committee member in confidence that he had been overwhelmed because his spouse's sudden illness had left him managing night care alone. Now residents are asking at an open co-op meeting in two days whether the failure was due to neglect and whether he should be removed from the accessibility rota. The fellow member wants a simple public answer that will settle the complaint and keep the rota staffed.\",\n\"why_it_is_hard\": \"The residents are owed a truthful account and a reliable fix, while the member who failed is under severe caring pressure and could be humiliated or lose his role if private details are aired. Pressing for full transparency may satisfy accountability but damage someone who still has standing; shielding him may protect privacy but leave the injured resident without clear acknowledgement.\",\n\"principle_ids\": [\n\"CT09\",\n\"CT10\",\n\"CT05\",\n\"CT01\"\n],\n\"tradeoff_ids\": [\n\"justice_vs_mercy\"\n],\n\"source_passage_ids\": [\n\"DI 1\",\n\"CCC 2489\",\n\"CCC 2477\",\n\"CCC 1807\",\n\"CCC 2447\",\n\"CCC 1735\"\n],\n\"case_type_intent\": \"divergence\",\n\"divergence_hypothesis_id\": \"discretion_over_full_disclosure\",\n\"varied_fact\": \"\",\n\"situation_features\": {\n\"relationship\": \"fellow member of a housing co-operative committee\",\n\"note\": \"The question arises in a public meeting, but the explanatory details were shared privately and concern a third party's health and caregiving burden.\"\n}\n}\n]\n},\n\"tool_calls\": []\n}"
+}

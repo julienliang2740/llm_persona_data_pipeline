@@ -1,0 +1,19 @@
+21:40:23 INFO    main: target catholic v0.2 (16 principles, 14 tradeoffs, 78 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-214023
+21:40:23 INFO    main: === stage: generate ===
+21:41:29 WARNING pipeline.generate: families_health_and_care_4 returned 0 of 1 items; retrying once with an explicit shape reminder (payload saved to /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-214023/debug)
+21:42:27 INFO    pipeline.generate: families: 8 of 8 planned (8 new, 0 reserved by the avoided-topic screen)
+21:44:36 INFO    pipeline.generate: prompts: 16 total (16 new)
+21:50:41 INFO    pipeline.generate: responses: 16 total (16 new, 0 failed)
+21:50:41 INFO    main: === stage: baseline ===
+21:56:45 INFO    pipeline.baseline: baseline: 10 answers total (10 new, 0 failed, 0 truncated)
+21:57:17 INFO    pipeline.baseline: strong generic: 10 answers total (10 new, 0 failed, 0 truncated)
+21:57:17 INFO    main: === stage: validate ===
+22:00:40 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+22:00:43 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+22:02:01 INFO    pipeline.review: revise: rewriting 1 responses the reviewer flagged
+22:18:12 INFO    pipeline.validate: similarity (embeddings): 120 pairs, median 0.479, robust sd 0.064, threshold median+3.0sd = 0.672
+22:18:12 INFO    pipeline.validate: validate: {'responses': 16, 'kept': 16, 'dropped': 0, 'similarity_method': 'embeddings', 'similarity_calibration': {'statistic': 'median + 3 x robust_sd', 'centre': 0.4791, 'spread': 0.0644, 'sigmas': 3.0}, 'leakage_calibration': {'statistic': 'median + 3 x robust_sd', 'centre': 0.4931, 'spread': 0.0556, 'sigmas': 3.0}, 'duplicate_threshold': 0.6722, 'leakage_threshold': 0.6599, 'duplicate_clusters': 0, 'duplicates': 0, 'cue_hits': 0, 'eval_items_checked_for_leakage': 4, 'max_leakage_seen': 0.6093, 'divergence_confirmed': 6, 'divergence_not_confirmed': 2, 'divergence_unverified': 0, 'divergence_action': 4, 'divergence_reasons': 6, 'divergence_pairwise': {'candidate_vs_base': 8, 'candidate_vs_strong_generic': 6, 'strong_generic_vs_base': 7, 'judged': 8}, 'divergence_families_intended': 4, 'divergence_families_judged': 4, 'divergence_families_value': 3, 'divergence_value_rate_by_family': 0.75, 'divergence_families_value_any_prompt': 3, 'divergence_value_rate_any_prompt': 0.75, 'divergence_closer_to': {'generic': 7, 'neither': 1}, 'divergence_by_source': {'value': 6, 'capability': 1, 'none': 1}, 'soft_cue_flags': 10, 'explicit_mode_records': 0, 'quoted_source_flags': 0, 'archaic_register_flags': 0, 'reviewer_flag_score_conflicts': {'reviews_with_flag_and_five': 0, 'reviews_total': 16, 'flag_five_pairs': {}, 'stipulating_prompts': 2}}
+22:18:12 INFO    main: === stage: export ===
+22:18:12 INFO    pipeline.export: export: 12 training rows, 4 eval rows -> /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-214023
+22:18:12 INFO    main: === stage: report ===
+22:18:12 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-214023/report.md
