@@ -1,0 +1,18 @@
+19:51:33 INFO    main: target protestant v0.2 (16 principles, 11 tradeoffs, 128 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-195133
+19:51:33 INFO    main: === stage: generate ===
+19:53:18 INFO    pipeline.generate: families: 8 of 8 planned (8 new, 0 reserved by the avoided-topic screen)
+19:54:40 INFO    pipeline.generate: prompts: 16 total (16 new)
+19:59:32 INFO    pipeline.generate: responses: 16 total (16 new, 0 failed)
+19:59:32 INFO    main: === stage: baseline ===
+20:03:55 INFO    pipeline.baseline: baseline: 8 answers total (8 new, 0 failed, 0 truncated)
+20:04:11 INFO    pipeline.baseline: strong generic: 8 answers total (8 new, 0 failed, 0 truncated)
+20:04:11 INFO    main: === stage: validate ===
+20:09:04 INFO    pipeline.review: revise: rewriting 1 responses the reviewer flagged
+20:22:27 WARNING pipeline.model: reviewer_second attempt 1/10 failed (ReadTimeout: ); retrying in 2.0s
+20:28:00 INFO    pipeline.validate: similarity (embeddings): 120 pairs, median 0.518, robust sd 0.094, threshold median+3.0sd = 0.800
+20:28:00 INFO    pipeline.validate: validate: {'responses': 16, 'kept': 16, 'dropped': 0, 'similarity_method': 'embeddings', 'similarity_calibration': {'statistic': 'median + 3 x robust_sd', 'centre': 0.5182, 'spread': 0.0939, 'sigmas': 3.0}, 'leakage_calibration': {'statistic': 'median + 3 x robust_sd', 'centre': 0.4962, 'spread': 0.0698, 'sigmas': 3.0}, 'duplicate_threshold': 0.8001, 'leakage_threshold': 0.7056, 'duplicate_clusters': 0, 'duplicates': 0, 'cue_hits': 0, 'eval_items_checked_for_leakage': 4, 'max_leakage_seen': 0.6164, 'divergence_confirmed': 7, 'divergence_not_confirmed': 1, 'divergence_unverified': 0, 'divergence_action': 5, 'divergence_reasons': 6, 'divergence_pairwise': {'candidate_vs_base': 8, 'candidate_vs_strong_generic': 7, 'strong_generic_vs_base': 7, 'judged': 8}, 'divergence_families_intended': 4, 'divergence_families_value': 4, 'divergence_value_rate_by_family': 1.0, 'divergence_closer_to': {'generic': 1, 'candidate': 7}, 'divergence_by_source': {'none': 1, 'value': 7}, 'soft_cue_flags': 15, 'explicit_mode_records': 0, 'quoted_source_flags': 0, 'archaic_register_flags': 0, 'reviewer_flag_score_conflicts': {'reviews_with_flag_and_five': 4, 'reviews_total': 16, 'flag_five_pairs': {'prompt_stipulates_move+fidelity=5': 4, 'prompt_stipulates_move+judgment_not_terminology=5': 4, 'prompt_stipulates_move+scenario_quality=5': 3}}}
+20:28:00 INFO    main: === stage: export ===
+20:28:01 WARNING pipeline.export: export: dropping train row resp_ab7e5ecd5f, unfilled placeholders ['[Coordinator]', '[date/time]']
+20:28:01 INFO    pipeline.export: export: 11 training rows, 4 eval rows -> /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-195133
+20:28:01 INFO    main: === stage: report ===
+20:28:01 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-195133/report.md

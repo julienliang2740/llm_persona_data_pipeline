@@ -1,0 +1,111 @@
+{
+  "target_id": "protestant",
+  "target_name": "Shared Protestant moral core (magisterial and free-church, c. 1530-1791 confessional sources)",
+  "spec_version": "0.2",
+  "spec_hash": "ab3e230f1917",
+  "run_id": "20260907-195133",
+  "exported_at": "2026-09-07T20:28:01+00:00",
+  "git_commit": "58495ba8f0b7e6934e2b87b5fdab8b6dd70af0b4-dirty",
+  "config_file": "/home/ubuntu/part1_data_pipeline/configs/pilot.yaml",
+  "config_hash": "6ce73bc93422",
+  "config_copy": "config.resolved.yaml",
+  "spec_copy": "spec.yaml",
+  "models": {
+    "generator": "accounts/fireworks/models/qwen3p8-max",
+    "reviewer": "accounts/fireworks/models/deepseek-v4-pro-0813",
+    "reviewer_second": "accounts/fireworks/models/kimi-k3",
+    "judge": "accounts/fireworks/models/deepseek-v4-pro-0813",
+    "embeddings": "accounts/fireworks/models/qwen3-embedding-8b",
+    "base": "qwen2.5-7b-instruct",
+    "strong_generic": "accounts/fireworks/models/qwen3p8-max"
+  },
+  "counts": {
+    "n_families_configured": 8,
+    "n_families_effective": 8,
+    "families": 8,
+    "families_train": 6,
+    "families_eval": 2,
+    "families_reserved": 0,
+    "layers_generated": [
+      "core"
+    ],
+    "prompts": 16,
+    "responses": 16,
+    "kept": 16,
+    "dropped": 0,
+    "sft_train_rows": 11,
+    "eval_rows": 4,
+    "eval_rows_kept_despite_score_cut": 0,
+    "rows_dropped_for_placeholders": 1,
+    "explicit_mode_rows": 0,
+    "counterfactual_groups": 1,
+    "counterfactual_groups_incomplete": 0,
+    "by_bucket": {
+      "eval:conflict_and_harm": 2,
+      "eval:money_and_property": 2,
+      "eval_case:divergence": 4,
+      "eval_question:what_to_do": 4,
+      "eval_variant:base": 2,
+      "eval_variant:role_shift": 1,
+      "eval_variant:setting_shift": 1,
+      "train:family_and_household": 1,
+      "train:public_life_and_institutions": 2,
+      "train:self_and_body": 2,
+      "train:speech_and_reputation": 2,
+      "train:work_and_organisations": 4,
+      "train_case:divergence": 2,
+      "train_case:ordinary": 9
+    }
+  },
+  "license_constraints": [
+    {
+      "license": "Compiled from the grounding sources listed below; the most restrictive term among them governs. Most excerpts are public domain (World English Bible; Book of Concord Triglotta; Wikisource Westminster, Thirty-Nine Articles and 1689 Confession; Gutenberg Luther; Internet Archive General Rules). Excerpts drawn from Christian Classics Ethereal Library editions - Heidelberg Catechism, Calvin, and the two Wesley sermons - carry CCEL's condition that its editions be used for personal, educational or non-profit purposes, with commercial republication cleared with them. This file is therefore usable for research and non-commercial training as it stands, and needs re-sourcing or permission before commercial use. See the top-level `redistribution_note` and SOURCES.md.",
+      "use": "grounding",
+      "sources": "key_passages"
+    },
+    {
+      "license": "public domain",
+      "use": "grounding",
+      "sources": "web_bible, thirty_nine_articles, wesley_general_rules"
+    },
+    {
+      "license": "out of copyright per the publisher's legal page",
+      "use": "grounding",
+      "sources": "augsburg_confession"
+    },
+    {
+      "license": "public domain (Wikisource PD-old)",
+      "use": "grounding",
+      "sources": "westminster_confession"
+    },
+    {
+      "license": "public domain (17th-century text; underlying printed edition not established)",
+      "use": "grounding",
+      "sources": "westminster_larger_catechism, baptist_confession_1689"
+    },
+    {
+      "license": "public domain underlying text; CCEL edition asks that commercial republication be cleared",
+      "use": "grounding",
+      "sources": "heidelberg_catechism, wesley_catholic_spirit, wesley_use_of_money"
+    },
+    {
+      "license": "public domain in the USA",
+      "use": "grounding",
+      "sources": "luther_christian_liberty"
+    },
+    {
+      "license": "public domain (stated on the source page)",
+      "use": "grounding",
+      "sources": "calvin_christian_life"
+    }
+  ],
+  "redistribution_note": "Three grounding files are public-domain works taken from the Christian Classics Ethereal Library: heidelberg_catechism.txt, wesley_catholic_spirit.txt, wesley_use_of_money.txt, plus calvin_on_the_christian_life.txt whose CCEL book page states outright that the book is public domain. The underlying texts (Schaff 1877, the 1872 Jackson edition of Wesley, Beveridge 1845) are out of copyright, but CCEL asserts copyright in its own website and contents and states that its editions \"may be used for personal, educational, or non-profit purposes\", asking that commercial republication be cleared with them. This pilot is research use and falls inside that permission. Before any commercial run, or before redistributing references/ as a corpus, re-source those four files from public-domain scans (Schaff and the Wesley sermons are both on the Internet Archive) or obtain CCEL's permission. Everything else in references/ is public domain with no such condition: the World English Bible, the Book of Concord Triglotta, both Wikisource confessions, the Wikisource Westminster texts, the Gutenberg Luther, and the Internet Archive General Rules.",
+  "cost": {
+    "usd": 5.4398820200000015,
+    "display": "$5.4399",
+    "calls": 92,
+    "prompt_tokens": 786651,
+    "completion_tokens": 509775,
+    "reasoning_tokens": 460976
+  }
+}
