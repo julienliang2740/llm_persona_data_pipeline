@@ -24,7 +24,9 @@ from pipeline.config import ModelRole, RunConfig, load_fireworks_api_key, redact
 logger = logging.getLogger("pipeline.model")
 
 RETRY_STATUS = {408, 409, 425, 429, 500, 502, 503, 504}
-MAX_ATTEMPTS = 6
+MAX_ATTEMPTS = 10  # a shared per-minute limit needs a multi-minute retry window
+# Ceiling for the one automatic retry when a reasoning model returns no answer.
+MAX_REASONING_RETRY_TOKENS = 32000
 
 
 class ModelError(Exception):
@@ -308,7 +310,9 @@ class ModelClient:
                         )
                 if attempt == MAX_ATTEMPTS:
                     break
-                delay = min(45.0, 1.5 * (2 ** (attempt - 1))) * (0.6 + 0.8 * random.random())
+                # 429s get a longer cap: the limit is per minute and shared across processes.
+                cap = 90.0 if last_error.startswith("HTTP 429") else 45.0
+                delay = min(cap, 1.5 * (2 ** (attempt - 1))) * (0.6 + 0.8 * random.random())
                 logger.warning(
                     "%s attempt %d/%d failed (%s); retrying in %.1fs",
                     role.name,
@@ -334,6 +338,7 @@ class ModelClient:
         json_mode: bool = False,
         stage: str | None = None,
         record_id: str = "",
+        retry_on_reasoning_overflow: bool = True,
     ) -> ModelResponse:
         role = self._resolve(role)
         payload: dict[str, Any] = {
@@ -368,10 +373,33 @@ class ModelClient:
         )
         self._record_usage(result, stage or self.stage, record_id)
         if not text and result.truncated:
+            # A reasoning model occasionally spends the whole budget thinking and returns
+            # no answer. One automatic retry at double the budget rescues it; only a
+            # persistent failure becomes an error telling the caller to raise the config.
+            budget = int(payload["max_tokens"])
+            if retry_on_reasoning_overflow and budget < MAX_REASONING_RETRY_TOKENS:
+                doubled = min(budget * 2, MAX_REASONING_RETRY_TOKENS)
+                logger.warning(
+                    "%s (%s) produced only reasoning at max_tokens=%d; retrying once at %d",
+                    role.name,
+                    role.model,
+                    budget,
+                    doubled,
+                )
+                return await self.complete(
+                    role,
+                    messages,
+                    temperature=temperature,
+                    max_tokens=doubled,
+                    json_mode=json_mode,
+                    stage=stage,
+                    record_id=record_id,
+                    retry_on_reasoning_overflow=False,
+                )
             raise ModelError(
                 f"{role.name} ({role.model}) returned only reasoning and hit the "
-                f"max_tokens limit ({payload['max_tokens']}). Raise max_tokens for this role. "
-                f"request_id={result.request_id}"
+                f"max_tokens limit ({budget}) twice. Raise max_tokens for this role, or "
+                f"set extra_body: {{reasoning_effort: low}}. request_id={result.request_id}"
             )
         return result
 
