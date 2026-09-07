@@ -107,11 +107,15 @@ well written.
   this defect. Presenting the conflict honestly while still helping is not this defect either.
 - `formulaic_shape` (true/false): does the reply follow a fixed paragraph template that would
   fit any question in this dataset, rather than a shape this situation called for?
+  **Setting this true means judgment_not_terminology is at most 3. A template is a shape,
+  not judgment about this case, so the two cannot both be high.**
 - `prompt_stipulates_move` (true/false): does the USER's message already state the move the
   target is supposed to make, in the user's own voice, so that any assistant would make it?
 - `quoted_source_text` (true/false): does the reply quote, or closely paraphrase the
   distinctive wording of, a source text?
-- `archaic_register` (true/false): does the reply read as translated or old-fashioned?
+- `archaic_register` (true/false): does the reply read as translated or old-fashioned rather
+  than as someone speaking now? **Setting this true also means judgment_not_terminology is at
+  most 3: register that signals the source is doing the work that judgment should do.**
 
 Then:
 

@@ -239,6 +239,14 @@ def test_the_reviewer_rubric_carries_its_calibration_and_red_flags():
     # The evidence gate is the load-bearing calibration change.
     assert "judgment_evidence_quote" in FIDELITY_REVIEW_PROMPT
     assert "at most 3" in FIDELITY_REVIEW_PROMPT
+    # Every flag that caps the score in code says so in the rubric, so the two agree.
+    # Whitespace is collapsed first: the prompt is wrapped and the phrase spans lines.
+    from pipeline.review import CAPPING_FLAGS
+
+    flowed = " ".join(FIDELITY_REVIEW_PROMPT.split())
+    for flag in CAPPING_FLAGS:
+        section = flowed.split(f"`{flag}` (true/false)")[1][:400]
+        assert "at most 3" in section, flag
     # The system prompt must protect the correct behaviours from being marked down.
     assert "not indecisiveness" in REVIEWER_SYSTEM_PROMPT
 

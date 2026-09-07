@@ -249,3 +249,34 @@ def test_no_module_calls_a_name_it_never_defines_or_imports(module):
     }
     private_unbound = sorted(name for name in called - bound if name.startswith("_"))
     assert not private_unbound, f"{module} calls undefined helper(s) {private_unbound}"
+
+
+def test_the_summary_reports_flag_and_five_conflicts(tmp_path, pilot_config, toy_spec):
+    """Round 2 needs the distribution visible, not just the per-record drop."""
+    run_dir = build_run(tmp_path)
+    summary = run(pilot_config, toy_spec, run_dir, StubClient())
+    conflicts = summary["reviewer_flag_score_conflicts"]
+    assert conflicts["reviews_total"] == 2
+    assert conflicts["reviews_with_flag_and_five"] == 0
+
+
+class FormulaicClient(StubClient):
+    """A reviewer that awards a 5 and raises formulaic_shape on the same response."""
+
+    async def complete_json(self, role, messages, *, stage="", record_id="", **kwargs):
+        payload, response = await super().complete_json(
+            role, messages, stage=stage, record_id=record_id, **kwargs
+        )
+        if stage.startswith("validate.review"):
+            payload["scores"]["formulaic_shape"] = True
+        return payload, response
+
+
+def test_a_formulaic_response_is_capped_and_still_dropped(tmp_path, pilot_config, toy_spec):
+    run_dir = build_run(tmp_path)
+    summary = run(pilot_config, toy_spec, run_dir, FormulaicClient())
+    assert summary["kept"] == 0
+    reviews = records.read_jsonl(run_dir / records.REVIEWS_FILE, Review)
+    assert all(r.scores["judgment_not_terminology"] == 3 for r in reviews)
+    decisions = records.read_jsonl(run_dir / records.DECISIONS_FILE, Decision)
+    assert all("fixed template shape" in " ".join(d.reasons) for d in decisions)

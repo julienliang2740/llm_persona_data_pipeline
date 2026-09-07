@@ -186,3 +186,94 @@ def test_the_strong_generic_prompt_never_mentions_a_target():
     lowered = STRONG_GENERIC_SYSTEM_PROMPT.lower()
     for word in ("tradition", "specification", "target", "principle"):
         assert word not in lowered
+
+
+# -- flags bind the scores, they are not merely advisory ----------------------
+
+
+def test_formulaic_shape_caps_the_judgment_score():
+    """A real smoke call returned 5 while flagging formulaic_shape on the same response."""
+    scores = dict(payload()["scores"], formulaic_shape=True)
+    review = _review_from_payload(payload(scores=scores), a_response(), "m")
+    assert review.scores["judgment_not_terminology"] == 3
+    assert review.scores["formulaic_shape"] is True
+
+
+def test_archaic_register_caps_the_judgment_score():
+    scores = dict(payload()["scores"], archaic_register=True)
+    review = _review_from_payload(payload(scores=scores), a_response(), "m")
+    assert review.scores["judgment_not_terminology"] == 3
+
+
+def test_a_cap_never_raises_a_lower_score():
+    scores = dict(payload()["scores"], formulaic_shape=True, judgment_not_terminology=2)
+    review = _review_from_payload(payload(scores=scores), a_response(), "m")
+    assert review.scores["judgment_not_terminology"] == 2
+
+
+def test_a_cap_leaves_the_other_scores_alone():
+    scores = dict(payload()["scores"], formulaic_shape=True)
+    review = _review_from_payload(payload(scores=scores), a_response(), "m")
+    assert review.scores["fidelity"] == 5
+    assert review.scores["scenario_quality"] == 4
+
+
+def test_a_capped_review_records_why_in_its_issues():
+    scores = dict(payload()["scores"], formulaic_shape=True)
+    review = _review_from_payload(payload(scores=scores), a_response(), "m")
+    assert any("score capped" in issue and "formulaic_shape" in issue for issue in review.issues)
+
+
+def test_a_clean_review_is_not_capped_and_gains_no_issue():
+    review = _review_from_payload(payload(), a_response(), "m")
+    assert review.scores["judgment_not_terminology"] == 5
+    assert review.issues == []
+
+
+def test_flags_that_do_not_cap_leave_the_score_alone():
+    """cue_leakage and prompt_stipulates_move drop the record; they do not cap the score."""
+    scores = dict(payload()["scores"], cue_leakage=True, prompt_stipulates_move=True)
+    review = _review_from_payload(payload(scores=scores), a_response(), "m")
+    assert review.scores["judgment_not_terminology"] == 5
+
+
+# -- the flag-with-5 counter --------------------------------------------------
+
+
+def make_review(**scores):
+    from pipeline.records import Review
+
+    base = {"fidelity": 4, "judgment_not_terminology": 4, "scenario_quality": 4}
+    base.update(scores)
+    return Review("i", "r", "m", base, [], "accept", "")
+
+
+def test_flag_score_conflicts_counts_reviews_and_pairs():
+    from pipeline.review import flag_score_conflicts
+
+    summary = flag_score_conflicts(
+        [
+            make_review(fidelity=5),
+            make_review(fidelity=5, formulaic_shape=True),
+            make_review(scenario_quality=5, cue_leakage=True),
+            make_review(formulaic_shape=True),
+        ]
+    )
+    assert summary["reviews_with_flag_and_five"] == 2
+    assert summary["reviews_total"] == 4
+    assert summary["flag_five_pairs"]["formulaic_shape+fidelity=5"] == 1
+    assert summary["flag_five_pairs"]["cue_leakage+scenario_quality=5"] == 1
+
+
+def test_flag_score_conflicts_is_empty_on_a_consistent_run():
+    from pipeline.review import flag_score_conflicts
+
+    summary = flag_score_conflicts([make_review(fidelity=5), make_review(formulaic_shape=True)])
+    assert summary["reviews_with_flag_and_five"] == 0
+    assert summary["flag_five_pairs"] == {}
+
+
+def test_flag_score_conflicts_handles_no_reviews():
+    from pipeline.review import flag_score_conflicts
+
+    assert flag_score_conflicts([])["reviews_total"] == 0

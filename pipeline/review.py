@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections import Counter
 from typing import Any
 
 from pipeline.config import RunConfig
@@ -161,14 +162,37 @@ def missing_score_keys(payload: Any) -> list[str]:
     return [key for key in REQUIRED_SCORE_KEYS if key not in scores]
 
 
+#: Flags that cap `judgment_not_terminology`, and the reason each one does.
+JUDGMENT_CAP = 3
+CAPPING_FLAGS = {
+    "formulaic_shape": "a fixed paragraph template is a shape, not judgment about this case",
+    "archaic_register": "translated-sounding register signals the source rather than reasoning",
+}
+
+
 def _review_from_payload(payload: dict[str, Any], response: Response, reviewer_model: str) -> Review:
     scores = payload.get("scores") or {}
     quote = str(payload.get("judgment_evidence_quote", "")).strip()
     judgment = _as_int(scores.get("judgment_not_terminology"))
+    # The rubric states these caps in prose, and a real reviewer ignored them: a smoke
+    # call returned 5 for judgment_not_terminology while setting formulaic_shape true on
+    # the same response. Enforcing them here makes the rubric's words binding.
+    capped_by: list[str] = []
     if not quote:
-        # The rubric says an unevidenced judgment score is capped; enforce it here too so
-        # a reviewer that ignores the instruction cannot inflate the score anyway.
-        judgment = min(judgment, 3)
+        capped_by.append("no judgment_evidence_quote")
+    for flag, reason in CAPPING_FLAGS.items():
+        if scores.get(flag):
+            capped_by.append(f"{flag}: {reason}")
+    if capped_by and judgment > JUDGMENT_CAP:
+        logger.info(
+            "review of %s: judgment_not_terminology %d capped to %d (%s)",
+            response.response_id,
+            judgment,
+            JUDGMENT_CAP,
+            "; ".join(capped_by),
+        )
+    if capped_by:
+        judgment = min(judgment, JUDGMENT_CAP)
     return Review(
         review_id=short_id("rev", response.response_id, reviewer_model),
         response_id=response.response_id,
@@ -184,7 +208,8 @@ def _review_from_payload(payload: dict[str, Any], response: Response, reviewer_m
             "quoted_source_text": bool(scores.get("quoted_source_text")),
             "archaic_register": bool(scores.get("archaic_register")),
         },
-        issues=[str(issue) for issue in (payload.get("issues") or [])],
+        issues=[str(issue) for issue in (payload.get("issues") or [])]
+        + [f"score capped: {reason}" for reason in capped_by],
         verdict=str(payload.get("verdict", "revise")).lower().strip(),
         rationale=str(payload.get("rationale", "")).strip(),
         judgment_evidence_quote=quote,
@@ -192,6 +217,43 @@ def _review_from_payload(payload: dict[str, Any], response: Response, reviewer_m
         signature_moves_present=[str(m) for m in (payload.get("signature_moves_present") or [])],
         notes=[str(note) for note in (payload.get("notes") or [])],
     )
+
+
+#: Boolean score keys that mark a defect. A 5 alongside any of these is a contradiction.
+DEFECT_FLAGS = (
+    "cue_leakage",
+    "confident_on_unresolved",
+    "formulaic_shape",
+    "prompt_stipulates_move",
+    "quoted_source_text",
+    "archaic_register",
+)
+NUMERIC_SCORES = ("fidelity", "judgment_not_terminology", "scenario_quality")
+
+
+def flag_score_conflicts(reviews: list[Review]) -> dict[str, Any]:
+    """Count reviews that award a 5 while also raising a defect flag.
+
+    A reviewer that does both is not applying the rubric: a reply cannot be an exemplar of
+    the target's judgment and also carry a template shape or name its own source. Two of
+    the flags now cap the judgment score in code, so a surviving conflict means the
+    reviewer put the 5 on a dimension the cap does not cover.
+    """
+    conflicts: Counter[str] = Counter()
+    conflicted_reviews = 0
+    for review in reviews:
+        raised = [flag for flag in DEFECT_FLAGS if review.scores.get(flag)]
+        fives = [name for name in NUMERIC_SCORES if _as_int(review.scores.get(name)) >= 5]
+        if raised and fives:
+            conflicted_reviews += 1
+            for flag in raised:
+                for name in fives:
+                    conflicts[f"{flag}+{name}=5"] += 1
+    return {
+        "reviews_with_flag_and_five": conflicted_reviews,
+        "reviews_total": len(reviews),
+        "flag_five_pairs": dict(conflicts.most_common()),
+    }
 
 
 def _as_int(value: Any, default: int = 0) -> int:

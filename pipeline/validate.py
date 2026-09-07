@@ -32,6 +32,7 @@ from pipeline.review import (
     _review_responses,
     _revise_flagged_responses,
     _scores_pass,
+    flag_score_conflicts,
     missing_score_keys,  # noqa: F401  (imported from this module by tests)
 )
 from pipeline.similarity import (
@@ -408,6 +409,7 @@ async def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[
             1 for r in reviews if r.scores.get("quoted_source_text")
         ),
         "archaic_register_flags": sum(1 for r in reviews if r.scores.get("archaic_register")),
+        "reviewer_flag_score_conflicts": flag_score_conflicts(reviews),
     }
     logger.info("validate: %s", summary)
     return summary
