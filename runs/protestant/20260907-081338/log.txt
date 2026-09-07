@@ -62,3 +62,39 @@
 08:22:50 ERROR   pipeline.generate: response generation failed: generator (accounts/fireworks/models/qwen3p8-max) failed after 6 attempts. Last error: HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}
 08:22:50 INFO    pipeline.generate: responses: 19 total (19 new, 1 failed)
 08:22:50 INFO    main: === stage: baseline ===
+08:37:29 INFO    pipeline.baseline: baseline: 11 answers total (11 new, 0 failed)
+08:37:29 INFO    main: === stage: validate ===
+08:38:34 WARNING pipeline.model: reviewer attempt 1/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 1.5s
+08:38:37 WARNING pipeline.model: reviewer attempt 2/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 2.3s
+08:38:41 WARNING pipeline.model: reviewer attempt 3/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 6.1s
+08:38:49 WARNING pipeline.model: reviewer attempt 1/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 1.5s
+08:38:51 WARNING pipeline.model: reviewer attempt 2/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 2.0s
+08:38:55 WARNING pipeline.model: reviewer attempt 3/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 6.4s
+08:39:03 WARNING pipeline.model: reviewer attempt 4/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 16.2s
+08:39:20 WARNING pipeline.model: reviewer attempt 5/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 20.1s
+08:45:07 ERROR   pipeline.validate: review failed: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) returned only reasoning and hit the max_tokens limit (16000). Raise max_tokens for this role. request_id=chatcmpl-44a3cd582a8c48ee9ffd72b641064d65
+08:45:07 ERROR   pipeline.validate: review failed: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) returned only reasoning and hit the max_tokens limit (16000). Raise max_tokens for this role. request_id=chatcmpl-aad9117f065141fca4829e7788b45fa2
+08:45:07 ERROR   pipeline.validate: review failed: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) returned only reasoning and hit the max_tokens limit (16000). Raise max_tokens for this role. request_id=chatcmpl-9bfa3115c9e8471299a18e51312936f9
+08:45:07 ERROR   pipeline.validate: review failed: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) returned only reasoning and hit the max_tokens limit (16000). Raise max_tokens for this role. request_id=chatcmpl-d917aac73d0743ffab5ed94dc7078ea6
+08:45:07 ERROR   pipeline.validate: review failed: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) returned only reasoning and hit the max_tokens limit (16000). Raise max_tokens for this role. request_id=chatcmpl-3b6fcaeb9335498ebfa269b0bfd89b45
+08:45:07 ERROR   pipeline.validate: review failed: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) returned only reasoning and hit the max_tokens limit (16000). Raise max_tokens for this role. request_id=chatcmpl-ed42edae8d2040bda63a78159dbdebbf
+08:46:05 INFO    pipeline.validate: validate: {'responses': 19, 'kept': 11, 'dropped': 8, 'similarity_method': 'embeddings', 'duplicate_clusters': 0, 'duplicates': 0, 'cue_hits': 0, 'eval_items_checked_for_leakage': 5, 'max_leakage_seen': 0.594, 'divergence_confirmed': 8, 'divergence_not_confirmed': 0, 'divergence_unverified': 0, 'divergence_action': 8, 'divergence_reasons': 4, 'soft_cue_flags': 0, 'explicit_mode_records': 0, 'quoted_source_flags': 0, 'archaic_register_flags': 0}
+08:46:05 INFO    main: === stage: export ===
+08:46:05 INFO    pipeline.export: export: 9 training rows, 2 eval rows -> /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+08:46:05 INFO    main: === stage: report ===
+08:46:05 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338/report.md
+09:24:12 INFO    main: target protestant v0.1 (16 principles, 12 tradeoffs, 128 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+09:24:12 INFO    main: === stage: generate ===
+09:24:12 INFO    pipeline.generate: families: 8 already present, nothing to generate
+09:24:12 INFO    pipeline.generate: prompts: 20 already present, nothing to generate
+09:24:55 INFO    pipeline.generate: responses: 20 total (1 new, 0 failed)
+09:24:55 INFO    main: === stage: baseline ===
+09:24:55 INFO    pipeline.baseline: baseline: 11 answers already present, nothing to do
+09:24:55 INFO    main: === stage: validate ===
+09:26:54 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+09:26:59 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+09:28:15 INFO    pipeline.validate: validate: {'responses': 20, 'kept': 18, 'dropped': 2, 'similarity_method': 'embeddings', 'duplicate_clusters': 0, 'duplicates': 0, 'cue_hits': 0, 'eval_items_checked_for_leakage': 5, 'max_leakage_seen': 0.594, 'divergence_confirmed': 9, 'divergence_not_confirmed': 0, 'divergence_unverified': 0, 'divergence_action': 9, 'divergence_reasons': 5, 'soft_cue_flags': 0, 'explicit_mode_records': 0, 'quoted_source_flags': 0, 'archaic_register_flags': 0}
+09:28:15 INFO    main: === stage: export ===
+09:28:15 INFO    pipeline.export: export: 15 training rows, 3 eval rows -> /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338
+09:28:15 INFO    main: === stage: report ===
+09:28:15 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/protestant/20260907-081338/report.md

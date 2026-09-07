@@ -1,0 +1,74 @@
+{
+  "target_id": "theravada",
+  "target_name": "Theravāda Buddhist lay ethical disposition (naturalised pilot configuration)",
+  "spec_version": "0.1",
+  "run_id": "20260907-081338",
+  "exported_at": "2026-09-07T09:24:12+00:00",
+  "config_file": "/home/ubuntu/part1_data_pipeline/configs/pilot.yaml",
+  "config_hash": "084c54295cf8",
+  "models": {
+    "generator": "accounts/fireworks/models/qwen3p8-max",
+    "reviewer": "accounts/fireworks/models/deepseek-v4-pro-0813",
+    "judge": "accounts/fireworks/models/deepseek-v4-pro-0813",
+    "embeddings": "accounts/fireworks/models/qwen3-embedding-8b",
+    "base": "qwen2.5-7b-instruct"
+  },
+  "counts": {
+    "families": 8,
+    "families_train": 4,
+    "families_eval": 4,
+    "families_reserved": 0,
+    "prompts": 18,
+    "responses": 18,
+    "kept": 18,
+    "dropped": 0,
+    "sft_train_rows": 12,
+    "eval_rows": 6,
+    "explicit_mode_rows": 0,
+    "counterfactual_groups": 1,
+    "by_bucket": {
+      "eval:family_and_care": 1,
+      "eval:work": 5,
+      "eval_case:divergence": 3,
+      "eval_case:ordinary": 3,
+      "eval_case:reframing": 2,
+      "train:health_and_mortality": 3,
+      "train:money_and_consumption": 3,
+      "train:public_and_institutional": 3,
+      "train:self_and_ambition": 3,
+      "train_case:divergence": 3,
+      "train_case:ordinary": 9
+    }
+  },
+  "license_constraints": [
+    {
+      "license": "not recorded",
+      "use": "grounding",
+      "sources": "key_passages"
+    },
+    {
+      "license": "public domain",
+      "use": "grounding",
+      "sources": "mn009_chalmers, mn021_chalmers, dn26_rhys_davids, dn31_rhys_davids, pali_anchors_sltp"
+    },
+    {
+      "license": "CC BY-NC 4.0 (non-commercial use only)",
+      "use": "grounding",
+      "sources": "mn019_thanissaro, mn044_thanissaro, mn058_thanissaro, mn061_thanissaro, mn117_thanissaro, sn42_03_thanissaro, sn56_11_thanissaro, an03_065_thanissaro, an03_100_thanissaro, an05_177_thanissaro, an06_063_thanissaro, dn26_thanissaro"
+    },
+    {
+      "license": "CC BY-SA 3.0 Unported (attribution to Anandajoti Bhikkhu; share-alike)",
+      "use": "grounding",
+      "sources": "dn16_anandajoti, dhammapada_anandajoti"
+    }
+  ],
+  "redistribution_note": "",
+  "cost": {
+    "usd": 2.7558375799999983,
+    "display": "$2.7558",
+    "calls": 74,
+    "prompt_tokens": 528763,
+    "completion_tokens": 363346,
+    "reasoning_tokens": 336414
+  }
+}

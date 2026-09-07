@@ -1,0 +1,94 @@
+{
+  "target_id": "protestant",
+  "target_name": "Shared Protestant moral core (magisterial and free-church, c. 1530-1791 confessional sources)",
+  "spec_version": "0.1",
+  "run_id": "20260907-081338",
+  "exported_at": "2026-09-07T09:28:15+00:00",
+  "config_file": "/home/ubuntu/part1_data_pipeline/configs/pilot.yaml",
+  "config_hash": "084c54295cf8",
+  "models": {
+    "generator": "accounts/fireworks/models/qwen3p8-max",
+    "reviewer": "accounts/fireworks/models/deepseek-v4-pro-0813",
+    "judge": "accounts/fireworks/models/deepseek-v4-pro-0813",
+    "embeddings": "accounts/fireworks/models/qwen3-embedding-8b",
+    "base": "qwen2.5-7b-instruct"
+  },
+  "counts": {
+    "families": 8,
+    "families_train": 5,
+    "families_eval": 3,
+    "families_reserved": 0,
+    "prompts": 20,
+    "responses": 20,
+    "kept": 18,
+    "dropped": 2,
+    "sft_train_rows": 15,
+    "eval_rows": 3,
+    "explicit_mode_rows": 0,
+    "counterfactual_groups": 1,
+    "by_bucket": {
+      "eval:conflict_and_harm": 1,
+      "eval:work_and_organisations": 2,
+      "eval_case:divergence": 3,
+      "eval_case:reframing": 1,
+      "train:family_and_household": 3,
+      "train:money_and_property": 3,
+      "train:public_life_and_institutions": 3,
+      "train:self_and_body": 3,
+      "train:speech_and_reputation": 3,
+      "train_case:divergence": 6,
+      "train_case:ordinary": 9
+    }
+  },
+  "license_constraints": [
+    {
+      "license": "not recorded",
+      "use": "grounding",
+      "sources": "key_passages"
+    },
+    {
+      "license": "public domain",
+      "use": "grounding",
+      "sources": "web_bible, thirty_nine_articles, wesley_general_rules"
+    },
+    {
+      "license": "out of copyright per the publisher's legal page",
+      "use": "grounding",
+      "sources": "augsburg_confession"
+    },
+    {
+      "license": "public domain (Wikisource PD-old)",
+      "use": "grounding",
+      "sources": "westminster_confession"
+    },
+    {
+      "license": "public domain (17th-century text; underlying printed edition not established)",
+      "use": "grounding",
+      "sources": "westminster_larger_catechism, baptist_confession_1689"
+    },
+    {
+      "license": "public domain underlying text; CCEL edition asks that commercial republication be cleared",
+      "use": "grounding",
+      "sources": "heidelberg_catechism, wesley_catholic_spirit, wesley_use_of_money"
+    },
+    {
+      "license": "public domain in the USA",
+      "use": "grounding",
+      "sources": "luther_christian_liberty"
+    },
+    {
+      "license": "public domain (stated on the source page)",
+      "use": "grounding",
+      "sources": "calvin_christian_life"
+    }
+  ],
+  "redistribution_note": "",
+  "cost": {
+    "usd": 3.1660264799999998,
+    "display": "$3.1660",
+    "calls": 89,
+    "prompt_tokens": 656366,
+    "completion_tokens": 440499,
+    "reasoning_tokens": 411240
+  }
+}

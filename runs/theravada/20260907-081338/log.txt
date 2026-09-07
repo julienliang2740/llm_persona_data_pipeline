@@ -36,3 +36,40 @@
 08:23:00 ERROR   pipeline.generate: response generation failed: generator (accounts/fireworks/models/qwen3p8-max) failed after 6 attempts. Last error: HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}
 08:23:00 INFO    pipeline.generate: responses: 16 total (16 new, 2 failed)
 08:23:00 INFO    main: === stage: baseline ===
+08:33:30 INFO    pipeline.baseline: baseline: 9 answers total (9 new, 0 failed)
+08:33:30 INFO    main: === stage: validate ===
+08:38:13 ERROR   pipeline.validate: review failed: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) returned only reasoning and hit the max_tokens limit (16000). Raise max_tokens for this role. request_id=chatcmpl-2e26449e83d3469d90a97ea0f7c8490f
+08:38:13 WARNING pipeline.model: judge attempt 1/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 1.1s
+08:38:13 WARNING pipeline.model: judge attempt 1/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 1.0s
+08:38:15 WARNING pipeline.model: judge attempt 2/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 2.2s
+08:38:15 WARNING pipeline.model: judge attempt 2/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 2.7s
+08:38:19 WARNING pipeline.model: judge attempt 3/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 5.8s
+08:38:19 WARNING pipeline.model: judge attempt 3/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 8.1s
+08:38:27 WARNING pipeline.model: judge attempt 1/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 1.5s
+08:38:27 WARNING pipeline.model: judge attempt 4/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 10.7s
+08:38:43 WARNING pipeline.model: judge attempt 2/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 3.2s
+08:38:43 WARNING pipeline.model: judge attempt 5/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 29.8s
+08:38:43 WARNING pipeline.model: judge attempt 4/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 8.8s
+08:38:59 WARNING pipeline.model: judge attempt 3/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 8.1s
+08:38:59 WARNING pipeline.model: judge attempt 5/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 25.1s
+08:39:58 ERROR   pipeline.validate: divergence judging failed: judge (accounts/fireworks/models/deepseek-v4-pro-0813) failed after 6 attempts. Last error: HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}
+08:39:58 ERROR   pipeline.validate: divergence judging failed: judge (accounts/fireworks/models/deepseek-v4-pro-0813) failed after 6 attempts. Last error: HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}
+08:39:58 INFO    pipeline.validate: validate: {'responses': 16, 'kept': 15, 'dropped': 1, 'similarity_method': 'embeddings', 'duplicate_clusters': 0, 'duplicates': 0, 'cue_hits': 0, 'eval_items_checked_for_leakage': 6, 'max_leakage_seen': 0.4927, 'divergence_confirmed': 3, 'divergence_not_confirmed': 0, 'divergence_unverified': 2, 'divergence_action': 3, 'divergence_reasons': 3, 'soft_cue_flags': 0, 'explicit_mode_records': 0, 'quoted_source_flags': 0, 'archaic_register_flags': 0}
+08:39:58 INFO    main: === stage: export ===
+08:39:58 INFO    pipeline.export: export: 9 training rows, 6 eval rows -> /home/ubuntu/part1_data_pipeline/runs/theravada/20260907-081338
+08:39:58 INFO    main: === stage: report ===
+08:39:58 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/theravada/20260907-081338/report.md
+09:20:07 INFO    main: target theravada v0.1 (16 principles, 13 tradeoffs, 49 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/theravada/20260907-081338
+09:20:07 INFO    main: === stage: generate ===
+09:20:07 INFO    pipeline.generate: families: 8 already present, nothing to generate
+09:20:07 INFO    pipeline.generate: prompts: 18 already present, nothing to generate
+09:21:01 INFO    pipeline.generate: responses: 18 total (2 new, 0 failed)
+09:21:01 INFO    main: === stage: baseline ===
+09:21:01 INFO    pipeline.baseline: baseline: 9 answers already present, nothing to do
+09:21:01 INFO    main: === stage: validate ===
+09:23:01 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+09:24:12 INFO    pipeline.validate: validate: {'responses': 18, 'kept': 18, 'dropped': 0, 'similarity_method': 'embeddings', 'duplicate_clusters': 0, 'duplicates': 0, 'cue_hits': 0, 'eval_items_checked_for_leakage': 6, 'max_leakage_seen': 0.4927, 'divergence_confirmed': 6, 'divergence_not_confirmed': 0, 'divergence_unverified': 0, 'divergence_action': 6, 'divergence_reasons': 4, 'soft_cue_flags': 0, 'explicit_mode_records': 0, 'quoted_source_flags': 0, 'archaic_register_flags': 0}
+09:24:12 INFO    main: === stage: export ===
+09:24:12 INFO    pipeline.export: export: 12 training rows, 6 eval rows -> /home/ubuntu/part1_data_pipeline/runs/theravada/20260907-081338
+09:24:12 INFO    main: === stage: report ===
+09:24:12 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/theravada/20260907-081338/report.md
