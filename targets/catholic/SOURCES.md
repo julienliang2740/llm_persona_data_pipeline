@@ -61,7 +61,7 @@ Two rules were applied throughout:
 | Processing | Three chapters extracted; HTML stripped; text reflowed to single paragraphs. Wording unaltered. |
 | Authority label | T |
 
-### `key_passages.md` — 6,301 words, 78 passages
+### `key_passages.md` — 6,720 words, 78 passages
 
 Derived file. It contains short quotations from the four works above **and** from the
 reference-only Vatican sources in section 2, each with a citation and an authority label. Nothing
