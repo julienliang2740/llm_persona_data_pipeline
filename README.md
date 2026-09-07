@@ -107,12 +107,14 @@ as `unverified` instead of confirmed, and the report says so.
 | `pipeline/model.py` | **the only place HTTP model calls happen**: retries, concurrency, usage ledger, JSON parsing |
 | `pipeline/target.py` | spec loading, validation, and the text handed to prompts |
 | `pipeline/records.py` | every record type, and JSONL read/write |
-| `pipeline/generate.py` | coverage plan, families, user prompts, responses |
+| `pipeline/plan.py` | the coverage plan: slots, splits, pairs, stance mix, held-out tradeoffs (no model calls) |
+| `pipeline/institutions.py` | the institution list sampled per slot |
+| `pipeline/generate.py` | families, user prompts, responses |
 | `pipeline/baseline.py` | base-model answers for the comparisons |
 | `pipeline/validate.py` | reviewer critique, cue check, near-duplicates, leakage, divergence, decisions |
 | `pipeline/export.py` | family split, `sft_train.jsonl`, `eval.jsonl`, `manifest.json` |
 | `pipeline/evaluate.py` | run an endpoint over the eval set, judge it, before/after table |
-| `pipeline/report.py` | the markdown run report |
+| `pipeline/report.py`, `report_style.py` | the markdown run report; cross-target style, coverage and similarity tables |
 | `prompts/` | **all model-facing text**, as ALL_CAPS constants with `{{placeholders}}` |
 | `configs/` | `pilot.yaml`, `full.yaml`, `pricing.yaml` |
 | `tests/fixtures/targets/toy/` | an invented target so tests never need a real one |
@@ -133,6 +135,9 @@ Inside `runs/<target>/<run_id>/`:
 | `sft_train.jsonl` | `{"messages": [user, assistant], "meta": {...}}` |
 | `eval.jsonl` | prompt, case type, expected behaviour, pass/fail notes |
 | `manifest.json` | counts, models, spec version, config hash, cost |
+| `similarity_pairs.jsonl` | the closest prompt pairs with the calibrated cut that was applied |
+| `reviews_second.jsonl` | optional second reviewer's scores (config `validation.second_reviewer_role`) |
+| `config.resolved.yaml`, `spec.yaml` | copies of the exact config and target spec this run used |
 | `usage.jsonl` | one line per model call: tokens, cost, stage, record id |
 | `report.md` | the five-minute read |
 | `log.txt` | the same log that went to stdout |
