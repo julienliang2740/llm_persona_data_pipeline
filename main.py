@@ -54,7 +54,19 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--new-run", action="store_true", help="start a fresh run id instead of resuming")
     parser.add_argument("--n-families", type=int, default=None, help="override generation.n_families")
     parser.add_argument("--targets-dir", default=None, help="override where targets/ is read from")
-    parser.add_argument("--endpoint", default="base", help="evaluate: which model role to run")
+    parser.add_argument(
+        "--endpoint-role",
+        "--endpoint",
+        dest="endpoint_role",
+        default="base",
+        help="evaluate: which configured model role to run over eval.jsonl",
+    )
+    parser.add_argument(
+        "--answers-file",
+        default=None,
+        help="evaluate: judge answers generated elsewhere instead of calling a model. "
+        "Rows are {prompt_id, prompt, model, text}.",
+    )
     parser.add_argument("--label", default=None, help="evaluate: name for this result file")
     parser.add_argument("--before", default=None, help="evaluate: earlier eval_results_*.jsonl to compare")
     parser.add_argument("--after", default=None, help="evaluate: later eval_results_*.jsonl to compare")
@@ -121,7 +133,12 @@ async def run(args: argparse.Namespace) -> int:
             summary[stage] = export.run_stage(config, spec, run_dir)
         elif stage == "evaluate":
             summary[stage] = await evaluate.run_stage(
-                config, spec, run_dir, args.endpoint, args.label
+                config,
+                spec,
+                run_dir,
+                args.endpoint_role,
+                args.label,
+                Path(args.answers_file) if args.answers_file else None,
             )
         elif stage == "report":
             summary[stage] = str(report.run_stage(run_dir, args.target, config.pricing))

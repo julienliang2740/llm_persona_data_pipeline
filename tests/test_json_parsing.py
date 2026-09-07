@@ -56,3 +56,43 @@ def test_no_json_raises_with_a_preview():
 def test_none_raises():
     with pytest.raises(ValueError):
         parse_json_loosely(None)  # type: ignore[arg-type]
+
+
+def test_extract_list_prefers_the_expected_key():
+    from pipeline.model import extract_list
+
+    assert extract_list({"families": [1, 2], "note": "x"}, "families", "family") == [1, 2]
+
+
+def test_extract_list_accepts_the_singular_key_the_generator_sometimes_uses():
+    """Observed in a real run: the generator returned {"family": [...]}, silently losing a batch."""
+    from pipeline.model import extract_list
+
+    assert extract_list({"family": [1, 2]}, "families", "family") == [1, 2]
+
+
+def test_extract_list_falls_back_to_the_only_list_value():
+    from pipeline.model import extract_list
+
+    assert extract_list({"scenarios": [1]}, "families") == [1]
+
+
+def test_extract_list_takes_a_bare_list():
+    from pipeline.model import extract_list
+
+    assert extract_list([1, 2], "families") == [1, 2]
+
+
+def test_extract_list_gives_up_when_two_lists_are_ambiguous():
+    from pipeline.model import extract_list
+
+    assert extract_list({"a": [1], "b": [2]}, "families") == []
+
+
+def test_extract_field_prefers_then_falls_back():
+    from pipeline.model import extract_field
+
+    assert extract_field({"text": "a", "note": "b"}, "text") == "a"
+    assert extract_field({"rewritten": "a"}, "text") == "a"
+    assert extract_field({"a": "x", "b": "y"}, "text") == ""
+    assert extract_field("plain", "text") == "plain"

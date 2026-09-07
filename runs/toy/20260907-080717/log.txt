@@ -1,0 +1,7 @@
+08:07:17 INFO    main: target toy v0.1 (4 principles, 2 tradeoffs, 5 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/toy/20260907-080717
+08:07:17 INFO    main: === stage: generate ===
+08:09:23 ERROR   pipeline.generate: family batch for domain work failed: generator (accounts/fireworks/models/qwen3p8-max) returned only reasoning and hit the max_tokens limit (16000). Raise max_tokens for this role. request_id=chatcmpl-6c26b9bd136642f2b20b1e74eeee6c31
+08:09:23 INFO    pipeline.generate: families: 3 of 6 planned (3 new, 0 reserved by the avoided-topic screen)
+08:09:23 INFO    pipeline.generate: families: retrying the 3 unfilled slots (attempt 2 of 2)
+08:10:41 INFO    pipeline.generate: families: 4 of 6 planned (1 new, 0 reserved by the avoided-topic screen)
+08:11:00 INFO    pipeline.generate: prompts: 11 total (11 new)

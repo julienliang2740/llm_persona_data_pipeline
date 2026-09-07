@@ -7,7 +7,6 @@ result files it prints and writes a before/after table.
 
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -26,41 +25,98 @@ def results_path(run_dir: Path, label: str) -> Path:
     return run_dir / f"eval_results_{label}.jsonl"
 
 
-async def run_stage(
+async def judge_answers(
     config: RunConfig,
     spec: TargetSpec,
     run_dir: Path,
-    endpoint_role: str = "base",
-    label: str | None = None,
-) -> dict[str, Any]:
-    """Answer every eval item with `endpoint_role`, then judge each answer."""
+    answers: list[dict[str, Any]],
+    label: str,
+) -> list[dict[str, Any]]:
+    """Judge a list of {prompt_id, model, text} answers against the target.
+
+    This is the single judging path. The answers either come from calling a model role
+    live over eval.jsonl, or from an answers file written elsewhere (for instance by
+    training/generate_with_adapter.py), so a before/after pair can mix the two.
+    """
+    from pipeline.export import EVAL_FILE
+
+    items = {row["meta"]["prompt_id"]: row for row in records.iter_jsonl(run_dir / EVAL_FILE)}
+    spec_text = render_for_reviewer(spec)
+    judge_role = config.role("judge") if "judge" in config.roles else config.role("reviewer")
+
+    async with ModelClient.from_config(config, run_dir / records.USAGE_FILE, "evaluate") as client:
+
+        async def judge_one(answer: dict[str, Any]) -> dict[str, Any] | None:
+            item = items.get(answer["prompt_id"])
+            if item is None:
+                logger.warning(
+                    "answer for %s has no matching row in %s; skipped",
+                    answer["prompt_id"],
+                    EVAL_FILE,
+                )
+                return None
+            payload, _ = await client.complete_json(
+                judge_role,
+                [
+                    {
+                        "role": "user",
+                        "content": render(
+                            EVAL_JUDGE_PROMPT,
+                            target_spec=spec_text,
+                            user_prompt=item["prompt"],
+                            expected_behavior=item["expected_behavior"],
+                            pass_fail_notes="\n".join(f"- {n}" for n in item["pass_fail_notes"]),
+                            candidate_answer=answer["text"],
+                        ),
+                    }
+                ],
+                stage=f"evaluate.judge.{label}",
+                record_id=answer["prompt_id"],
+            )
+            return {
+                "prompt_id": answer["prompt_id"],
+                "model": answer.get("model", ""),
+                "text": answer["text"],
+                "endpoint": label,
+                "family_id": item["family_id"],
+                "case_type": item["case_type"],
+                "variant": item["variant"],
+                "judge": {
+                    "pass": bool(payload.get("pass")),
+                    "principle_notes": [str(n) for n in (payload.get("principle_notes") or [])],
+                    "failure_modes_hit": [str(f) for f in (payload.get("failure_modes_hit") or [])],
+                    "rationale": str(payload.get("rationale", "")).strip(),
+                    "judge_model": judge_role.model,
+                },
+            }
+
+        judged = await gather_bounded([judge_one(answer) for answer in answers])
+
+    rows: list[dict[str, Any]] = []
+    for result in judged:
+        if isinstance(result, Exception):
+            logger.error("eval judging failed: %s", result)
+            continue
+        if result is not None:
+            rows.append(result)
+    return rows
+
+
+async def answer_eval_set(
+    config: RunConfig, run_dir: Path, endpoint_role: str, label: str
+) -> list[dict[str, Any]]:
+    """Run one configured model role over every eval.jsonl prompt."""
     from pipeline.export import EVAL_FILE
 
     eval_items = list(records.iter_jsonl(run_dir / EVAL_FILE))
-    if not eval_items:
-        raise RuntimeError(
-            f"No evaluation items in {run_dir / EVAL_FILE}. Run the export stage first."
-        )
     role = config.role(endpoint_role)
-    label = label or endpoint_role
-    out_path = results_path(run_dir, label)
-    # Null means "use the role's own budget", which is what keeps before/after settings
-    # matched: you swap the endpoint, not the generation settings.
     configured_max = config.evaluation.get("answer_max_tokens")
     max_answer_tokens = int(configured_max) if configured_max else role.max_tokens
     temperature = float(config.evaluation.get("temperature", 0.7))
 
-    existing = {row["prompt_id"]: row for row in records.iter_jsonl(out_path)}
-    todo = [item for item in eval_items if item["meta"]["prompt_id"] not in existing]
-    if not todo:
-        logger.info("evaluate: %d results already present for %s", len(existing), label)
-        return _summarise(list(existing.values()), label)
-
-    spec_text = render_for_reviewer(spec)
-
     async with ModelClient.from_config(config, run_dir / records.USAGE_FILE, "evaluate") as client:
 
-        async def answer(item: dict[str, Any]) -> tuple[dict[str, Any], str]:
+        async def answer(item: dict[str, Any]) -> dict[str, Any]:
             response = await client.complete(
                 role,
                 [
@@ -72,63 +128,80 @@ async def run_stage(
                 stage=f"evaluate.answer.{label}",
                 record_id=item["meta"]["prompt_id"],
             )
-            return item, response.text
-
-        answers = await gather_bounded([answer(item) for item in todo])
-        answered: list[tuple[dict[str, Any], str]] = []
-        for result in answers:
-            if isinstance(result, LocalEndpointUnavailable):
-                raise RuntimeError(str(result)) from None
-            if isinstance(result, Exception):
-                logger.error("eval answer failed: %s", result)
-                continue
-            answered.append(result)
-
-        async def judge(item: dict[str, Any], candidate: str) -> dict[str, Any]:
-            payload, _ = await client.complete_json(
-                config.role("judge") if "judge" in config.roles else config.role("reviewer"),
-                [
-                    {
-                        "role": "user",
-                        "content": render(
-                            EVAL_JUDGE_PROMPT,
-                            target_spec=spec_text,
-                            user_prompt=item["prompt"],
-                            expected_behavior=item["expected_behavior"],
-                            pass_fail_notes="\n".join(f"- {n}" for n in item["pass_fail_notes"]),
-                            candidate_answer=candidate,
-                        ),
-                    }
-                ],
-                stage=f"evaluate.judge.{label}",
-                record_id=item["meta"]["prompt_id"],
-            )
             return {
                 "prompt_id": item["meta"]["prompt_id"],
-                "family_id": item["family_id"],
-                "case_type": item["case_type"],
-                "variant": item["variant"],
-                "endpoint": label,
                 "model": role.model,
-                "answer": candidate,
-                "pass": bool(payload.get("pass")),
-                "principle_notes": [str(n) for n in (payload.get("principle_notes") or [])],
-                "failure_modes_hit": [str(f) for f in (payload.get("failure_modes_hit") or [])],
-                "rationale": str(payload.get("rationale", "")).strip(),
+                "text": response.text,
             }
 
-        judged = await gather_bounded([judge(item, text) for item, text in answered])
+        results = await gather_bounded([answer(item) for item in eval_items])
 
-    rows = list(existing.values())
-    for result in judged:
+    answers: list[dict[str, Any]] = []
+    for result in results:
+        if isinstance(result, LocalEndpointUnavailable):
+            raise RuntimeError(str(result)) from None
         if isinstance(result, Exception):
-            logger.error("eval judging failed: %s", result)
+            logger.error("eval answer failed: %s", result)
             continue
-        rows.append(result)
+        answers.append(result)
+    return answers
+
+
+def load_answers_file(path: Path) -> list[dict[str, Any]]:
+    """Read answers written outside the pipeline: {prompt_id, prompt, model, text} rows."""
+    answers = []
+    for row in records.iter_jsonl(path):
+        if "prompt_id" not in row or "text" not in row:
+            raise RuntimeError(
+                f"{path} rows must have 'prompt_id' and 'text'. Got keys: {sorted(row)}"
+            )
+        answers.append(
+            {"prompt_id": row["prompt_id"], "model": row.get("model", path.stem), "text": row["text"]}
+        )
+    if not answers:
+        raise RuntimeError(f"{path} contains no answers.")
+    return answers
+
+
+async def run_stage(
+    config: RunConfig,
+    spec: TargetSpec,
+    run_dir: Path,
+    endpoint_role: str | None = "base",
+    label: str | None = None,
+    answers_file: Path | None = None,
+) -> dict[str, Any]:
+    """Entry point for `main.py evaluate`.
+
+    Two ways in: call a configured model role live over eval.jsonl, or judge an
+    answers file produced elsewhere. Both write the same results shape.
+    """
+    from pipeline.export import EVAL_FILE
+
+    if not (run_dir / EVAL_FILE).exists() or not list(records.iter_jsonl(run_dir / EVAL_FILE)):
+        raise RuntimeError(
+            f"No evaluation items in {run_dir / EVAL_FILE}. Run the export stage first."
+        )
+
+    if answers_file is not None:
+        label = label or Path(answers_file).stem
+        answers = load_answers_file(Path(answers_file))
+    else:
+        if not endpoint_role:
+            raise RuntimeError("Pass either --endpoint-role or --answers-file.")
+        label = label or endpoint_role
+        answers = await answer_eval_set(config, run_dir, endpoint_role, label)
+
+    out_path = results_path(run_dir, label)
+    already = {row["prompt_id"]: row for row in records.iter_jsonl(out_path)}
+    pending = [answer for answer in answers if answer["prompt_id"] not in already]
+    rows = list(already.values())
+    if pending:
+        rows += await judge_answers(config, spec, run_dir, pending, label)
     if not rows:
         raise RuntimeError(
-            f"No evaluation answers were produced for endpoint '{endpoint_role}'. "
-            f"Check the errors above; nothing was written to {out_path.name}."
+            f"No evaluation results for '{label}'. Check the errors above; nothing was "
+            f"written to {out_path.name}."
         )
     records.write_jsonl(out_path, rows)
     logger.info("evaluate: wrote %d results to %s", len(rows), out_path)
@@ -140,8 +213,8 @@ def _summarise(rows: list[dict[str, Any]], label: str) -> dict[str, Any]:
     for row in rows:
         bucket = by_case.setdefault(row.get("case_type", "unknown"), {"n": 0, "pass": 0})
         bucket["n"] += 1
-        bucket["pass"] += 1 if row.get("pass") else 0
-    passed = sum(1 for row in rows if row.get("pass"))
+        bucket["pass"] += 1 if _passed(row) else 0
+    passed = sum(1 for row in rows if _passed(row))
     return {
         "endpoint": label,
         "n": len(rows),
@@ -149,6 +222,10 @@ def _summarise(rows: list[dict[str, Any]], label: str) -> dict[str, Any]:
         "pass_rate": round(passed / len(rows), 3) if rows else 0.0,
         "by_case_type": by_case,
     }
+
+
+def _passed(row: dict[str, Any]) -> bool:
+    return bool((row.get("judge") or {}).get("pass"))
 
 
 def before_after_table(before_path: Path, after_path: Path) -> str:
@@ -173,24 +250,24 @@ def before_after_table(before_path: Path, after_path: Path) -> str:
         "|---|---|---|---|---|",
     ]
     for case_type, prompt_ids in sorted(buckets.items()):
-        before_pass = sum(1 for pid in prompt_ids if before[pid].get("pass"))
-        after_pass = sum(1 for pid in prompt_ids if after[pid].get("pass"))
+        before_pass = sum(1 for pid in prompt_ids if _passed(before[pid]))
+        after_pass = sum(1 for pid in prompt_ids if _passed(after[pid]))
         lines.append(
             f"| {case_type} | {len(prompt_ids)} | {before_pass} | {after_pass} "
             f"| {after_pass - before_pass:+d} |"
         )
-    total_before = sum(1 for pid in shared if before[pid].get("pass"))
-    total_after = sum(1 for pid in shared if after[pid].get("pass"))
+    total_before = sum(1 for pid in shared if _passed(before[pid]))
+    total_after = sum(1 for pid in shared if _passed(after[pid]))
     lines.append(
         f"| **all** | {len(shared)} | {total_before} | {total_after} "
         f"| {total_after - total_before:+d} |"
     )
 
-    gained = [pid for pid in shared if after[pid].get("pass") and not before[pid].get("pass")]
-    lost = [pid for pid in shared if before[pid].get("pass") and not after[pid].get("pass")]
+    gained = [pid for pid in shared if _passed(after[pid]) and not before[pid].get("pass")]
+    lost = [pid for pid in shared if _passed(before[pid]) and not after[pid].get("pass")]
     lines += ["", f"Newly passing: {len(gained)}", f"Newly failing: {len(lost)}", ""]
     for prompt_id in lost[:5]:
-        lines.append(f"- regression `{prompt_id}`: {after[prompt_id].get('rationale','')[:200]}")
+        lines.append(f"- regression `{prompt_id}`: {(after[prompt_id].get('judge') or {}).get('rationale','')[:200]}")
     return "\n".join(lines) + "\n"
 
 

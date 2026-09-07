@@ -26,6 +26,17 @@ LOG_FILE = "log.txt"
 VARIANTS = ("base", "setting_shift", "role_shift", "fiction", "roleplay", "terse")
 CASE_TYPES = ("ordinary", "divergence")
 SPLITS = ("train", "eval", "reserved")
+MODES = ("neutral", "explicit")
+# Situation features the generator fills in per family. Free text, not a rigid enum:
+# they exist so the coverage plan can check spread rather than to constrain generation.
+SITUATION_FEATURE_KEYS = (
+    "relationship",
+    "role_type",
+    "harm_severity",
+    "urgency",
+    "public_or_private",
+    "asker_state",
+)
 
 
 def short_id(prefix: str, *parts: str) -> str:
@@ -50,6 +61,19 @@ class Family:
     source_passage_ids: list[str] = field(default_factory=list)
     generator_model: str = ""
     spec_version: str = ""
+    # Members of one counterfactual group are the same situation with exactly one
+    # morally relevant fact changed. They must never be split apart or deduped
+    # against each other: the contrast is the point.
+    counterfactual_group_id: str | None = None
+    varied_fact: str = ""
+    situation_features: dict[str, str] = field(default_factory=dict)
+    reserved_reason: str = ""
+    mode: str = "neutral"  # neutral | explicit, inherited by the family's prompts
+
+    @property
+    def split_group_id(self) -> str:
+        """The unit the train/eval split actually operates on."""
+        return self.counterfactual_group_id or self.family_id
 
 
 @dataclass
@@ -61,6 +85,8 @@ class Prompt:
     variant: str  # base | setting_shift | role_shift | fiction | roleplay | terse
     text: str
     case_type: str  # ordinary | divergence
+    # explicit prompts may name the tradition; the cue check is skipped for them.
+    mode: str = "neutral"  # neutral | explicit
 
 
 @dataclass
@@ -75,6 +101,7 @@ class Response:
     generator_model: str = ""
     usage: dict[str, Any] = field(default_factory=dict)
     revise_rounds: int = 0
+    mode: str = "neutral"  # neutral | explicit, copied from the prompt
 
 
 @dataclass
@@ -124,6 +151,10 @@ class Decision:
     max_leakage: float | None = None
     # confirmed | not_confirmed | unverified | not_applicable
     divergence_status: str = "not_applicable"
+    # action | reasons | both | none, from the divergence judge
+    divergence_kind: str = ""
+    # cue_policy.soft_terms that appeared: reported, never a reason to drop
+    soft_cue_hits: list[str] = field(default_factory=list)
 
 
 T = TypeVar("T")

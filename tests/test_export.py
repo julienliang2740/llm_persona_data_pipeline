@@ -11,7 +11,7 @@ from pipeline.export import EVAL_FILE, MANIFEST_FILE, SFT_FILE, derive_grading_k
 from pipeline.records import Decision, Family, Prompt, Response, Review
 
 
-def build_run(tmp_path, *, keep_all=True):
+def build_run(tmp_path, *, keep_all=True, group=None, leak_passage_id=False):
     run_dir = tmp_path / "run"
     run_dir.mkdir()
     families = [
@@ -27,6 +27,7 @@ def build_run(tmp_path, *, keep_all=True):
             split="train",
             source_passage_ids=["HCP 1.1"],
             spec_version="0.1",
+            counterfactual_group_id=group,
         ),
         Family(
             family_id="fam_eval",
@@ -40,6 +41,7 @@ def build_run(tmp_path, *, keep_all=True):
             split="eval",
             source_passage_ids=["HCP 3.3"],
             spec_version="0.1",
+            counterfactual_group_id=group,
         ),
     ]
     prompts = [
@@ -51,7 +53,11 @@ def build_run(tmp_path, *, keep_all=True):
             "resp_train",
             "pr_train",
             "The delay is not mine to absorb quietly.",
-            "Call the supplier today and tell the other team what has changed.",
+            (
+                "As HCP 1.1 puts it, call the supplier today."
+                if leak_passage_id
+                else "Call the supplier today and tell the other team what has changed."
+            ),
             {"principles_applied": ["TP01"], "source_passages": ["HCP 1.1"], "intended_divergence_note": "A general assistant would suggest waiting one more week."},
             generator_model="m",
         ),
@@ -154,3 +160,55 @@ def test_one_family_id_carrying_two_splits_is_refused(tmp_path, pilot_config, to
         run_stage(pilot_config, toy_spec, run_dir)
     assert "Split integrity failure" in str(error.value)
     assert "fam_train" in str(error.value)
+
+
+def test_passage_ids_never_reach_the_assistant_message(tmp_path, pilot_config, toy_spec):
+    """Hidden provenance must not leak into text a model or a user sees."""
+    run_dir = build_run(tmp_path, leak_passage_id=True)
+    with pytest.raises(RuntimeError) as error:
+        run_stage(pilot_config, toy_spec, run_dir)
+    assert "leaked into user-visible text" in str(error.value)
+    assert "HCP 1.1" in str(error.value)
+
+
+def test_a_clean_run_passes_the_leak_guard(tmp_path, pilot_config, toy_spec):
+    run_dir = build_run(tmp_path)
+    run_stage(pilot_config, toy_spec, run_dir)
+    train = list(records.iter_jsonl(run_dir / SFT_FILE))
+    assert "HCP" not in train[0]["messages"][1]["content"]
+    # but the provenance is still recorded in meta, where it belongs
+    assert train[0]["meta"]["source_passages"] == ["HCP 1.1"]
+
+
+def test_a_counterfactual_group_cannot_straddle_the_split(tmp_path, pilot_config, toy_spec):
+    """The two families here are in one group but different splits, which export must refuse."""
+    run_dir = build_run(tmp_path, group="cf_1")
+    with pytest.raises(RuntimeError) as error:
+        run_stage(pilot_config, toy_spec, run_dir)
+    assert "Split integrity failure" in str(error.value)
+    assert "cf_1" in str(error.value)
+
+
+def test_manifest_carries_the_grounding_licences(tmp_path, pilot_config, toy_spec):
+    run_dir = build_run(tmp_path)
+    run_stage(pilot_config, toy_spec, run_dir)
+    manifest = json.loads((run_dir / MANIFEST_FILE).read_text())
+    licences = manifest["license_constraints"]
+    assert licences and all(entry["use"] == "grounding" for entry in licences)
+    assert "redistribution_note" in manifest
+
+
+def test_manifest_counts_explicit_rows_and_groups(tmp_path, pilot_config, toy_spec):
+    run_dir = build_run(tmp_path)
+    run_stage(pilot_config, toy_spec, run_dir)
+    counts = json.loads((run_dir / MANIFEST_FILE).read_text())["counts"]
+    assert counts["explicit_mode_rows"] == 0
+    assert counts["counterfactual_groups"] == 0
+
+
+def test_meta_records_the_contrastive_fields(tmp_path, pilot_config, toy_spec):
+    run_dir = build_run(tmp_path)
+    run_stage(pilot_config, toy_spec, run_dir)
+    meta = list(records.iter_jsonl(run_dir / SFT_FILE))[0]["meta"]
+    for key in ("mode", "counterfactual_group_id", "varied_fact", "situation_features"):
+        assert key in meta

@@ -68,6 +68,19 @@ def build_report(run_dir: Path, target_id: str, pricing: dict[str, Any] | None =
         domain_counts = Counter(f.domain for f in subset)
         domains = ", ".join(f"{d}×{n}" for d, n in sorted(domain_counts.items())) or "-"
         lines.append(f"| {split} | {len(subset)} | {domains} |")
+    groups = {f.counterfactual_group_id for f in families if f.counterfactual_group_id}
+    explicit = [f for f in families if f.mode == "explicit"]
+    reserved_by_screen = [f for f in families if f.reserved_reason]
+    lines += [
+        "",
+        f"- contrastive groups: **{len(groups)}** covering "
+        f"{sum(1 for f in families if f.counterfactual_group_id)} families",
+        f"- explicit-mode families: **{len(explicit)}**",
+        f"- reserved by the avoided-topic screen: **{len(reserved_by_screen)}**",
+    ]
+    for family in reserved_by_screen[:5]:
+        lines.append(f"  - `{family.family_id}`: {family.reserved_reason}")
+    lines += _situation_feature_spread(families)
 
     kept = [d for d in decisions if d.keep]
     dropped = [d for d in decisions if not d.keep]
@@ -113,12 +126,32 @@ def build_report(run_dir: Path, target_id: str, pricing: dict[str, Any] | None =
         "## Cue-term hits",
         "",
     ]
-    cue_dropped = [d for d in dropped if any("cue term" in r for r in d.reasons)]
+    cue_dropped = [d for d in dropped if any(r.startswith("cue terms found") for r in d.reasons)]
     if cue_dropped:
         for decision in cue_dropped[:10]:
             lines.append(f"- `{decision.response_id}`: {decision.reasons[0]}")
     else:
         lines.append("None. No forbidden term appeared in any prompt or response.")
+    soft_flagged = [d for d in decisions if d.soft_cue_hits]
+    soft_counts = Counter(term for d in soft_flagged for term in d.soft_cue_hits)
+    lines += [
+        "",
+        f"Soft cue terms (flagged, never a reason to drop): **{len(soft_flagged)}** responses"
+        + (
+            ". " + ", ".join(f"{term} ×{n}" for term, n in soft_counts.most_common(8))
+            if soft_counts
+            else ". None."
+        ),
+    ]
+    quoted = [r for r in reviews if r.scores.get("quoted_source_text")]
+    archaic = [r for r in reviews if r.scores.get("archaic_register")]
+    lines += [
+        f"Reviewer flagged quoted or echoed source wording: **{len(quoted)}** "
+        f"(a licensing control).",
+        f"Reviewer flagged archaic or translated-sounding register: **{len(archaic)}**.",
+        f"Explicit-mode records (cue check deliberately skipped): "
+        f"**{sum(1 for p in prompts if p.mode == 'explicit')}**.",
+    ]
 
     duplicates = [d for d in decisions if d.duplicate_of]
     lines += ["", "## Near-duplicates", ""]
@@ -164,13 +197,23 @@ def build_report(run_dir: Path, target_id: str, pricing: dict[str, Any] | None =
         f"- did not diverge, relabelled ordinary: **{len(relabelled)}**",
         f"- unverified (no baseline answer): **{len(unverified)}**",
     ]
-    if verdicts:
-        kind_counts = Counter(v.kind for v in verdicts if v.diverges)
-        lines.append("")
-        lines.append(
-            "Kinds of confirmed divergence: "
-            + (", ".join(f"{k} ×{n}" for k, n in kind_counts.most_common()) or "none")
-        )
+    action = [d for d in confirmed if d.divergence_kind in ("action", "both")]
+    reasons_only = [d for d in confirmed if d.divergence_kind == "reasons"]
+    both = [d for d in confirmed if d.divergence_kind == "both"]
+    lines += [
+        "",
+        "A difference in the reasons alone counts as divergence, not only a different action.",
+        "",
+        "| kind of divergence | count | share of intended cases |",
+        "|---|---|---|",
+    ]
+    for name, subset in (
+        ("action (incl. both)", action),
+        ("reasons only", reasons_only),
+        ("both action and reasons", both),
+    ):
+        share = f"{len(subset)/len(intended):.0%}" if intended else "-"
+        lines.append(f"| {name} | {len(subset)} | {share} |")
 
     lines += [
         "",
@@ -236,6 +279,30 @@ def build_report(run_dir: Path, target_id: str, pricing: dict[str, Any] | None =
     return "\n".join(lines) + "\n"
 
 
+def _situation_feature_spread(families: list[Family]) -> list[str]:
+    """Show whether the generated situations actually vary along the recorded axes."""
+    from pipeline.records import SITUATION_FEATURE_KEYS
+
+    present = [f for f in families if f.situation_features]
+    if not present:
+        return []
+    lines = ["", "### Situation-feature spread", "", "| feature | most common values |", "|---|---|"]
+    for key in SITUATION_FEATURE_KEYS:
+        counts = Counter(
+            f.situation_features[key] for f in present if f.situation_features.get(key)
+        )
+        if not counts:
+            continue
+        top = ", ".join(f"{value} ×{n}" for value, n in counts.most_common(4))
+        lines.append(f"| {key} | {top} |")
+    lines.append("")
+    lines.append(
+        f"Recorded on {len(present)} of {len(families)} families. A feature with one dominant "
+        f"value means the coverage plan is not varying it."
+    )
+    return lines
+
+
 def _reason_bucket(reason: str) -> str:
     """Group free-text reasons so the table stays short."""
     for prefix in (
@@ -250,6 +317,11 @@ def _reason_bucket(reason: str) -> str:
         "eval item too close to training data",
         "note: intended divergence did not hold",
         "note: intended divergence not checked",
+        "note: soft cue terms present",
+        "note: explicit-mode record",
+        "note: quoted or closely echoed source-text wording",
+        "quoted or closely echoed source-text wording",
+        "reviewer flagged archaic or translated-sounding register",
         "no reviewer verdict",
         "empty answer",
         "orphan response",

@@ -1,0 +1,61 @@
+{
+  "target_id": "catholic",
+  "target_name": "Catholic moral and practical thought",
+  "spec_version": "0.1",
+  "run_id": "20260907-075936",
+  "exported_at": "2026-09-07T08:10:35+00:00",
+  "config_file": "/home/ubuntu/part1_data_pipeline/configs/pilot.yaml",
+  "config_hash": "bd6c6e6b634b",
+  "models": {
+    "generator": "accounts/fireworks/models/qwen3p8-max",
+    "reviewer": "accounts/fireworks/models/deepseek-v4-pro-0813",
+    "judge": "accounts/fireworks/models/deepseek-v4-pro-0813",
+    "embeddings": "accounts/fireworks/models/qwen3-embedding-8b",
+    "base": "qwen2.5-7b-instruct"
+  },
+  "counts": {
+    "families": 3,
+    "families_train": 2,
+    "families_eval": 1,
+    "families_reserved": 0,
+    "prompts": 8,
+    "responses": 8,
+    "kept": 5,
+    "dropped": 3,
+    "sft_train_rows": 5,
+    "eval_rows": 0,
+    "explicit_mode_rows": 0,
+    "counterfactual_groups": 0,
+    "by_bucket": {
+      "train:money_and_consumption": 2,
+      "train:technology_and_automation": 3,
+      "train_case:ordinary": 5
+    }
+  },
+  "license_constraints": [
+    {
+      "license": "not recorded",
+      "use": "grounding",
+      "sources": "key_passages"
+    },
+    {
+      "license": "public domain in the United States",
+      "use": "grounding",
+      "sources": "scripture_douay_rheims, aquinas_summa"
+    },
+    {
+      "license": "public domain",
+      "use": "grounding",
+      "sources": "augustine"
+    }
+  ],
+  "redistribution_note": "",
+  "cost": {
+    "usd": 1.2465346200000003,
+    "display": "$1.2465",
+    "calls": 28,
+    "prompt_tokens": 276716,
+    "completion_tokens": 142783,
+    "reasoning_tokens": 132147
+  }
+}

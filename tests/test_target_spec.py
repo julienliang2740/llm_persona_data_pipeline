@@ -21,7 +21,7 @@ from tests.conftest import FIXTURE_TARGETS, TOY_TARGET_ID
 
 def test_toy_target_loads(toy_spec):
     assert toy_spec.target_id == "toy"
-    assert len(toy_spec.principles) == 3
+    assert len(toy_spec.principles) == 4
     assert {p.id for p in toy_spec.key_passages} == {
         "HCP 1.1",
         "HCP 1.4",
@@ -161,3 +161,63 @@ def test_an_unmatched_passage_id_is_kept_as_written(toy_spec):
     from pipeline.target import normalise_passage_ids
 
     assert normalise_passage_ids(toy_spec, ["9.9"]) == ["9.9"]
+
+
+def test_layers_default_to_generate_by_default(toy_spec):
+    """A layer marked generate_by_default: false is off unless the config asks for it."""
+    assert toy_spec.default_layer_ids() == ["core"]
+    default_ids = [p["id"] for p in toy_spec.principles_for_layers(None)]
+    assert default_ids == ["TP01", "TP02", "TP03"]
+    both = [p["id"] for p in toy_spec.principles_for_layers(["core", "speculative"])]
+    assert "TP04" in both
+
+
+def test_a_spec_without_layers_includes_every_principle(toy_spec):
+    """Catholic has no layers at all; every principle must still be rendered."""
+    from dataclasses import replace
+
+    flat = replace(toy_spec, layers=[])
+    assert len(flat.principles_for_layers(None)) == len(flat.principles)
+
+
+def test_principles_without_a_layer_are_always_included(toy_spec):
+    from dataclasses import replace
+
+    spec = replace(
+        toy_spec,
+        principles=[{"id": "X", "name": "n", "description": "d"}] + toy_spec.principles,
+    )
+    assert "X" in [p["id"] for p in spec.principles_for_layers(["core"])]
+
+
+def test_soft_terms_are_separate_from_forbidden_terms(toy_spec):
+    assert toy_spec.soft_terms == ["prudence", "repair"]
+    assert not set(toy_spec.soft_terms) & set(toy_spec.forbidden_terms)
+
+
+def test_avoided_topics_and_keywords(toy_spec):
+    assert [c["id"] for c in toy_spec.avoided_topics()] == ["contested_inheritance"]
+    assert "probate" in toy_spec.avoid_keywords()
+
+
+def test_response_stage_rendering_is_smaller_than_family_stage(toy_spec):
+    """Real specs are 60 KB; response generation must not resend the whole thing."""
+    from pipeline.target import render_for_generator
+
+    family_stage = render_for_generator(toy_spec, stage="families")
+    response_stage = render_for_generator(
+        toy_spec, principle_ids=["TP01"], tradeoff_ids=["speed_vs_checking"], stage="responses"
+    )
+    assert len(response_stage) < len(family_stage)
+    # The coverage plan and the avoid list belong to family generation only.
+    assert "Situation domains to cover" in family_stage
+    assert "Situation domains to cover" not in response_stage
+    assert "must not build scenarios about" in family_stage
+    # Only the family's own principle survives into the response prompt.
+    assert "TP01" in response_stage and "TP03 " not in response_stage
+
+
+def test_avoided_topics_reach_the_family_prompt(toy_spec):
+    from pipeline.target import render_for_generator
+
+    assert "contested_inheritance" in render_for_generator(toy_spec, stage="families")

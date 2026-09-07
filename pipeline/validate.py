@@ -29,7 +29,12 @@ from pipeline.records import (
 )
 from pipeline.target import TargetSpec, render_for_reviewer, render_key_passages
 from prompts import render
-from prompts.review import DIVERGENCE_JUDGE_PROMPT, FIDELITY_REVIEW_PROMPT, REVIEWER_SYSTEM_PROMPT
+from prompts.review import (
+    DIVERGENCE_JUDGE_PROMPT,
+    FIDELITY_REVIEW_PROMPT,
+    REVIEWER_SYSTEM_PROMPT,
+    SOFT_TERMS_NOTE,
+)
 
 logger = logging.getLogger("pipeline.validate")
 
@@ -90,6 +95,7 @@ def find_near_duplicates(
     threshold: float,
     group_ids: Sequence[str] | None = None,
     within_group_threshold: float | None = None,
+    never_compare_ids: Sequence[str | None] | None = None,
 ) -> tuple[dict[str, str], list[DuplicateCluster]]:
     """Greedy clustering: the first item seen is kept, later close ones point at it.
 
@@ -97,6 +103,10 @@ def find_near_duplicates(
     higher threshold. Several prompts per family and reframing variants of an eval prompt
     are deliberately near-identical in situation; only a near-verbatim repeat there is a
     defect. Across families, any close pair is redundant data.
+
+    Pairs sharing a `never_compare_ids` value are skipped entirely. That carries the
+    counterfactual groups: two members of a contrastive pair are near-identical on purpose,
+    and collapsing them destroys exactly the contrast they were written to draw.
 
     Returns (duplicate_of by item id, clusters). Deterministic in input order.
     """
@@ -106,6 +116,12 @@ def find_near_duplicates(
     for index, item_id in enumerate(item_ids):
         best_index, best_score, best_threshold = None, 0.0, threshold
         for rep_index in representatives:
+            if (
+                never_compare_ids is not None
+                and never_compare_ids[index] is not None
+                and never_compare_ids[index] == never_compare_ids[rep_index]
+            ):
+                continue
             same_group = (
                 group_ids is not None and group_ids[index] == group_ids[rep_index]
             )
@@ -168,6 +184,9 @@ async def _review_responses(
         return existing
     spec_text = render_for_reviewer(spec)
     forbidden = ", ".join(spec.forbidden_terms) or "(none)"
+    soft_terms_note = (
+        render(SOFT_TERMS_NOTE, soft_terms=", ".join(spec.soft_terms)) if spec.soft_terms else ""
+    )
 
     async def review_one(response: Response) -> Review | None:
         prompt = prompts_by_id.get(response.prompt_id)
@@ -200,6 +219,7 @@ async def _review_responses(
                         passages_claimed=", ".join(response.hidden.get("source_passages") or []),
                         tradeoff_summary=tradeoff_summary,
                         forbidden_terms=forbidden,
+                        soft_terms_note=soft_terms_note,
                     ),
                 },
             ],
@@ -217,6 +237,8 @@ async def _review_responses(
                 "scenario_quality": _as_int(scores.get("scenario_quality")),
                 "cue_leakage": bool(scores.get("cue_leakage")),
                 "confident_on_unresolved": bool(scores.get("confident_on_unresolved")),
+                "quoted_source_text": bool(scores.get("quoted_source_text")),
+                "archaic_register": bool(scores.get("archaic_register")),
             },
             issues=[str(issue) for issue in (payload.get("issues") or [])],
             verdict=str(payload.get("verdict", "revise")).lower().strip(),
@@ -368,20 +390,22 @@ async def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[
         duplicate_threshold,
         group_ids=[prompts_by_id[r.prompt_id].family_id for r in ordered],
         within_group_threshold=within_family_threshold,
+        never_compare_ids=[
+            (
+                families_by_id[prompts_by_id[r.prompt_id].family_id].counterfactual_group_id
+                if prompts_by_id[r.prompt_id].family_id in families_by_id
+                else None
+            )
+            for r in ordered
+        ],
     )
 
-    eval_indices = [
-        index
-        for index, response in enumerate(ordered)
-        if families_by_id.get(prompts_by_id[response.prompt_id].family_id, None)
-        and families_by_id[prompts_by_id[response.prompt_id].family_id].split == "eval"
-    ]
-    train_indices = [
-        index
-        for index, response in enumerate(ordered)
-        if families_by_id.get(prompts_by_id[response.prompt_id].family_id, None)
-        and families_by_id[prompts_by_id[response.prompt_id].family_id].split == "train"
-    ]
+    def split_of(response: Response) -> str:
+        family = families_by_id.get(prompts_by_id[response.prompt_id].family_id)
+        return family.split if family else ""
+
+    eval_indices = [i for i, r in enumerate(ordered) if split_of(r) == "eval"]
+    train_indices = [i for i, r in enumerate(ordered) if split_of(r) == "train"]
     leakage = max_leakage(eval_indices, train_indices, similarity)
     leakage_threshold = (
         float(settings.get("leakage_threshold_embeddings", 0.85))
@@ -393,6 +417,7 @@ async def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[
     min_judgment = int(settings.get("min_judgment_not_terminology", 3))
     min_scenario = int(settings.get("min_scenario_quality", 3))
     keep_revise = bool(settings.get("keep_revise_if_scores_pass", True))
+    reject_on_quoted_source = bool(settings.get("reject_on_quoted_source", False))
 
     decisions: list[Decision] = []
     cue_hit_details: list[dict[str, Any]] = []
@@ -427,25 +452,50 @@ async def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[
                 keep = False
                 reasons.append("reviewer: confident resolution of an unresolved tradeoff")
 
-        prompt_hits = find_cue_hits(prompt.text, spec.forbidden_terms)
-        response_hits = find_cue_hits(
-            f"{response.deliberation}\n{response.answer}", spec.forbidden_terms
+        response_text = f"{response.deliberation}\n{response.answer}"
+        soft_hits = sorted(
+            set(find_cue_hits(prompt.text, spec.soft_terms))
+            | set(find_cue_hits(response_text, spec.soft_terms))
         )
-        if prompt_hits or response_hits:
-            keep = False
-            reasons.append(
-                f"cue terms found (prompt: {prompt_hits or 'none'}, response: {response_hits or 'none'})"
-            )
-            cue_hit_details.append(
-                {
-                    "response_id": response.response_id,
-                    "prompt_hits": prompt_hits,
-                    "response_hits": response_hits,
-                }
-            )
-        elif review is not None and review.scores.get("cue_leakage"):
-            keep = False
-            reasons.append("reviewer flagged cue leakage the term list did not catch")
+        if soft_hits:
+            # Reported, never a reason to drop: these words have ordinary senses too.
+            reasons.append(f"note: soft cue terms present: {soft_hits}")
+        if prompt.mode == "explicit":
+            # The explicit slice is allowed to name the tradition; that is its purpose.
+            reasons.append("note: explicit-mode record, cue check skipped")
+            prompt_hits, response_hits = [], []
+        else:
+            prompt_hits = find_cue_hits(prompt.text, spec.forbidden_terms)
+            response_hits = find_cue_hits(response_text, spec.forbidden_terms)
+            if prompt_hits or response_hits:
+                keep = False
+                reasons.append(
+                    f"cue terms found (prompt: {prompt_hits or 'none'}, "
+                    f"response: {response_hits or 'none'})"
+                )
+                cue_hit_details.append(
+                    {
+                        "response_id": response.response_id,
+                        "prompt_hits": prompt_hits,
+                        "response_hits": response_hits,
+                    }
+                )
+            elif review is not None and review.scores.get("cue_leakage"):
+                keep = False
+                reasons.append("reviewer flagged cue leakage the term list did not catch")
+            elif review is not None and review.scores.get("archaic_register"):
+                keep = False
+                reasons.append(
+                    "reviewer flagged archaic or translated-sounding register, which signals "
+                    "the source as surely as naming it"
+                )
+        if review is not None and review.scores.get("quoted_source_text"):
+            note = "quoted or closely echoed source-text wording"
+            if reject_on_quoted_source:
+                keep = False
+                reasons.append(note)
+            else:
+                reasons.append(f"note: {note}")
 
         duplicate = duplicate_of.get(response.response_id)
         if duplicate:
@@ -464,6 +514,7 @@ async def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[
 
         final_case_type = prompt.case_type
         divergence_status = "not_applicable"
+        divergence_kind = ""
         if prompt.case_type == "divergence":
             verdict = verdict_by_prompt.get(prompt.prompt_id)
             if verdict is None:
@@ -472,10 +523,14 @@ async def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[
                     "note: intended divergence not checked, no baseline answer for this prompt"
                 )
             elif verdict.diverges:
+                # A difference in reasons alone counts as divergence, not only a
+                # difference in the recommended action.
                 divergence_status = "confirmed"
+                divergence_kind = verdict.kind
             else:
                 # Never silently dropped: relabelled and counted.
                 divergence_status = "not_confirmed"
+                divergence_kind = verdict.kind
                 final_case_type = "ordinary"
                 reasons.append(
                     f"note: intended divergence did not hold against the baseline "
@@ -495,6 +550,8 @@ async def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[
                 duplicate_of=duplicate,
                 max_leakage=round(leak_score, 4) if leak_score is not None else None,
                 divergence_status=divergence_status,
+                divergence_kind=divergence_kind,
+                soft_cue_hits=soft_hits,
             )
         )
         if family is None:
@@ -519,6 +576,20 @@ async def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[
             1 for d in decisions if d.divergence_status == "not_confirmed"
         ),
         "divergence_unverified": sum(1 for d in decisions if d.divergence_status == "unverified"),
+        "divergence_action": sum(
+            1 for d in decisions if d.divergence_status == "confirmed" and d.divergence_kind in ("action", "both")
+        ),
+        "divergence_reasons": sum(
+            1 for d in decisions if d.divergence_status == "confirmed" and d.divergence_kind in ("reasons", "both")
+        ),
+        "soft_cue_flags": sum(1 for d in decisions if d.soft_cue_hits),
+        "explicit_mode_records": sum(
+            1 for r in ordered if prompts_by_id[r.prompt_id].mode == "explicit"
+        ),
+        "quoted_source_flags": sum(
+            1 for r in reviews if r.scores.get("quoted_source_text")
+        ),
+        "archaic_register_flags": sum(1 for r in reviews if r.scores.get("archaic_register")),
     }
     logger.info("validate: %s", summary)
     return summary

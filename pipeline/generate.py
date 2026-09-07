@@ -7,14 +7,22 @@ are kept, and only the missing ones are generated.
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from pipeline import records
 from pipeline.config import RunConfig
-from pipeline.model import ModelClient, ModelError, gather_bounded
+from pipeline.model import (
+    ModelClient,
+    ModelError,
+    extract_field,
+    extract_list,
+    gather_bounded,
+)
 from pipeline.records import Family, Prompt, Response, short_id
+from pipeline.validate import find_cue_hits
 from pipeline.target import (
     TargetSpec,
     normalise_passage_ids,
@@ -23,8 +31,13 @@ from pipeline.target import (
 )
 from prompts import render
 from prompts.generation import (
+    COUNTERFACTUAL_INSTRUCTIONS,
+    EXPLICIT_MODE_PROMPT_INSTRUCTIONS,
+    EXPLICIT_MODE_RESPONSE_INSTRUCTIONS,
     FAMILY_GENERATION_PROMPT,
     GENERATOR_SYSTEM_PROMPT,
+    NEUTRAL_MODE_PROMPT_INSTRUCTIONS,
+    NEUTRAL_MODE_RESPONSE_INSTRUCTIONS,
     PROMPT_VARIANT_PROMPT,
     REFRAMING_PROMPT,
     RESPONSE_GENERATION_PROMPT,
@@ -44,6 +57,10 @@ class FamilySlot:
     tradeoff_ids: list[str]
     case_type_intent: str
     split: str
+    # Paired at plan time with another slot in the same domain, so both members are
+    # generated in one call and can genuinely be the same situation.
+    counterfactual_group: str | None = None
+    mode: str = "neutral"  # neutral | explicit
 
 
 def plan_families(spec: TargetSpec, settings: dict[str, Any], n_families: int) -> list[FamilySlot]:
@@ -72,6 +89,8 @@ def plan_families(spec: TargetSpec, settings: dict[str, Any], n_families: int) -
     divergence_share = float(settings.get("divergence_fraction", 0.35))
     eval_share = float(settings.get("eval_family_fraction", 0.2))
     reserved_share = float(settings.get("reserved_family_fraction", 0.0))
+    counterfactual_share = float(settings.get("counterfactual_fraction", 0.0))
+    explicit_share = float(settings.get("explicit_fraction", 0.0))
     n_divergence = round(n_families * divergence_share)
     n_eval = max(1, round(n_families * eval_share)) if n_families > 1 else 0
     n_reserved = round(n_families * reserved_share)
@@ -97,7 +116,59 @@ def plan_families(spec: TargetSpec, settings: dict[str, Any], n_families: int) -
         slots[position].split = "eval"
     for position in _stratified_indices(slots, n_reserved, exclude=set(eval_positions), offset=0.25):
         slots[position].split = "reserved"
+    # Contrastive pairs must be written together, so both members sit in the same domain
+    # and share a tradeoff: they are one situation with one fact changed. A domain with
+    # fewer than two families cannot host a pair, so a very small pilot may produce none.
+    _assign_counterfactual_pairs(slots, round(n_families * counterfactual_share))
+    for position in _stratified_indices(slots, round(n_families * explicit_share), offset=0.4):
+        slots[position].mode = "explicit"
     return slots
+
+
+def _assign_counterfactual_pairs(slots: list[FamilySlot], wanted_slots: int) -> int:
+    """Pair up slots inside each domain until `wanted_slots` are grouped. Returns pair count.
+
+    Pairs are allocated to the largest domains first, spread evenly inside each domain,
+    and the second member copies the first member's tradeoff so the pair really is one
+    situation with one fact changed.
+    """
+    positions_by_domain: dict[str, list[int]] = {}
+    for index, slot in enumerate(slots):
+        positions_by_domain.setdefault(slot.domain, []).append(index)
+    capacity = {domain: len(p) // 2 for domain, p in positions_by_domain.items()}
+    allocation = {domain: 0 for domain in positions_by_domain}
+    pairs_left = wanted_slots // 2
+    while pairs_left > 0 and any(allocation[d] < capacity[d] for d in positions_by_domain):
+        for domain in sorted(positions_by_domain, key=lambda d: -len(positions_by_domain[d])):
+            if pairs_left <= 0:
+                break
+            if allocation[domain] < capacity[domain]:
+                allocation[domain] += 1
+                pairs_left -= 1
+
+    pair_number = 0
+    for domain in sorted(positions_by_domain):
+        positions = positions_by_domain[domain]
+        wanted_pairs = allocation[domain]
+        if wanted_pairs <= 0:
+            continue
+        # Evenly spaced pair starts, so pairs are not all bunched at the front.
+        step = len(positions) / wanted_pairs
+        used: set[int] = set()
+        for pair_index in range(wanted_pairs):
+            start = int(pair_index * step)
+            while start + 1 < len(positions) and (start in used or start + 1 in used):
+                start += 1
+            if start + 1 >= len(positions):
+                continue
+            used.update({start, start + 1})
+            pair_number += 1
+            label = f"g{pair_number}"
+            first, second = slots[positions[start]], slots[positions[start + 1]]
+            first.counterfactual_group = label
+            second.counterfactual_group = label
+            second.tradeoff_ids = list(first.tradeoff_ids)
+    return pair_number
 
 
 def _stratified_indices(
@@ -160,57 +231,80 @@ async def generate_families(
     run_dir: Path,
     slots: list[FamilySlot],
     existing: list[Family],
+    attempt: int = 1,
 ) -> list[Family]:
-    """One generator call per domain batch. Returns all families, old and new."""
+    """One generator call per domain batch. Returns all families, old and new.
+
+    A batch sometimes comes back short or empty. Because the stage is idempotent on the
+    run directory, the shortfall is simply retried once here rather than left for a
+    manual re-run.
+    """
     settings = config.generation
     per_call = int(settings.get("families_per_call", 4))
-    max_passage_chars = int(settings.get("max_passage_chars", 6000))
+    max_passage_chars = int(settings.get("max_passage_chars_families", 40000))
+    layer_ids = _selected_layers(spec, config)
     generator = config.role("generator")
 
-    done_by_slot = {family.family_id: family for family in existing}
+    done_by_id = {family.family_id: family for family in existing}
     if len(existing) >= len(slots):
         logger.info("families: %d already present, nothing to generate", len(existing))
         return existing
 
     remaining = slots[len(existing) :]
-    batches: list[tuple[str, list[FamilySlot]]] = []
     by_domain: dict[str, list[FamilySlot]] = {}
     for slot in remaining:
         by_domain.setdefault(slot.domain, []).append(slot)
+    batches: list[tuple[str, list[FamilySlot]]] = []
+    # Batch size is forced even so that a plan-time pair is never split in half.
+    batch_size = max(2, per_call - (per_call % 2))
     for domain, domain_slots in by_domain.items():
-        for start in range(0, len(domain_slots), per_call):
-            batches.append((domain, domain_slots[start : start + per_call]))
+        ordered_slots = sorted(
+            domain_slots, key=lambda slot: (slot.counterfactual_group or "~", slot.index)
+        )
+        for start_index in range(0, len(ordered_slots), batch_size):
+            batches.append((domain, ordered_slots[start_index : start_index + batch_size]))
 
     used_situations = [family.seed_situation[:160] for family in existing]
-    spec_text = render_for_generator(spec, max_passage_chars=max_passage_chars)
+    spec_text = render_for_generator(spec, layer_ids=layer_ids, stage="families")
     passages_text = render_key_passages(spec, max_chars=max_passage_chars)
+    avoid_words = spec.avoid_keywords()
 
     async def run_batch(domain: str, batch: list[FamilySlot]) -> list[dict[str, Any]]:
-        assignments = "\n".join(
-            f"- family {position + 1}: tradeoff_ids={slot.tradeoff_ids or ['(any)']}, "
-            f"case_type_intent={slot.case_type_intent!r}"
-            for position, slot in enumerate(batch)
-        )
-        user_message = render(
-            FAMILY_GENERATION_PROMPT,
-            target_spec=spec_text,
-            key_passages=passages_text,
-            n_families=len(batch),
-            domain=domain,
-            assignments=assignments,
-            used_situations="\n".join(f"- {s}" for s in used_situations) or "- (none yet)",
-        )
+        pairs = _pair_counterfactual_slots(batch)
+        lines = []
+        for position, slot in enumerate(batch):
+            group = pairs.get(position)
+            note = f", contrastive group {group}" if group else ""
+            explicit = ", EXPLICIT slice" if slot.mode == "explicit" else ""
+            lines.append(
+                f"- family {position + 1}: tradeoff_ids={slot.tradeoff_ids or ['(any)']}, "
+                f"case_type_intent={slot.case_type_intent!r}{note}{explicit}"
+            )
         payload, _ = await client.complete_json(
             generator,
             [
                 {"role": "system", "content": GENERATOR_SYSTEM_PROMPT},
-                {"role": "user", "content": user_message},
+                {
+                    "role": "user",
+                    "content": render(
+                        FAMILY_GENERATION_PROMPT,
+                        target_spec=spec_text,
+                        key_passages=passages_text,
+                        n_families=len(batch),
+                        domain=domain,
+                        assignments="\n".join(lines),
+                        counterfactual_instructions=(
+                            COUNTERFACTUAL_INSTRUCTIONS if pairs else ""
+                        ),
+                        used_situations="\n".join(f"- {s}" for s in used_situations)
+                        or "- (none yet)",
+                    ),
+                },
             ],
             stage="generate.families",
             record_id=f"{domain}:{batch[0].index}",
         )
-        items = payload.get("families") if isinstance(payload, dict) else payload
-        return list(items or [])
+        return extract_list(payload, "families", "family", "scenario_families", "items")
 
     results = await gather_bounded([run_batch(domain, batch) for domain, batch in batches])
 
@@ -226,13 +320,20 @@ async def generate_families(
                 len(result),
                 len(batch),
             )
-        for slot, item in zip(batch, result):
+        pairs = _pair_counterfactual_slots(batch)
+        for position, (slot, item) in enumerate(zip(batch, result)):
             seed = str(item.get("seed_situation", "")).strip()
             if not seed:
                 continue
             family_id = short_id("fam", spec.target_id, domain, seed)
-            if family_id in done_by_slot:
+            if family_id in done_by_id:
                 continue
+            group = pairs.get(position)
+            split, reason = slot.split, ""
+            hit = _avoided_topic_hit(seed, avoid_words)
+            if hit:
+                # Never deleted: reserved with the reason recorded, so the screen is auditable.
+                split, reason = "reserved", f"avoided-topic keyword in seed situation: {hit}"
             family = Family(
                 family_id=family_id,
                 target_id=spec.target_id,
@@ -242,17 +343,116 @@ async def generate_families(
                 case_type_intent=slot.case_type_intent,
                 seed_situation=seed,
                 why_it_is_hard=str(item.get("why_it_is_hard", "")).strip(),
-                split=slot.split,
-                source_passage_ids=[str(p) for p in (item.get("source_passage_ids") or [])],
+                split=split,
+                source_passage_ids=normalise_passage_ids(
+                    spec, [str(p) for p in (item.get("source_passage_ids") or [])]
+                ),
                 generator_model=generator.model,
                 spec_version=spec.version,
+                counterfactual_group_id=(
+                    short_id("cf", spec.target_id, group) if group else None
+                ),
+                varied_fact=str(item.get("varied_fact", "")).strip(),
+                situation_features={
+                    key: str(value)
+                    for key, value in (item.get("situation_features") or {}).items()
+                    if value
+                },
+                reserved_reason=reason,
+                mode=slot.mode,
             )
-            done_by_slot[family_id] = family
+            done_by_id[family_id] = family
             families.append(family)
             used_situations.append(seed[:160])
+    _align_counterfactual_groups(families)
     records.write_jsonl(run_dir / records.FAMILIES_FILE, families)
-    logger.info("families: %d total (%d new)", len(families), len(families) - len(existing))
+    logger.info(
+        "families: %d of %d planned (%d new, %d reserved by the avoided-topic screen)",
+        len(families),
+        len(slots),
+        len(families) - len(existing),
+        sum(1 for f in families if f.reserved_reason),
+    )
+    max_attempts = int(settings.get("family_generation_attempts", 2))
+    if len(families) < len(slots) and len(families) > len(existing) and attempt < max_attempts:
+        logger.info(
+            "families: retrying the %d unfilled slots (attempt %d of %d)",
+            len(slots) - len(families),
+            attempt + 1,
+            max_attempts,
+        )
+        return await generate_families(
+            client, spec, config, run_dir, slots, families, attempt + 1
+        )
     return families
+
+
+def mode_instructions(mode: str, forbidden_terms: str) -> str:
+    """The cue block a response prompt gets: explicit slices may name the tradition."""
+    if mode == "explicit":
+        return EXPLICIT_MODE_RESPONSE_INSTRUCTIONS
+    return render(NEUTRAL_MODE_RESPONSE_INSTRUCTIONS, forbidden_terms=forbidden_terms)
+
+
+def _selected_layers(spec: TargetSpec, config: RunConfig) -> list[str]:
+    """Config target_layers wins; otherwise the spec's own generate_by_default flags."""
+    configured = config.generation.get("target_layers")
+    if configured:
+        known = {str(layer.get("id")) for layer in spec.layers}
+        unknown = [name for name in configured if name not in known]
+        if unknown:
+            raise ValueError(
+                f"config generation.target_layers names layers that target "
+                f"'{spec.target_id}' does not define: {unknown}. Known: {sorted(known)}"
+            )
+        return [str(name) for name in configured]
+    return spec.default_layer_ids()
+
+
+def _pair_counterfactual_slots(batch: list[FamilySlot]) -> dict[int, str]:
+    """Group labels for the slots in this batch, keeping only complete pairs.
+
+    Pairing happens in the plan. A group whose partner fell into a different batch is
+    dropped here, because a contrastive group of one has nothing to contrast with.
+    """
+    counts: Counter[str] = Counter(
+        slot.counterfactual_group for slot in batch if slot.counterfactual_group
+    )
+    return {
+        position: slot.counterfactual_group
+        for position, slot in enumerate(batch)
+        if slot.counterfactual_group and counts[slot.counterfactual_group] >= 2
+    }
+
+
+def _avoided_topic_hit(text: str, avoid_words: list[str]) -> str:
+    """Cheap keyword screen. Empty when the spec supplies no avoid_keywords."""
+    if not avoid_words:
+        return ""
+    hits = find_cue_hits(text, avoid_words)
+    return hits[0] if hits else ""
+
+
+def _align_counterfactual_groups(families: list[Family]) -> None:
+    """Give every member of a counterfactual group the same split.
+
+    The group is the unit of splitting, so a contrast cannot straddle train and eval.
+    The strictest split any member carries wins: reserved beats eval beats train.
+    """
+    priority = {"train": 0, "eval": 1, "reserved": 2}
+    groups: dict[str, list[Family]] = {}
+    for family in families:
+        if family.counterfactual_group_id:
+            groups.setdefault(family.counterfactual_group_id, []).append(family)
+    for members in groups.values():
+        winner = max(members, key=lambda f: priority.get(f.split, 0))
+        for family in members:
+            if family.split != winner.split:
+                family.split = winner.split
+                if winner.reserved_reason and not family.reserved_reason:
+                    family.reserved_reason = (
+                        f"follows its counterfactual group: {winner.reserved_reason}"
+                    )
 
 
 async def generate_prompts(
@@ -272,6 +472,7 @@ async def generate_prompts(
     reframing_families = int(settings.get("reframing_families", 0))
     forbidden = ", ".join(spec.forbidden_terms) or "(none)"
 
+    mode_by_family = {family.family_id: family.mode for family in families}
     families_with_prompts = {prompt.family_id for prompt in existing}
     todo = [family for family in families if family.family_id not in families_with_prompts]
     if not todo:
@@ -280,12 +481,17 @@ async def generate_prompts(
 
     async def run_family(family: Family) -> tuple[Family, list[dict[str, Any]]]:
         n_prompts = eval_k if family.split == "eval" else train_k
+        mode = mode_by_family.get(family.family_id, "neutral")
         user_message = render(
             PROMPT_VARIANT_PROMPT,
             seed_situation=family.seed_situation,
             why_it_is_hard=family.why_it_is_hard,
             n_prompts=n_prompts,
-            forbidden_terms=forbidden,
+            mode_instructions=(
+                EXPLICIT_MODE_PROMPT_INSTRUCTIONS
+                if mode == "explicit"
+                else render(NEUTRAL_MODE_PROMPT_INSTRUCTIONS, forbidden_terms=forbidden)
+            ),
         )
         payload, _ = await client.complete_json(
             generator,
@@ -296,8 +502,7 @@ async def generate_prompts(
             stage="generate.prompts",
             record_id=family.family_id,
         )
-        items = payload.get("prompts") if isinstance(payload, dict) else payload
-        return family, list(items or [])
+        return family, extract_list(payload, "prompts", "prompt", "messages", "items")
 
     results = await gather_bounded([run_family(family) for family in todo])
 
@@ -319,6 +524,7 @@ async def generate_prompts(
                     variant="base",
                     text=text,
                     case_type=family.case_type_intent,
+                    mode=mode_by_family.get(family.family_id, "neutral"),
                 )
             )
 
@@ -354,8 +560,7 @@ async def generate_prompts(
             stage="generate.reframing",
             record_id=base_prompt.prompt_id,
         )
-        text = str((payload or {}).get("text", "")).strip()
-        return base_prompt, variant, text
+        return base_prompt, variant, extract_field(payload, "text", "prompt", "message").strip()
 
     if reframe_jobs:
         reframed = await gather_bounded([run_reframe(p, v) for p, v in reframe_jobs])
@@ -373,6 +578,7 @@ async def generate_prompts(
                     variant=variant,
                     text=text,
                     case_type=base_prompt.case_type,
+                    mode=base_prompt.mode,
                 )
             )
 
@@ -395,7 +601,8 @@ async def generate_responses(
     settings = config.generation
     generator = config.role("generator")
     revise_rounds = int(settings.get("revise_rounds", 0))
-    max_passage_chars = int(settings.get("max_passage_chars", 6000))
+    max_passage_chars = int(settings.get("max_passage_chars_responses", 8000))
+    layer_ids = _selected_layers(spec, config)
     forbidden = ", ".join(spec.forbidden_terms) or "(none)"
     family_by_id = {family.family_id: family for family in families}
 
@@ -413,7 +620,8 @@ async def generate_responses(
             spec,
             principle_ids=family.principle_ids or None,
             tradeoff_ids=family.tradeoff_ids or None,
-            max_passage_chars=max_passage_chars,
+            layer_ids=layer_ids,
+            stage="responses",
         )
         passages_text = render_key_passages(
             spec, family.source_passage_ids or None, max_chars=max_passage_chars
@@ -428,7 +636,7 @@ async def generate_responses(
                     key_passages=passages_text,
                     user_prompt=prompt.text,
                     why_it_is_hard=family.why_it_is_hard,
-                    forbidden_terms=forbidden,
+                    mode_instructions=mode_instructions(prompt.mode, forbidden),
                 ),
             },
         ]
@@ -458,7 +666,7 @@ async def generate_responses(
                             verdict=critique.get("verdict", ""),
                             issues="\n".join(f"- {i}" for i in critique.get("issues", [])),
                             rationale=critique.get("rationale", ""),
-                            forbidden_terms=forbidden,
+                            mode_instructions=mode_instructions(prompt.mode, forbidden),
                         ),
                     },
                 ],
@@ -482,6 +690,7 @@ async def generate_responses(
             generator_model=generator.model,
             usage=dict(response.usage or {}),
             revise_rounds=rounds_done,
+            mode=prompt.mode,
         )
 
     results = await gather_bounded([run_prompt(prompt) for prompt in todo])

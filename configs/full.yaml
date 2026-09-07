@@ -21,6 +21,8 @@ pricing_file: configs/pricing.yaml
 generation:
   n_families: 240            # 200 train families + 40 eval families
   families_per_call: 4       # families requested in one generator call
+  # A batch occasionally comes back short. Unfilled slots are retried this many times.
+  family_generation_attempts: 2
   prompts_per_family: 3      # user messages per training family
   eval_prompts_per_family: 1
   divergence_fraction: 0.4   # at least 100 intended-divergence cases after filtering
@@ -75,9 +77,11 @@ models:
     max_concurrency: 4
     temperature: 0.9
     # Measured: this model spends about 5,000 tokens on reasoning for a response-
-    # generation prompt (peak observed 10,700), and reasoning is charged against
-    # max_tokens. Below ~12,000 it sometimes returns reasoning only and no answer.
-    max_tokens: 16000
+    # generation prompt, and more on a contrastive-pair family batch: a batch has been
+    # observed to spend all of 16,000 on reasoning and return no answer. Reasoning is
+    # charged against max_tokens, so this ceiling is generous on purpose. The client
+    # raises a clear error naming the role when it is still too low.
+    max_tokens: 24000
     # Cost lever, measured on a real generation call: extra_body: {reasoning_effort: low}
     # cuts reasoning tokens about fourfold and the per-response cost about in half.
     # Not every model accepts every value ("none" is rejected by gpt-oss-120b).

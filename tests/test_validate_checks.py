@@ -147,3 +147,42 @@ def test_without_a_within_group_threshold_same_family_pairs_are_skipped():
         ["r1", "r2"], lambda i, j: jaccard(texts[i], texts[j]), 0.5, group_ids=["f", "f"]
     )
     assert duplicate_of == {}
+
+
+def test_counterfactual_group_members_are_never_deduped():
+    """Two members of a contrastive pair are near-identical on purpose."""
+    texts = [
+        "my colleague took 200 pounds from petty cash and put it back the next day",
+        "my colleague took 2000 pounds from petty cash and has not put it back",
+    ]
+    duplicate_of, clusters = find_near_duplicates(
+        ["r1", "r2"],
+        lambda i, j: 0.99,
+        threshold=0.9,
+        group_ids=["fam_a", "fam_b"],
+        within_group_threshold=0.99,
+        never_compare_ids=["cf_1", "cf_1"],
+    )
+    assert duplicate_of == {} and clusters == []
+
+
+def test_items_in_different_counterfactual_groups_are_still_compared():
+    duplicate_of, _ = find_near_duplicates(
+        ["r1", "r2"],
+        lambda i, j: 0.99,
+        threshold=0.9,
+        group_ids=["fam_a", "fam_b"],
+        never_compare_ids=["cf_1", "cf_2"],
+    )
+    assert duplicate_of == {"r2": "r1"}
+
+
+def test_an_item_with_no_group_is_compared_normally():
+    duplicate_of, _ = find_near_duplicates(
+        ["r1", "r2"],
+        lambda i, j: 0.99,
+        threshold=0.9,
+        group_ids=["fam_a", "fam_b"],
+        never_compare_ids=[None, None],
+    )
+    assert duplicate_of == {"r2": "r1"}

@@ -1,0 +1,6 @@
+08:02:29 INFO    main: target theravada v0.1 (16 principles, 13 tradeoffs, 49 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/theravada/20260907-080229
+08:02:29 INFO    main: === stage: generate ===
+08:04:16 WARNING pipeline.generate: family batch for domain family_and_care returned 0 families for 1 assignments
+08:04:16 INFO    pipeline.generate: families: 5 total (5 new, 0 reserved by the avoided-topic screen)
+08:04:36 INFO    pipeline.generate: prompts: 14 total (14 new)
+08:08:59 INFO    pipeline.generate: responses: 14 total (14 new, 0 failed)

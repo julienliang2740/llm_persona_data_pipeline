@@ -18,6 +18,7 @@ from pipeline.config import RunConfig
 from pipeline.model import format_cost, summarise_usage
 from pipeline.records import Decision, Family, Prompt, Response, Review
 from pipeline.target import TargetSpec, normalise_passage_ids
+from pipeline.validate import find_cue_hits
 
 logger = logging.getLogger("pipeline.export")
 
@@ -75,6 +76,37 @@ def derive_grading_key(
     return " ".join(sentences), notes[:8]
 
 
+def _passage_ids_in_assistant_text(
+    spec: TargetSpec, train_rows: list[dict[str, Any]], eval_rows: list[dict[str, Any]]
+) -> set[str]:
+    """Passage ids are internal provenance. None may reach text a model or user sees."""
+    ids = [passage.id for passage in spec.key_passages]
+    if not ids:
+        return set()
+    found: set[str] = set()
+    texts = [row["messages"][1]["content"] for row in train_rows]
+    texts += [row["prompt"] for row in eval_rows]
+    texts += [row["reference_answer"] for row in eval_rows]
+    for text in texts:
+        found.update(find_cue_hits(text, ids))
+    return found
+
+
+def license_constraints(spec: TargetSpec) -> list[dict[str, str]]:
+    """Distinct licence terms on the grounding sources, so restrictions travel with the data."""
+    seen: dict[tuple[str, str], dict[str, str]] = {}
+    for entry in spec.reference_material:
+        if str(entry.get("use", "")).strip() != "grounding":
+            continue
+        licence = str(entry.get("license") or "not recorded").strip()
+        key = (licence, "grounding")
+        if key not in seen:
+            seen[key] = {"license": licence, "use": "grounding", "sources": entry.get("id", "")}
+        else:
+            seen[key]["sources"] += f", {entry.get('id', '')}"
+    return list(seen.values())
+
+
 def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[str, Any]:
     """Entry point for `main.py export`. Writes the three deliverables into the run dir."""
     families = records.read_jsonl(run_dir / records.FAMILIES_FILE, Family)
@@ -123,6 +155,10 @@ def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[str, A
             "domain": family.domain,
             "case_type": decision.final_case_type,
             "variant": prompt.variant,
+            "mode": prompt.mode,
+            "counterfactual_group_id": family.counterfactual_group_id,
+            "varied_fact": family.varied_fact,
+            "situation_features": family.situation_features,
             "principles_applied": response.hidden.get("principles_applied") or [],
             # Repaired here too, so runs generated before the fix still export usable ids.
             "source_passages": normalise_passage_ids(
@@ -130,6 +166,7 @@ def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[str, A
             ),
             "generator_model": response.generator_model,
             "divergence_status": decision.divergence_status,
+            "divergence_kind": decision.divergence_kind,
         }
         if family.split == "train":
             train_rows.append(
@@ -164,12 +201,23 @@ def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[str, A
             if prompt.variant != "base":
                 counts["eval_case:reframing"] += 1
 
-    train_families = {row["meta"]["family_id"] for row in train_rows}
-    eval_families = {row["meta"]["family_id"] for row in eval_rows}
-    overlap = train_families & eval_families
+    def split_groups(rows: list[dict[str, Any]]) -> set[str]:
+        return {
+            row["meta"]["counterfactual_group_id"] or row["meta"]["family_id"] for row in rows
+        }
+
+    overlap = split_groups(train_rows) & split_groups(eval_rows)
     if overlap:
         raise RuntimeError(
-            f"Split integrity failure: families in both train and eval: {sorted(overlap)}"
+            f"Split integrity failure: these families or counterfactual groups appear in "
+            f"both train and eval: {sorted(overlap)}"
+        )
+    leaks = _passage_ids_in_assistant_text(spec, train_rows, eval_rows)
+    if leaks:
+        raise RuntimeError(
+            f"Hidden metadata leaked into user-visible text: passage ids {sorted(leaks)} "
+            f"appear in an assistant message or an evaluation prompt. The rendering template "
+            f"must never include record fields."
         )
 
     records.write_jsonl(run_dir / SFT_FILE, train_rows)
@@ -196,8 +244,20 @@ def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[str, A
             "dropped": sum(1 for d in decisions if not d.keep),
             "sft_train_rows": len(train_rows),
             "eval_rows": len(eval_rows),
+            "explicit_mode_rows": sum(
+                1 for row in train_rows + eval_rows if row["meta"]["mode"] == "explicit"
+            ),
+            "counterfactual_groups": len(
+                {
+                    row["meta"]["counterfactual_group_id"]
+                    for row in train_rows + eval_rows
+                    if row["meta"]["counterfactual_group_id"]
+                }
+            ),
             "by_bucket": dict(sorted(counts.items())),
         },
+        "license_constraints": license_constraints(spec),
+        "redistribution_note": config.raw.get("redistribution_note", ""),
         "cost": {
             "usd": usage["cost_usd"] if usage["cost_known"] else None,
             "display": format_cost(usage),

@@ -1,0 +1,19 @@
+07:59:36 INFO    main: target catholic v0.1 (16 principles, 14 tradeoffs, 78 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-075936
+07:59:36 INFO    main: === stage: generate ===
+08:00:45 WARNING pipeline.generate: family batch for domain work returned 0 families for 1 assignments
+08:00:45 WARNING pipeline.generate: family batch for domain family_and_close_relationships returned 0 families for 1 assignments
+08:00:45 WARNING pipeline.generate: family batch for domain health_and_care returned 0 families for 1 assignments
+08:00:45 INFO    pipeline.generate: families: 3 total (3 new, 0 reserved by the avoided-topic screen)
+08:01:09 INFO    pipeline.generate: prompts: 8 total (8 new)
+08:03:31 INFO    pipeline.generate: responses: 8 total (8 new, 0 failed)
+08:03:31 INFO    main: === stage: baseline ===
+08:07:30 INFO    main: target catholic v0.1 (16 principles, 14 tradeoffs, 78 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-075936
+08:07:30 INFO    main: === stage: validate ===
+08:10:34 ERROR   pipeline.validate: review failed: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) returned only reasoning and hit the max_tokens limit (8192). Raise max_tokens for this role. request_id=chatcmpl-a6561270bcce4e7bb3f52f2721d79808
+08:10:34 ERROR   pipeline.validate: review failed: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) returned only reasoning and hit the max_tokens limit (8192). Raise max_tokens for this role. request_id=chatcmpl-e2fcfc9891af42b78683828048cbec00
+08:10:34 ERROR   pipeline.validate: review failed: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) returned only reasoning and hit the max_tokens limit (8192). Raise max_tokens for this role. request_id=chatcmpl-88a83e98eb5548e5ba4c35ed27d7579d
+08:10:35 INFO    pipeline.validate: validate: {'responses': 8, 'kept': 5, 'dropped': 3, 'similarity_method': 'embeddings', 'duplicate_clusters': 0, 'duplicates': 0, 'cue_hits': 0, 'eval_items_checked_for_leakage': 2, 'max_leakage_seen': 0.5199, 'divergence_confirmed': 0, 'divergence_not_confirmed': 0, 'divergence_unverified': 2, 'divergence_action': 0, 'divergence_reasons': 0, 'soft_cue_flags': 0, 'explicit_mode_records': 0, 'quoted_source_flags': 0, 'archaic_register_flags': 0}
+08:10:35 INFO    main: target catholic v0.1 (16 principles, 14 tradeoffs, 78 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-075936
+08:10:35 INFO    main: === stage: export ===
+08:10:35 INFO    pipeline.export: export: 5 training rows, 0 eval rows -> /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-075936
+08:10:35 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-075936/report.md

@@ -44,16 +44,51 @@ The full Part 1 size (about 500 training rows and 50 evaluation prompts) is
 `configs/full.yaml`: 240 families, 3 prompts per training family, one critique-and-rewrite
 pass. Read the cost note in that file before launching it.
 
+## What the generated data contains
+
+Beyond one prompt and one response per case, three structures matter:
+
+- **Contrastive groups.** A configurable share of families (`counterfactual_fraction`) are
+  written in pairs: the same situation with exactly one morally relevant fact changed, recorded
+  in `varied_fact`. Members of a group are never treated as duplicates of each other and never
+  split apart, so the contrast survives into the dataset.
+- **Situation features.** Each family records `relationship`, `role_type`, `harm_severity`,
+  `urgency`, `public_or_private` and `asker_state` in the generator's own words. The run report
+  shows the spread, which is how you catch a run where everything came out minor and private.
+- **The explicit slice.** `explicit_fraction` (0 by default) produces records where the prompt
+  may name the tradition and the cue check is deliberately skipped. Everything else is uncued.
+
+## Layers
+
+A spec may define `layers` and tag principles with one. A layer is generated unless it sets
+`generate_by_default: false`, and `generation.target_layers` in the config overrides that
+entirely. Principles with no layer are always included, and a spec with no layers renders all
+of its principles.
+
 ## Before and after a fine-tune
 
 `baseline` and `evaluate` talk to a local OpenAI-compatible server, so the same code runs the
 un-tuned checkpoint and the adapted one:
 
+Evaluation takes answers two ways, and both write the same results shape, so any pair can be
+compared. Either run a configured model role live over `eval.jsonl`:
+
 ```bash
 llama-server -m <model>.gguf --port 8080          # in another terminal
-.venv/bin/python main.py evaluate --target confucian --endpoint base --label before
-# ... fine-tune, restart llama-server on the adapter ...
-.venv/bin/python main.py evaluate --target confucian --endpoint base --label after
+.venv/bin/python main.py evaluate --target confucian --endpoint-role base --label before
+```
+
+or judge answers generated elsewhere, for instance by `training/generate_with_adapter.py`,
+whose rows are `{prompt_id, prompt, model, text}`:
+
+```bash
+.venv/bin/python main.py evaluate --target confucian \
+    --answers-file training/out/answers.jsonl --label after
+```
+
+Then compare any two result files:
+
+```bash
 .venv/bin/python main.py evaluate --target confucian \
     --before runs/confucian/<run>/eval_results_before.jsonl \
     --after  runs/confucian/<run>/eval_results_after.jsonl
@@ -101,6 +136,13 @@ Inside `runs/<target>/<run_id>/`:
 | `usage.jsonl` | one line per model call: tokens, cost, stage, record id |
 | `report.md` | the five-minute read |
 | `log.txt` | the same log that went to stdout |
+
+## Licence terms travel with the data
+
+`manifest.json` carries `license_constraints`: every distinct `license` value from the spec's
+`grounding` reference material, plus an optional `redistribution_note` from the config. One
+target's grounding sources are CC BY-NC, so a dataset built from it is not freely commercial.
+Read that field before redistributing an export.
 
 ## Cost
 

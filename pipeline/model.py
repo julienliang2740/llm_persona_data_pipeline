@@ -67,6 +67,42 @@ class UsageTotals:
         return self.unpriced_calls == 0
 
 
+def extract_list(payload: Any, *preferred_keys: str) -> list[Any]:
+    """Pull the list of items out of a model's JSON, tolerating the key it chose.
+
+    Generators drift between "families" and "family", or wrap the list in some other
+    single key. A silently empty batch is worse than a slightly lenient reader, so:
+    a bare list is used as-is, a preferred key wins, and otherwise the payload's only
+    list value is taken. Anything more ambiguous returns empty and the caller warns.
+    """
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, dict):
+        for key in preferred_keys:
+            value = payload.get(key)
+            if isinstance(value, list):
+                return value
+        lists = [value for value in payload.values() if isinstance(value, list)]
+        if len(lists) == 1:
+            return lists[0]
+    return []
+
+
+def extract_field(payload: Any, *preferred_keys: str) -> str:
+    """Pull a single string field out of a model's JSON, tolerating the key it chose."""
+    if isinstance(payload, str):
+        return payload
+    if isinstance(payload, dict):
+        for key in preferred_keys:
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                return value
+        strings = [v for v in payload.values() if isinstance(v, str) and v.strip()]
+        if len(strings) == 1:
+            return strings[0]
+    return ""
+
+
 def price_call(
     pricing: dict[str, Any], model: str, prompt_tokens: int, completion_tokens: int
 ) -> float | None:
@@ -241,7 +277,10 @@ class ModelClient:
                         url,
                         headers=self._headers(role),
                         json=payload,
-                        timeout=role.timeout_s,
+                        # Connect fast even when the read budget is long: a local
+                        # server that is not running must fail in seconds, not in the
+                        # minutes a slow CPU generation is allowed to take.
+                        timeout=httpx.Timeout(role.timeout_s, connect=10.0),
                     )
                 except httpx.ConnectError as error:
                     if _is_local(role.base_url):

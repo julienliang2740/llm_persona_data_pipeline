@@ -1,0 +1,11 @@
+07:50:12 INFO    main: target catholic v0.1 (16 principles, 14 tradeoffs, 78 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-075012
+07:50:12 INFO    main: === stage: generate ===
+07:51:18 WARNING pipeline.generate: family batch for domain work returned 0 families for 2 assignments
+07:51:18 WARNING pipeline.generate: family batch for domain health_and_care returned 0 families for 1 assignments
+07:51:18 WARNING pipeline.generate: family batch for domain technology_and_automation returned 0 families for 1 assignments
+07:51:18 INFO    pipeline.generate: families: 4 total (4 new)
+07:51:42 INFO    pipeline.generate: prompts: 11 total (11 new)
+07:54:15 INFO    pipeline.generate: responses: 11 total (11 new, 0 failed)
+07:54:15 INFO    main: === stage: baseline ===
+08:09:44 INFO    pipeline.baseline: baseline: 8 answers total (8 new, 0 failed)
+08:09:44 INFO    main: === stage: validate ===

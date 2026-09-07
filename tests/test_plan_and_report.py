@@ -86,16 +86,23 @@ def test_report_lists_rejection_reasons(tmp_path, pilot_config, toy_spec):
 def test_before_after_table(tmp_path):
     before = tmp_path / "eval_results_before.jsonl"
     after = tmp_path / "eval_results_after.jsonl"
-    rows = [
-        {"prompt_id": "p1", "family_id": "f1", "case_type": "divergence", "variant": "base", "model": "base", "pass": False, "rationale": ""},
-        {"prompt_id": "p2", "family_id": "f2", "case_type": "ordinary", "variant": "base", "model": "base", "pass": True, "rationale": ""},
-    ]
-    write_jsonl(before, rows)
+    def row(prompt_id, case_type, passed, model="base", rationale=""):
+        return {
+            "prompt_id": prompt_id,
+            "family_id": "f" + prompt_id,
+            "case_type": case_type,
+            "variant": "base",
+            "model": model,
+            "text": "an answer",
+            "judge": {"pass": passed, "rationale": rationale},
+        }
+
+    write_jsonl(before, [row("p1", "divergence", False), row("p2", "ordinary", True)])
     write_jsonl(
         after,
         [
-            dict(rows[0], model="tuned", **{"pass": True}),
-            dict(rows[1], model="tuned", **{"pass": False, "rationale": "lost the point"}),
+            row("p1", "divergence", True, "tuned"),
+            row("p2", "ordinary", False, "tuned", "lost the point"),
         ],
     )
     table = before_after_table(before, after)
@@ -108,6 +115,6 @@ def test_before_after_table(tmp_path):
 def test_before_after_with_no_shared_prompts(tmp_path):
     before = tmp_path / "a.jsonl"
     after = tmp_path / "b.jsonl"
-    write_jsonl(before, [{"prompt_id": "p1", "case_type": "ordinary", "pass": True}])
-    write_jsonl(after, [{"prompt_id": "p9", "case_type": "ordinary", "pass": True}])
+    write_jsonl(before, [{"prompt_id": "p1", "case_type": "ordinary", "judge": {"pass": True}}])
+    write_jsonl(after, [{"prompt_id": "p9", "case_type": "ordinary", "judge": {"pass": True}}])
     assert "No prompts in common" in before_after_table(before, after)

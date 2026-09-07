@@ -58,7 +58,52 @@ class TargetSpec:
 
     @property
     def forbidden_terms(self) -> list[str]:
+        """Hard cue terms. Any hit rejects the response."""
         return list(self.cue_policy.get("forbidden_terms") or [])
+
+    @property
+    def soft_terms(self) -> list[str]:
+        """Ambiguous words that are reported as a flag but never reject on their own."""
+        return list(self.cue_policy.get("soft_terms") or [])
+
+    def default_layer_ids(self) -> list[str]:
+        """Layer ids generated unless the config overrides them.
+
+        A layer without `generate_by_default` is on; a spec without layers has none.
+        """
+        return [
+            str(layer["id"])
+            for layer in self.layers
+            if layer.get("id") and layer.get("generate_by_default", True)
+        ]
+
+    def principles_for_layers(self, layer_ids: list[str] | None) -> list[dict[str, Any]]:
+        """Principles in the selected layers. A principle with no layer is always included."""
+        if layer_ids is None:
+            layer_ids = self.default_layer_ids()
+        if not self.layers:
+            return list(self.principles)
+        selected = set(layer_ids)
+        return [
+            principle
+            for principle in self.principles
+            if not principle.get("layer") or principle.get("layer") in selected
+        ]
+
+    def avoided_topics(self) -> list[dict[str, Any]]:
+        """unresolved_choices the pilot must not generate scenarios about."""
+        return [
+            choice
+            for choice in self.unresolved_choices
+            if str(choice.get("generation_policy", "")).strip() == "avoid"
+        ]
+
+    def avoid_keywords(self) -> list[str]:
+        """Optional keyword screen for avoided topics. Empty when no spec supplies them."""
+        words: list[str] = []
+        for choice in self.avoided_topics():
+            words.extend(str(word) for word in (choice.get("avoid_keywords") or []))
+        return words
 
     def passage(self, passage_id: str) -> KeyPassage | None:
         for passage in self.key_passages:
@@ -292,12 +337,28 @@ def _bullets(lines: list[str]) -> str:
     return "\n".join(f"- {line}" for line in lines) if lines else "- (none recorded)"
 
 
-def render_principles(spec: TargetSpec, principle_ids: list[str] | None = None) -> str:
-    chosen = [p for p in spec.principles if principle_ids is None or p.get("id") in principle_ids]
+def render_principles(
+    spec: TargetSpec,
+    principle_ids: list[str] | None = None,
+    layer_ids: list[str] | None = None,
+    *,
+    compact: bool = False,
+) -> str:
+    """Render principles for a prompt.
+
+    `layer_ids` selects which layers are in play; `principle_ids` narrows further to the
+    ones a particular family actually uses. `compact` drops positive_indicators, which
+    the generator does not need and which dominate the length of a large spec.
+    """
+    chosen = spec.principles_for_layers(layer_ids)
+    if principle_ids:
+        wanted = set(principle_ids)
+        narrowed = [p for p in chosen if p.get("id") in wanted]
+        chosen = narrowed or chosen
     blocks = []
     for principle in chosen:
         parts = [f"{principle.get('id')} {principle.get('name')}: {str(principle.get('description','')).strip()}"]
-        if principle.get("positive_indicators"):
+        if not compact and principle.get("positive_indicators"):
             parts.append("  looks like: " + "; ".join(map(str, principle["positive_indicators"])))
         if principle.get("failure_modes"):
             parts.append("  fails when: " + "; ".join(map(str, principle["failure_modes"])))
@@ -405,7 +466,21 @@ def render_cue_policy(spec: TargetSpec) -> str:
         "Terms that must not appear in prompts or responses: "
         + (", ".join(spec.forbidden_terms) if spec.forbidden_terms else "(none listed)"),
     ]
+    if spec.soft_terms:
+        lines.append(
+            "Terms to use only if the situation genuinely calls for them, never as a "
+            "signal of where the judgment comes from: " + ", ".join(spec.soft_terms)
+        )
     return _bullets(lines)
+
+
+def render_avoided_topics(spec: TargetSpec) -> str:
+    """Topics the pilot must not build scenarios about, for the family-generation prompt."""
+    lines = []
+    for choice in spec.avoided_topics():
+        question = str(choice.get("question", "")).strip()
+        lines.append(f"{choice.get('id')}: {question}")
+    return _bullets(lines) if lines else "- (nothing is off limits)"
 
 
 def render_for_generator(
@@ -413,24 +488,36 @@ def render_for_generator(
     *,
     principle_ids: list[str] | None = None,
     tradeoff_ids: list[str] | None = None,
-    max_passage_chars: int = 6000,
+    layer_ids: list[str] | None = None,
+    stage: str = "families",
 ) -> str:
-    """The full target description the generator reads before writing anything."""
-    return "\n\n".join(
-        [
-            f"# Target: {spec.name} (id {spec.target_id}, spec version {spec.version})",
-            "## How this target judges\n" + spec.summary,
-            "## Principles\n" + render_principles(spec, principle_ids),
-            "## Limits the target imposes on itself\n" + render_boundaries(spec),
-            "## Genuine tradeoffs\n" + render_tradeoffs(spec, tradeoff_ids),
-            "## Open interpretation questions\n" + render_unresolved(spec),
-            "## Common distortions to avoid\n" + render_misinterpretations(spec),
+    """The target description the generator reads.
+
+    Real specs run to 60 KB, so this is selective. For `stage="families"` the whole
+    target is in play. For `stage="responses"` only the principles and tradeoffs the
+    family actually uses are rendered, and the coverage plan and divergence hypotheses
+    are dropped: by then the family already encodes them.
+    """
+    sections = [
+        f"# Target: {spec.name} (id {spec.target_id}, spec version {spec.version})",
+        "## How this target judges\n" + spec.summary,
+        "## Principles\n"
+        + render_principles(spec, principle_ids, layer_ids, compact=(stage == "responses")),
+        "## Limits the target imposes on itself\n" + render_boundaries(spec),
+        "## Genuine tradeoffs\n" + render_tradeoffs(spec, tradeoff_ids),
+        "## Open interpretation questions\n" + render_unresolved(spec),
+        "## Common distortions to avoid\n" + render_misinterpretations(spec),
+    ]
+    if stage == "families":
+        sections += [
             "## Where a generic assistant is expected to answer differently\n"
             + render_divergence_hypotheses(spec),
             "## Situation domains to cover\n" + render_domains(spec),
-            "## Cue policy\n" + render_cue_policy(spec),
+            "## Topics this pilot must not build scenarios about\n"
+            + render_avoided_topics(spec),
         ]
-    )
+    sections.append("## Cue policy\n" + render_cue_policy(spec))
+    return "\n\n".join(sections)
 
 
 def render_for_reviewer(spec: TargetSpec) -> str:
