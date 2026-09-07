@@ -193,11 +193,18 @@ The round-2 change list derived from these is `docs/round2-changes.md`.
 
 ## 8. Approximate Fireworks cost
 
-Total across all run directories at the end of round 1: about $16.50 over ~480 calls (four pilots
-~$12, dev and toy runs ~$4.50). Measured unit costs before budget increases: ~$0.055 per generated
-response, ~$0.018 per review. A naive full run (500 rows) with the current models projects to
-$50-90, above the brief's $10-20; measured levers: `reasoning_effort: low` on the generator
-(about half the cost), a cheaper reviewer (`deepseek-v4-flash-0731`, about 6x cheaper).
+| item | cost |
+|---|---|
+| round-1 pilots (4 targets, ~8 families each) | ~$12.4 |
+| round-2 pilots (4 targets, 8 families, second reviewer + three-way divergence + revise round) | ~$21.7 |
+| dev, toy, and E4 low-effort runs | ~$5 |
+| **total at end of round 2** | **about $39 over ~900 calls** (see `usage.jsonl` in each run directory) |
+
+Measured unit costs (round 2): ~$0.10 per generated response including its share of family and prompt
+calls, ~$0.02 per primary review, ~$0.05 per second review (kimi-k3), ~$0.02 per three-way judge verdict.
+Roughly 90% of completion tokens are reasoning. A naive 500-row run with the round-2 configuration projects
+to about $110-150; with `reasoning_effort: low` on the generator (E4) and `deepseek-v4-flash` as reviewer it
+projects to roughly $40-60. Both exceed the brief's $10-20; the brief's estimate assumed non-reasoning models.
 
 ## 9. Recommended next step before generating the full Part 1 dataset
 
