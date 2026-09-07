@@ -127,7 +127,9 @@ def extract_list(
         return lists[0]
     # One more wrapper level, e.g. {"result": {"families": [...]}}: descend and retry.
     dict_values = [value for value in payload.values() if isinstance(value, dict)]
-    if len(dict_values) == 1 and (looks_like_item is None or not looks_like_item(dict_values[0])):
+    if len(dict_values) == 1:
+        if looks_like_item is not None and looks_like_item(dict_values[0]):
+            return [dict_values[0]]
         return extract_list(dict_values[0], *preferred_keys, looks_like_item=looks_like_item)
     return []
 
