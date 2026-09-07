@@ -31,6 +31,7 @@ RATE_LIMIT_BACKOFF_CAP_S = 90.0
 GENERAL_BACKOFF_CAP_S = 45.0
 # Ceiling for the one automatic retry when a reasoning model returns no answer.
 MAX_REASONING_RETRY_TOKENS = 32000
+MIN_TOKEN_BUDGET = 4000  # floor when halving a budget the model window rejected
 
 
 class ModelError(Exception):
@@ -398,6 +399,32 @@ class ModelClient:
 
         url = role.base_url.rstrip("/") + "/chat/completions"
         data, latency = await self._post(role, url, payload)
+        if "choices" not in data and "error" in data:
+            # Fireworks answers HTTP 200 with {"error": "..."} when prompt + max_tokens
+            # exceeds the model's window. Halve the budget and retry rather than let a
+            # caller parse this as an empty result (which silently lost families in round 1).
+            error_text = self._safe(str(data.get("error")))
+            budget = int(payload["max_tokens"])
+            if "maximum number of tokens" in error_text.lower() and budget > MIN_TOKEN_BUDGET:
+                halved = max(MIN_TOKEN_BUDGET, budget // 2)
+                logger.warning(
+                    "%s (%s) rejected max_tokens=%d as over the model window; retrying at %d",
+                    role.name,
+                    role.model,
+                    budget,
+                    halved,
+                )
+                return await self.complete(
+                    role,
+                    messages,
+                    temperature=temperature,
+                    max_tokens=halved,
+                    json_mode=json_mode,
+                    stage=stage,
+                    record_id=record_id,
+                    retry_on_reasoning_overflow=retry_on_reasoning_overflow,
+                )
+            raise ModelError(f"{role.name} ({role.model}) returned an error body: {error_text[:300]}")
         choice = (data.get("choices") or [{}])[0]
         message = choice.get("message") or {}
         text = (message.get("content") or "").strip()

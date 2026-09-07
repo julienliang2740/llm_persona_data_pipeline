@@ -146,3 +146,41 @@ def test_the_reasoning_retry_ceiling_is_above_the_configured_budgets():
         budget = role.get("max_tokens", 0)
         if budget:
             assert budget <= MAX_REASONING_RETRY_TOKENS, name
+
+
+@pytest.mark.asyncio
+async def test_error_body_over_window_retries_with_halved_budget(tmp_path, monkeypatch):
+    """Fireworks answers HTTP 200 with {"error": ...} when prompt + max_tokens exceeds the
+    model window. Round 1 parsed that as an empty family list; it must retry at a smaller
+    budget instead."""
+    role = ModelRole(name="generator", model="big-model", api_key_source="none", max_tokens=24000)
+    client = ModelClient({"generator": role}, PRICING, usage_path=tmp_path / "usage.jsonl", api_key="")
+    budgets = []
+
+    async def fake_post(self, role, url, payload):
+        budgets.append(payload["max_tokens"])
+        if len(budgets) == 1:
+            return {"error": "The model has exceeded the maximum number of tokens allowed."}, 0.1
+        return {
+            "id": "req-2",
+            "choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 2},
+        }, 0.1
+
+    monkeypatch.setattr(ModelClient, "_post", fake_post)
+    result = await client.complete("generator", [{"role": "user", "content": "hi"}])
+    assert result.text == "ok"
+    assert budgets == [24000, 12000]
+
+
+@pytest.mark.asyncio
+async def test_other_error_bodies_raise(tmp_path, monkeypatch):
+    role = ModelRole(name="generator", model="big-model", api_key_source="none")
+    client = ModelClient({"generator": role}, PRICING, usage_path=tmp_path / "usage.jsonl", api_key="")
+
+    async def fake_post(self, role, url, payload):
+        return {"error": "model overloaded"}, 0.1
+
+    monkeypatch.setattr(ModelClient, "_post", fake_post)
+    with pytest.raises(ModelError, match="error body"):
+        await client.complete("generator", [{"role": "user", "content": "hi"}])
