@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections import Counter
 
+from pipeline import records
 from pipeline.evaluate import before_after_table
 from pipeline.records import write_jsonl
 from pipeline.report import build_report
@@ -166,51 +167,20 @@ def test_before_after_breaks_the_change_down_by_prompt_variant(tmp_path):
     assert "| fiction | 1 | 0 | 0 | +0 |" in table
 
 
-def _stub_conflicts(monkeypatch, payload):
-    """Stand in for pipeline.review.flag_score_conflicts, which impl-core owns."""
-    import pipeline.review
-
-    monkeypatch.setattr(pipeline.review, "flag_score_conflicts", lambda reviews: payload, raising=False)
-
-
-def test_report_names_reviews_that_scored_five_while_raising_a_flag(
-    tmp_path, pilot_config, toy_spec, monkeypatch
-):
+def test_report_names_reviews_that_scored_five_while_raising_a_flag(tmp_path, pilot_config, toy_spec):
     """A reply cannot be an exemplar of the target's judgment and also carry a template shape."""
-    _stub_conflicts(
-        monkeypatch,
-        {
-            "reviews_with_flag_and_five": 2,
-            "reviews_total": 83,
-            "flag_five_pairs": {"formulaic_shape+fidelity=5": 1, "cue_leakage+scenario_quality=5": 1},
-        },
-    )
     run_dir = build_run(tmp_path)
+    reviews = records.read_jsonl(run_dir / records.REVIEWS_FILE, records.Review)
+    reviews[0].scores["fidelity"] = 5
+    reviews[0].scores["formulaic_shape"] = True
+    records.write_jsonl(run_dir / records.REVIEWS_FILE, reviews)
     text = build_report(run_dir, "toy")
-    assert "Reviews awarding a 5 while raising a defect flag: **2** of 83" in text
-    assert "formulaic_shape+fidelity=5 ×1" in text
+    assert "Reviews awarding a 5 while raising a defect flag: **1** of 2" in text
+    assert "formulaic_shape+fidelity=5 \u00d71" in text
 
 
-def test_report_says_so_when_the_rubric_was_applied_consistently(
-    tmp_path, pilot_config, toy_spec, monkeypatch
-):
-    _stub_conflicts(
-        monkeypatch,
-        {"reviews_with_flag_and_five": 0, "reviews_total": 12, "flag_five_pairs": {}},
-    )
-    run_dir = build_run(tmp_path)
-    text = build_report(run_dir, "toy")
-    assert "**0** of 12" in text
-    assert "rubric was applied consistently" in text
-
-
-def test_the_report_still_builds_when_the_conflict_counter_is_absent(
-    tmp_path, pilot_config, toy_spec, monkeypatch
-):
-    """The counter lives in a file another teammate owns; its absence must not break the report."""
-    import pipeline.review
-
-    monkeypatch.delattr(pipeline.review, "flag_score_conflicts", raising=False)
+def test_report_says_so_when_the_rubric_was_applied_consistently(tmp_path, pilot_config, toy_spec):
+    """build_run's reviews raise no flags, so the line has to read as a clean bill."""
     text = build_report(build_run(tmp_path), "toy")
-    assert "## Reviewer" in text
-    assert "defect flag" not in text
+    assert "**0** of 2" in text
+    assert "rubric was applied consistently" in text

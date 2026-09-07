@@ -15,6 +15,7 @@ from typing import Any
 from pipeline import records
 from pipeline.model import format_cost, summarise_usage
 from pipeline.records import Decision, DivergenceVerdict, Family, Prompt, Response, Review
+from pipeline.review import flag_score_conflicts
 from pipeline.report_style import (
     coverage_tables,
     cross_run_style_table,
@@ -341,10 +342,6 @@ def _flag_score_conflicts(reviews: list[Review]) -> list[str]:
     rubric. Two flags cap the judgment score in code, so a surviving conflict puts the 5
     on a dimension the cap does not cover, which is the case worth reading.
     """
-    try:
-        from pipeline.review import flag_score_conflicts
-    except ImportError:
-        return []
     conflicts = flag_score_conflicts(reviews)
     count = conflicts.get("reviews_with_flag_and_five", 0)
     total = conflicts.get("reviews_total", len(reviews))
