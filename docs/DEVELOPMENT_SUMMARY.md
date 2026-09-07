@@ -156,6 +156,17 @@ The round-2 change list derived from these is `docs/round2-changes.md`.
 5. Explicit-mode prompts were never told which tradition to name, so the generator invented one.
 6. A 900 s read timeout was also the connect timeout; a dead local server would stall 15 minutes.
 7. Contrastive pairs formed inside per-domain batches could never form in small pilots; now planned.
+8. **The real root cause of (1), found in round 2:** Fireworks returns HTTP 200 with a body
+   `{"error": "The model has exceeded the maximum number of tokens allowed."}` when prompt plus
+   `max_tokens` exceeds the window; the client branched on status code only, so the error body
+   parsed as an empty list. Every earlier mitigation treated the symptom. Now an error body is an
+   error, and that message halves the budget and retries.
+9. Round-2 code landed with three defects that unit tests did not catch: a missing import in the new
+   reframing-overlap check (NameError on the first variant); a scripted block replacement that left
+   two `run_stage` definitions in validate.py, the live one referencing a renamed helper; and the
+   planned institution/enums/stance/hypothesis never being written into the family assignment text,
+   so "planned diversity" was stamped onto families after generation. Lessons applied: pyflakes in
+   the loop, a duplicate-definition scan, and a stage-level test with a stubbed client.
 
 ## 7. Unresolved issues
 
