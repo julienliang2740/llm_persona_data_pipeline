@@ -218,3 +218,12 @@ Unit tests cover key loading (including that no exception path can contain the k
 IO, spec validation errors, the cue-term check, duplicate and leakage detection, lenient JSON
 parsing, coverage planning, export rendering and the report. They use
 `tests/fixtures/targets/toy`, an invented target, so they never depend on a real spec.
+
+### Divergence judging: what is and is not blind
+
+The three-way judge shuffles the candidate, the local base answer and the strong no-spec answer into
+random positions per prompt, so the positional cue is gone. It is still told which label is the reply
+under test and which is the no-spec reply, because it must quote the closest no-spec sentence
+(`generic_echo`). A provenance-blind second pass that never names roles is a deferred option; it doubles
+judge cost. A family counts as value-attributed only when every judged prompt in it is; the any-prompt
+rate is reported as a secondary line.
