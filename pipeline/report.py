@@ -130,6 +130,9 @@ def build_report(run_dir: Path, target_id: str, pricing: dict[str, Any] | None =
         "Mean scores: "
         + ", ".join(f"{name} {value:.2f}" for name, value in score_means.items())
         + (f" (n={len(reviews)})" if reviews else ""),
+    ]
+    lines += _flag_score_conflicts(reviews)
+    lines += [
         "",
         "## Cue-term hits",
         "",
@@ -328,6 +331,40 @@ def _house_style_section(run_dir: Path) -> list[str]:
             "this target's phrasing against."
         ]
     return cross_run_style_table(siblings)
+
+
+def _flag_score_conflicts(reviews: list[Review]) -> list[str]:
+    """Reviews that awarded a 5 while also raising a defect flag.
+
+    A reply cannot be an exemplar of the target's judgment and also carry a template
+    shape or name its own source, so a conflict means the reviewer is not applying the
+    rubric. Two flags cap the judgment score in code, so a surviving conflict puts the 5
+    on a dimension the cap does not cover, which is the case worth reading.
+    """
+    try:
+        from pipeline.review import flag_score_conflicts
+    except ImportError:
+        return []
+    conflicts = flag_score_conflicts(reviews)
+    count = conflicts.get("reviews_with_flag_and_five", 0)
+    total = conflicts.get("reviews_total", len(reviews))
+    if not count:
+        return [
+            "",
+            f"Reviews awarding a 5 while raising a defect flag: **0** of {total}. "
+            f"The rubric was applied consistently.",
+        ]
+    pairs = ", ".join(
+        f"{name} ×{n}" for name, n in (conflicts.get("flag_five_pairs") or {}).items()
+    )
+    return [
+        "",
+        f"Reviews awarding a 5 while raising a defect flag: **{count}** of {total}. "
+        f"That combination means the reviewer is not applying the rubric, and the score "
+        f"cap did not catch it because the 5 sits on another dimension.",
+        "",
+        f"Conflicting pairs: {pairs}." if pairs else "",
+    ]
 
 
 def _reason_bucket(reason: str) -> str:

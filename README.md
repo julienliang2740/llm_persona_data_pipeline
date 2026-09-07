@@ -110,8 +110,11 @@ as `unverified` instead of confirmed, and the report says so.
 | `pipeline/plan.py` | the coverage plan: slots, splits, pairs, stance mix, held-out tradeoffs (no model calls) |
 | `pipeline/institutions.py` | the institution list sampled per slot |
 | `pipeline/generate.py` | families, user prompts, responses |
-| `pipeline/baseline.py` | base-model answers for the comparisons |
-| `pipeline/validate.py` | reviewer critique, cue check, near-duplicates, leakage, divergence, decisions |
+| `pipeline/baseline.py` | base-model answers, and the strong-generic third leg of the divergence comparison |
+| `pipeline/validate.py` | the validation stage: orders the checks below, turns their output into one Decision per response, writes the artifacts |
+| `pipeline/similarity.py` | cue-term check, near-duplicates, leakage, and the per-run calibrated threshold |
+| `pipeline/review.py` | reviewer critique, the score-key repair, and the revise round |
+| `pipeline/divergence.py` | three-way judging against the base model and a strong generic answer |
 | `pipeline/export.py` | family split, `sft_train.jsonl`, `eval.jsonl`, `manifest.json` |
 | `pipeline/evaluate.py` | run an endpoint over the eval set, judge it, before/after table |
 | `pipeline/report.py`, `report_style.py` | the markdown run report; cross-target style, coverage and similarity tables |
@@ -202,6 +205,14 @@ threshold.
 .venv/bin/pytest -q                            # unit tests, no network
 .venv/bin/pytest -m smoke -q                   # one real call per role; skipped without the key file
 ```
+
+`tests/test_validate_stage.py` runs the whole validation stage against a stubbed client, so
+the stage itself is exercised without the network. It also carries two structural guards over
+every pipeline module, both of which exist because of a real defect that shipped: no module may
+define the same top-level name twice, and no module may call a private helper it never defines
+or imports. A scripted edit had left two copies of `run_stage` in `validate.py`, and the
+surviving copy called a helper that had been renamed away, so the stage would have raised
+`NameError` on its first real run while every unit test passed.
 
 Unit tests cover key loading (including that no exception path can contain the key), record
 IO, spec validation errors, the cue-term check, duplicate and leakage detection, lenient JSON
