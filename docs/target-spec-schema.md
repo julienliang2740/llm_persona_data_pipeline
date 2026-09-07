@@ -136,3 +136,28 @@ reference_material:                # what the generator/reviewer may quote or le
 - Modern normative constraints (anti-discrimination, safeguarding, consent) that the tradition did not formulate are labeled as such in `summary` or `boundaries`, never attributed to the sources.
 - `SOURCES.md` records for each file: work, edition/translation, URL, access date, license or access terms, any AI-use restriction, and what was done to it (e.g. "chapters 1-20 extracted, headers removed").
 - Do not include text that the source's terms forbid for this use. If a source is reference-only (e.g. SuttaCentral's AI-use request, copyrighted modern translations), record it in `SOURCES.md` with `use: reference_only` and do not copy it into `references/`.
+
+## Round-2 additions (all optional except where the loader says otherwise)
+
+```yaml
+deliberation_shape: >          # 3-5 lines: how this target deliberates; used verbatim in the response prompt
+  ...
+signature_moves:               # 3-6 named, checkable moves the reviewer scores present/absent
+  - id: names_the_act_first
+    description: ...
+cue_policy:
+  allowed_terms: [...]         # ordinary-English concept words the target needs; rendered positively
+  soft_terms: [...]            # phrase-shaped tells; flagged and counted, never a rejection reason
+  archaic_register_examples: [...]   # diction from the source translations the generator must not imitate
+unresolved_choices:
+  - id: ...
+    generation_policy: avoid
+    avoid_keywords: [...]      # REQUIRED when generation_policy is avoid; keyword screen on seed situations
+tradeoffs:
+  - id: ...
+    unresolved: true
+    resolved_part: >           # what the tradition does settle here
+    open_question: >           # the part that stays open; confident_on_unresolved covers only this
+redistribution_note: >         # REQUIRED when any grounding source is not public domain
+```
+Every `reference_material` entry with `use: grounding` must have a non-null `license`.
