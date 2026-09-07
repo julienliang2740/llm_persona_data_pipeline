@@ -1,0 +1,43 @@
+{
+  "target_id": "toy",
+  "target_name": "Careful Practical Prudence (invented test target)",
+  "spec_version": "0.1",
+  "run_id": "20260907-072446",
+  "exported_at": "2026-09-07T07:44:55+00:00",
+  "config_file": "/home/ubuntu/part1_data_pipeline/configs/pilot.yaml",
+  "config_hash": "74f8e86dc0bf",
+  "models": {
+    "generator": "accounts/fireworks/models/qwen3p8-max",
+    "reviewer": "accounts/fireworks/models/deepseek-v4-pro-0813",
+    "judge": "accounts/fireworks/models/deepseek-v4-pro-0813",
+    "embeddings": "accounts/fireworks/models/qwen3-embedding-8b",
+    "base": "qwen2.5-7b-instruct"
+  },
+  "counts": {
+    "families": 2,
+    "families_train": 1,
+    "families_eval": 1,
+    "families_reserved": 0,
+    "prompts": 5,
+    "responses": 5,
+    "kept": 4,
+    "dropped": 1,
+    "sft_train_rows": 3,
+    "eval_rows": 1,
+    "by_bucket": {
+      "eval:household": 1,
+      "eval_case:divergence": 1,
+      "eval_case:reframing": 1,
+      "train:work": 3,
+      "train_case:ordinary": 3
+    }
+  },
+  "cost": {
+    "usd": null,
+    "display": "unknown (at least $0.0000). No price in configs/pricing.yaml for: accounts/fireworks/models/deepseek-v4-pro-0813, accounts/fireworks/models/glm-5p3-flash, accounts/fireworks/models/gpt-oss-120b, accounts/fireworks/models/qwen3-embedding-8b, accounts/fireworks/models/qwen3p8-max.",
+    "calls": 27,
+    "prompt_tokens": 52004,
+    "completion_tokens": 106827,
+    "reasoning_tokens": 97418
+  }
+}

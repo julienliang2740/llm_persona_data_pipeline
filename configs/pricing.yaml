@@ -1,0 +1,62 @@
+# USD per 1,000,000 tokens, per model id.
+#
+# Only verified prices belong here. A model that is absent, or whose entry has a
+# null price, produces cost_usd: null in runs/.../usage.jsonl, and every report
+# then says the cost is "unknown". Nothing is ever guessed silently.
+#
+# Source: Fireworks Standard-tier price list, recorded in docs/fireworks-notes.md
+# (retrieved 2026-09-07). Cached-input discounts exist but the usage ledger does
+# not separate cached tokens, so every prompt token is charged at the full input
+# rate. Reported cost is therefore an upper bound.
+
+models:
+  accounts/fireworks/models/qwen3p8-max:
+    input_per_1m_usd: 2.00
+    output_per_1m_usd: 6.00
+    source: "docs/fireworks-notes.md, Fireworks Standard tier, 2026-09-07"
+  accounts/fireworks/models/qwen3p8-2p4t-a95b:
+    input_per_1m_usd: 2.00
+    output_per_1m_usd: 6.00
+    source: "docs/fireworks-notes.md, 2026-09-07"
+  accounts/fireworks/models/deepseek-v4-pro-0813:
+    input_per_1m_usd: 1.32
+    output_per_1m_usd: 3.96
+    source: "docs/fireworks-notes.md, 2026-09-07"
+  accounts/fireworks/models/deepseek-v4-flash-0731:
+    input_per_1m_usd: 0.22
+    output_per_1m_usd: 0.66
+    source: "docs/fireworks-notes.md, 2026-09-07"
+  accounts/fireworks/models/kimi-k3:
+    input_per_1m_usd: 3.00
+    output_per_1m_usd: 15.00
+    source: "docs/fireworks-notes.md, 2026-09-07"
+  accounts/fireworks/models/glm-5p3:
+    input_per_1m_usd: 1.40
+    output_per_1m_usd: 4.40
+    source: "docs/fireworks-notes.md, 2026-09-07"
+  accounts/fireworks/models/glm-5p3-flash:
+    input_per_1m_usd: 0.15
+    output_per_1m_usd: 0.50
+    source: "docs/fireworks-notes.md, 2026-09-07"
+  accounts/fireworks/models/qwen3p7-plus:
+    input_per_1m_usd: 0.40
+    output_per_1m_usd: 1.60
+    source: "docs/fireworks-notes.md, 2026-09-07"
+  accounts/fireworks/models/minimax-m3:
+    input_per_1m_usd: 0.30
+    output_per_1m_usd: 1.20
+    source: "docs/fireworks-notes.md, 2026-09-07"
+  accounts/fireworks/models/gpt-oss-120b:
+    input_per_1m_usd: 0.15
+    output_per_1m_usd: 0.60
+    source: "docs/fireworks-notes.md, 2026-09-07"
+  accounts/fireworks/models/qwen3-embedding-8b:
+    # Input-only model; the output rate is 0 because it returns no tokens.
+    input_per_1m_usd: 0.10
+    output_per_1m_usd: 0.0
+    source: "docs/fireworks-notes.md, 2026-09-07"
+  qwen2.5-7b-instruct:
+    # Local llama.cpp on the project machine: no API charge.
+    input_per_1m_usd: 0.0
+    output_per_1m_usd: 0.0
+    source: "runs locally on CPU; no API charge"

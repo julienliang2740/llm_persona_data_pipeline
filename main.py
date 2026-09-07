@@ -1,0 +1,150 @@
+#!/usr/bin/env python
+"""CLI entry point.
+
+    python main.py generate --target confucian --config configs/pilot.yaml
+    python main.py all      --target confucian --config configs/pilot.yaml --n-families 20
+    python main.py evaluate --target confucian --run 20260907-101500 --endpoint base --label before
+
+Every stage reads and writes JSONL in runs/<target>/<run_id>/ and is idempotent on
+that directory: re-running a stage fills in what is missing rather than starting over.
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import json
+import logging
+import sys
+from pathlib import Path
+
+from pipeline import baseline, evaluate, export, generate, report, records, validate
+from pipeline.config import ConfigError, load_config, new_run_id, resolve_run_dir
+from pipeline.target import SpecError, load_target
+
+STAGES = ("generate", "baseline", "validate", "export", "evaluate", "report", "all")
+
+
+def configure_logging(run_dir: Path, verbose: bool) -> None:
+    """Log to stdout and to runs/<target>/<run>/log.txt."""
+    level = logging.DEBUG if verbose else logging.INFO
+    formatter = logging.Formatter("%(asctime)s %(levelname)-7s %(name)s: %(message)s", "%H:%M:%S")
+    root = logging.getLogger()
+    root.setLevel(level)
+    for handler in list(root.handlers):
+        root.removeHandler(handler)
+    stream = logging.StreamHandler(sys.stdout)
+    stream.setFormatter(formatter)
+    root.addHandler(stream)
+    file_handler = logging.FileHandler(run_dir / records.LOG_FILE, encoding="utf-8")
+    file_handler.setFormatter(formatter)
+    root.addHandler(file_handler)
+    for noisy in ("httpx", "httpcore", "httpcore.http11", "httpcore.connection"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="main.py", description="Value-instantiation data pipeline (Part 1)."
+    )
+    parser.add_argument("stage", choices=STAGES)
+    parser.add_argument("--target", required=True, help="target id, i.e. a directory under targets/")
+    parser.add_argument("--config", default="configs/pilot.yaml")
+    parser.add_argument("--run", default=None, help="run id; defaults to the latest run for this target")
+    parser.add_argument("--new-run", action="store_true", help="start a fresh run id instead of resuming")
+    parser.add_argument("--n-families", type=int, default=None, help="override generation.n_families")
+    parser.add_argument("--targets-dir", default=None, help="override where targets/ is read from")
+    parser.add_argument("--endpoint", default="base", help="evaluate: which model role to run")
+    parser.add_argument("--label", default=None, help="evaluate: name for this result file")
+    parser.add_argument("--before", default=None, help="evaluate: earlier eval_results_*.jsonl to compare")
+    parser.add_argument("--after", default=None, help="evaluate: later eval_results_*.jsonl to compare")
+    parser.add_argument(
+        "--skip-baseline",
+        action="store_true",
+        help="all: continue when the local base model is not running",
+    )
+    parser.add_argument("-v", "--verbose", action="store_true")
+    return parser
+
+
+async def run(args: argparse.Namespace) -> int:
+    config = load_config(args.config)
+    targets_dir = Path(args.targets_dir) if args.targets_dir else config.targets_dir
+    run_id = args.run or (new_run_id() if args.new_run else None)
+    run_dir = resolve_run_dir(config, args.target, run_id)
+    configure_logging(run_dir, args.verbose)
+    logger = logging.getLogger("main")
+
+    if args.stage in ("evaluate",) and args.before and args.after:
+        table = evaluate.write_before_after(
+            Path(args.before), Path(args.after), run_dir / "before_after.md"
+        )
+        print(table)
+        return 0
+
+    if args.stage == "report":
+        path = report.run_stage(run_dir, args.target, config.pricing)
+        print(path.read_text(encoding="utf-8"))
+        return 0
+
+    spec = load_target(targets_dir, args.target)
+    logger.info(
+        "target %s v%s (%d principles, %d tradeoffs, %d key passages); run dir %s",
+        spec.target_id,
+        spec.version,
+        len(spec.principles),
+        len(spec.tradeoffs),
+        len(spec.key_passages),
+        run_dir,
+    )
+
+    stages = [args.stage] if args.stage != "all" else ["generate", "baseline", "validate", "export", "report"]
+    summary: dict[str, object] = {}
+    for stage in stages:
+        logger.info("=== stage: %s ===", stage)
+        if stage == "generate":
+            summary[stage] = await generate.run_stage(config, spec, run_dir, args.n_families)
+        elif stage == "baseline":
+            try:
+                summary[stage] = await baseline.run_stage(config, run_dir)
+            except baseline.BaselineUnavailable as error:
+                if args.stage == "baseline" and not args.skip_baseline:
+                    logger.error("baseline stage cannot run: %s", error)
+                    return 2
+                logger.warning(
+                    "skipping baseline: %s Divergence cases will be marked unverified.", error
+                )
+                summary[stage] = {"skipped": str(error)}
+        elif stage == "validate":
+            summary[stage] = await validate.run_stage(config, spec, run_dir)
+        elif stage == "export":
+            summary[stage] = export.run_stage(config, spec, run_dir)
+        elif stage == "evaluate":
+            summary[stage] = await evaluate.run_stage(
+                config, spec, run_dir, args.endpoint, args.label
+            )
+        elif stage == "report":
+            summary[stage] = str(report.run_stage(run_dir, args.target, config.pricing))
+
+    print(json.dumps({"run_dir": str(run_dir), "stages": summary}, indent=2, default=str))
+    return 0
+
+
+def main() -> int:
+    args = build_parser().parse_args()
+    try:
+        return asyncio.run(run(args))
+    except (ConfigError, SpecError) as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 2
+    except RuntimeError as error:
+        # A stage whose inputs are missing says which stage to run first.
+        print(f"error: {error}", file=sys.stderr)
+        return 2
+    except KeyboardInterrupt:
+        print("interrupted", file=sys.stderr)
+        return 130
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

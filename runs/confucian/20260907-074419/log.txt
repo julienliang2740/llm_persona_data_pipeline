@@ -1,0 +1,8 @@
+07:44:19 INFO    main: target confucian v0.1 (16 principles, 10 tradeoffs, 91 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/confucian/20260907-074419
+07:44:19 INFO    main: === stage: generate ===
+07:44:50 INFO    pipeline.generate: families: 2 total (2 new)
+07:45:53 INFO    main: target confucian v0.1 (16 principles, 10 tradeoffs, 91 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/confucian/20260907-074419
+07:45:53 INFO    main: === stage: generate ===
+07:45:53 INFO    pipeline.generate: families: 2 already present, nothing to generate
+07:46:13 INFO    pipeline.generate: prompts: 5 total (5 new)
+07:47:19 INFO    pipeline.generate: responses: 5 total (5 new, 0 failed)

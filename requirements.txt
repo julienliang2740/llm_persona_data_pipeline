@@ -1,0 +1,5 @@
+# Part 1 data pipeline. Install with: .venv/bin/pip install -r requirements.txt
+httpx>=0.28
+pyyaml>=6.0
+pytest>=8.0
+pytest-asyncio>=1.0

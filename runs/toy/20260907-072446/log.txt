@@ -1,0 +1,186 @@
+07:24:46 INFO    main: target toy v0.1 (3 principles, 2 tradeoffs, 5 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446
+07:24:46 INFO    main: === stage: generate ===
+07:24:46 DEBUG   httpcore.connection: connect_tcp.started host='api.fireworks.ai' port=443 local_address=None timeout=300.0 socket_options=None
+07:24:46 DEBUG   httpcore.connection: connect_tcp.started host='api.fireworks.ai' port=443 local_address=None timeout=300.0 socket_options=None
+07:24:46 DEBUG   httpcore.connection: connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x724628e06870>
+07:24:46 DEBUG   httpcore.connection: start_tls.started ssl_context=<ssl.SSLContext object at 0x724628b6bcd0> server_hostname='api.fireworks.ai' timeout=300.0
+07:24:46 DEBUG   httpcore.connection: connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x724628e2fd70>
+07:24:46 DEBUG   httpcore.connection: start_tls.started ssl_context=<ssl.SSLContext object at 0x724628b6bcd0> server_hostname='api.fireworks.ai' timeout=300.0
+07:24:46 DEBUG   httpcore.connection: start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x724628b81d90>
+07:24:46 DEBUG   httpcore.connection: start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x724628d258e0>
+07:24:46 DEBUG   httpcore.http11: send_request_headers.started request=<Request [b'POST']>
+07:24:46 DEBUG   httpcore.http11: send_request_headers.started request=<Request [b'POST']>
+07:24:46 DEBUG   httpcore.http11: send_request_headers.complete
+07:24:46 DEBUG   httpcore.http11: send_request_body.started request=<Request [b'POST']>
+07:24:46 DEBUG   httpcore.http11: send_request_headers.complete
+07:24:46 DEBUG   httpcore.http11: send_request_body.started request=<Request [b'POST']>
+07:24:46 DEBUG   httpcore.http11: send_request_body.complete
+07:24:46 DEBUG   httpcore.http11: receive_response_headers.started request=<Request [b'POST']>
+07:24:46 DEBUG   httpcore.http11: send_request_body.complete
+07:24:46 DEBUG   httpcore.http11: receive_response_headers.started request=<Request [b'POST']>
+07:25:17 DEBUG   httpcore.http11: receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Mon, 07 Sep 2026 07:25:17 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'17150'), (b'Connection', b'keep-alive'), (b'Fireworks-Cached-Prompt-Tokens', b'2358'), (b'Fireworks-Prompt-Tokens', b'2359'), (b'Fireworks-Sampling-Options', b'{"max_tokens": 12000, "temperature": 0.9, "top_k": 20, "top_p": 0.95, "min_p": 0.0, "typical_p": 1.0, "frequency_penalty": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0, "mirostat_target": null, "mirostat_lr": 0.1, "cycle_multiplier": 0.0, "cycle_base": 0.0, "cycle_allowed_length": 0, "cycle_sequence_breakers": []}'), (b'Fireworks-Server-Processing-Time', b'30.953'), (b'Fireworks-Server-Time-To-First-Token', b'0.085'), (b'Fireworks-Speculation-Prompt-Matched-Tokens', b'0'), (b'Server', b'istio-envoy'), (b'Vary', b'Origin'), (b'X-Ratelimit-Over-Limit', b'no'), (b'X-Request-Id', b'chatcmpl-3009a6b5f0e2475f94f232cf6234918a')])
+07:25:17 DEBUG   httpcore.http11: receive_response_body.started request=<Request [b'POST']>
+07:25:17 DEBUG   httpcore.http11: receive_response_body.complete
+07:25:17 DEBUG   httpcore.http11: response_closed.started
+07:25:17 DEBUG   httpcore.http11: response_closed.complete
+07:25:19 DEBUG   httpcore.http11: receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Mon, 07 Sep 2026 07:25:19 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'18689'), (b'Connection', b'keep-alive'), (b'Fireworks-Cached-Prompt-Tokens', b'2364'), (b'Fireworks-Prompt-Tokens', b'2365'), (b'Fireworks-Sampling-Options', b'{"max_tokens": 12000, "temperature": 0.9, "top_k": 20, "top_p": 0.95, "min_p": 0.0, "typical_p": 1.0, "frequency_penalty": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0, "mirostat_target": null, "mirostat_lr": 0.1, "cycle_multiplier": 0.0, "cycle_base": 0.0, "cycle_allowed_length": 0, "cycle_sequence_breakers": []}'), (b'Fireworks-Server-Processing-Time', b'32.530'), (b'Fireworks-Server-Time-To-First-Token', b'0.980'), (b'Fireworks-Speculation-Prompt-Matched-Tokens', b'0'), (b'Server', b'istio-envoy'), (b'Vary', b'Origin'), (b'X-Ratelimit-Over-Limit', b'no'), (b'X-Request-Id', b'chatcmpl-635c13a8ed2d4228b0882cc87811803e')])
+07:25:19 DEBUG   httpcore.http11: receive_response_body.started request=<Request [b'POST']>
+07:25:19 DEBUG   httpcore.http11: receive_response_body.complete
+07:25:19 DEBUG   httpcore.http11: response_closed.started
+07:25:19 DEBUG   httpcore.http11: response_closed.complete
+07:25:19 INFO    pipeline.generate: families: 2 total (2 new)
+07:25:19 DEBUG   httpcore.http11: send_request_headers.started request=<Request [b'POST']>
+07:25:19 DEBUG   httpcore.http11: send_request_headers.complete
+07:25:19 DEBUG   httpcore.http11: send_request_body.started request=<Request [b'POST']>
+07:25:19 DEBUG   httpcore.http11: send_request_body.complete
+07:25:19 DEBUG   httpcore.http11: receive_response_headers.started request=<Request [b'POST']>
+07:25:19 DEBUG   httpcore.http11: send_request_headers.started request=<Request [b'POST']>
+07:25:19 DEBUG   httpcore.http11: send_request_headers.complete
+07:25:19 DEBUG   httpcore.http11: send_request_body.started request=<Request [b'POST']>
+07:25:19 DEBUG   httpcore.http11: send_request_body.complete
+07:25:19 DEBUG   httpcore.http11: receive_response_headers.started request=<Request [b'POST']>
+07:25:24 DEBUG   httpcore.http11: receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Mon, 07 Sep 2026 07:25:24 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'2577'), (b'Connection', b'keep-alive'), (b'Fireworks-Cached-Prompt-Tokens', b'0'), (b'Fireworks-Prompt-Tokens', b'698'), (b'Fireworks-Sampling-Options', b'{"max_tokens": 12000, "temperature": 0.9, "top_k": 20, "top_p": 0.95, "min_p": 0.0, "typical_p": 1.0, "frequency_penalty": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0, "mirostat_target": null, "mirostat_lr": 0.1, "cycle_multiplier": 0.0, "cycle_base": 0.0, "cycle_allowed_length": 0, "cycle_sequence_breakers": []}'), (b'Fireworks-Server-Processing-Time', b'4.525'), (b'Fireworks-Server-Time-To-First-Token', b'0.331'), (b'Fireworks-Speculation-Prompt-Matched-Tokens', b'0'), (b'Server', b'istio-envoy'), (b'Vary', b'Origin'), (b'X-Ratelimit-Over-Limit', b'no'), (b'X-Request-Id', b'chatcmpl-d76dc06436094c04bc61fb3f82db9de3')])
+07:25:24 DEBUG   httpcore.http11: receive_response_body.started request=<Request [b'POST']>
+07:25:24 DEBUG   httpcore.http11: receive_response_body.complete
+07:25:24 DEBUG   httpcore.http11: response_closed.started
+07:25:24 DEBUG   httpcore.http11: response_closed.complete
+07:25:25 DEBUG   httpcore.http11: receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Mon, 07 Sep 2026 07:25:25 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'4237'), (b'Connection', b'keep-alive'), (b'Fireworks-Cached-Prompt-Tokens', b'0'), (b'Fireworks-Prompt-Tokens', b'692'), (b'Fireworks-Sampling-Options', b'{"max_tokens": 12000, "temperature": 0.9, "top_k": 20, "top_p": 0.95, "min_p": 0.0, "typical_p": 1.0, "frequency_penalty": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0, "mirostat_target": null, "mirostat_lr": 0.1, "cycle_multiplier": 0.0, "cycle_base": 0.0, "cycle_allowed_length": 0, "cycle_sequence_breakers": []}'), (b'Fireworks-Server-Processing-Time', b'5.899'), (b'Fireworks-Server-Time-To-First-Token', b'0.322'), (b'Fireworks-Speculation-Prompt-Matched-Tokens', b'0'), (b'Server', b'istio-envoy'), (b'Vary', b'Origin'), (b'X-Ratelimit-Over-Limit', b'no'), (b'X-Request-Id', b'chatcmpl-3a7f430f6bf94d21af2a263e35c0a903')])
+07:25:25 DEBUG   httpcore.http11: receive_response_body.started request=<Request [b'POST']>
+07:25:25 DEBUG   httpcore.http11: receive_response_body.complete
+07:25:25 DEBUG   httpcore.http11: response_closed.started
+07:25:25 DEBUG   httpcore.http11: response_closed.complete
+07:25:25 DEBUG   httpcore.http11: send_request_headers.started request=<Request [b'POST']>
+07:25:25 DEBUG   httpcore.http11: send_request_headers.complete
+07:25:25 DEBUG   httpcore.http11: send_request_body.started request=<Request [b'POST']>
+07:25:25 DEBUG   httpcore.http11: send_request_body.complete
+07:25:25 DEBUG   httpcore.http11: receive_response_headers.started request=<Request [b'POST']>
+07:25:33 DEBUG   httpcore.http11: receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Mon, 07 Sep 2026 07:25:33 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'6429'), (b'Connection', b'keep-alive'), (b'Fireworks-Cached-Prompt-Tokens', b'0'), (b'Fireworks-Prompt-Tokens', b'709'), (b'Fireworks-Sampling-Options', b'{"max_tokens": 12000, "temperature": 0.9, "top_k": 20, "top_p": 0.95, "min_p": 0.0, "typical_p": 1.0, "frequency_penalty": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0, "mirostat_target": null, "mirostat_lr": 0.1, "cycle_multiplier": 0.0, "cycle_base": 0.0, "cycle_allowed_length": 0, "cycle_sequence_breakers": []}'), (b'Fireworks-Server-Processing-Time', b'7.610'), (b'Fireworks-Server-Time-To-First-Token', b'0.464'), (b'Fireworks-Speculation-Prompt-Matched-Tokens', b'0'), (b'Server', b'istio-envoy'), (b'Vary', b'Origin'), (b'X-Ratelimit-Over-Limit', b'no'), (b'X-Request-Id', b'chatcmpl-c30d1e966d3746e9857d367530767f12')])
+07:25:33 DEBUG   httpcore.http11: receive_response_body.started request=<Request [b'POST']>
+07:25:33 DEBUG   httpcore.http11: receive_response_body.complete
+07:25:33 DEBUG   httpcore.http11: response_closed.started
+07:25:33 DEBUG   httpcore.http11: response_closed.complete
+07:25:33 DEBUG   httpcore.connection: close.started
+07:25:33 DEBUG   httpcore.connection: close.complete
+07:25:33 INFO    pipeline.generate: prompts: 5 total (5 new)
+07:25:33 DEBUG   httpcore.http11: send_request_headers.started request=<Request [b'POST']>
+07:25:33 DEBUG   httpcore.http11: send_request_headers.complete
+07:25:33 DEBUG   httpcore.http11: send_request_body.started request=<Request [b'POST']>
+07:25:33 DEBUG   httpcore.connection: connect_tcp.started host='api.fireworks.ai' port=443 local_address=None timeout=300.0 socket_options=None
+07:25:33 DEBUG   httpcore.http11: send_request_body.complete
+07:25:33 DEBUG   httpcore.http11: receive_response_headers.started request=<Request [b'POST']>
+07:25:33 DEBUG   httpcore.connection: connect_tcp.started host='api.fireworks.ai' port=443 local_address=None timeout=300.0 socket_options=None
+07:25:33 DEBUG   httpcore.connection: connect_tcp.started host='api.fireworks.ai' port=443 local_address=None timeout=300.0 socket_options=None
+07:25:33 DEBUG   httpcore.connection: connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x724628936f00>
+07:25:33 DEBUG   httpcore.connection: start_tls.started ssl_context=<ssl.SSLContext object at 0x724628b6bcd0> server_hostname='api.fireworks.ai' timeout=300.0
+07:25:33 DEBUG   httpcore.connection: connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x724628936720>
+07:25:33 DEBUG   httpcore.connection: start_tls.started ssl_context=<ssl.SSLContext object at 0x724628b6bcd0> server_hostname='api.fireworks.ai' timeout=300.0
+07:25:33 DEBUG   httpcore.connection: connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x724628937860>
+07:25:33 DEBUG   httpcore.connection: start_tls.started ssl_context=<ssl.SSLContext object at 0x724628b6bcd0> server_hostname='api.fireworks.ai' timeout=300.0
+07:25:33 DEBUG   httpcore.connection: start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x724628937830>
+07:25:33 DEBUG   httpcore.connection: start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x7246289379e0>
+07:25:33 DEBUG   httpcore.connection: start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x724628936d80>
+07:25:33 DEBUG   httpcore.http11: send_request_headers.started request=<Request [b'POST']>
+07:25:33 DEBUG   httpcore.http11: send_request_headers.started request=<Request [b'POST']>
+07:25:33 DEBUG   httpcore.http11: send_request_headers.started request=<Request [b'POST']>
+07:25:33 DEBUG   httpcore.http11: send_request_headers.complete
+07:25:33 DEBUG   httpcore.http11: send_request_body.started request=<Request [b'POST']>
+07:25:33 DEBUG   httpcore.http11: send_request_headers.complete
+07:25:33 DEBUG   httpcore.http11: send_request_body.started request=<Request [b'POST']>
+07:25:33 DEBUG   httpcore.http11: send_request_headers.complete
+07:25:33 DEBUG   httpcore.http11: send_request_body.started request=<Request [b'POST']>
+07:25:33 DEBUG   httpcore.http11: send_request_body.complete
+07:25:33 DEBUG   httpcore.http11: receive_response_headers.started request=<Request [b'POST']>
+07:25:33 DEBUG   httpcore.http11: send_request_body.complete
+07:25:33 DEBUG   httpcore.http11: receive_response_headers.started request=<Request [b'POST']>
+07:25:33 DEBUG   httpcore.http11: send_request_body.complete
+07:25:33 DEBUG   httpcore.http11: receive_response_headers.started request=<Request [b'POST']>
+07:26:05 DEBUG   httpcore.http11: receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Mon, 07 Sep 2026 07:26:05 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'22685'), (b'Connection', b'keep-alive'), (b'Fireworks-Cached-Prompt-Tokens', b'0'), (b'Fireworks-Prompt-Tokens', b'2264'), (b'Fireworks-Sampling-Options', b'{"max_tokens": 12000, "temperature": 0.9, "top_k": 20, "top_p": 0.95, "min_p": 0.0, "typical_p": 1.0, "frequency_penalty": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0, "mirostat_target": null, "mirostat_lr": 0.1, "cycle_multiplier": 0.0, "cycle_base": 0.0, "cycle_allowed_length": 0, "cycle_sequence_breakers": []}'), (b'Fireworks-Server-Processing-Time', b'32.040'), (b'Fireworks-Server-Time-To-First-Token', b'0.383'), (b'Fireworks-Speculation-Prompt-Matched-Tokens', b'0'), (b'Server', b'istio-envoy'), (b'Vary', b'Origin'), (b'X-Ratelimit-Over-Limit', b'no'), (b'X-Request-Id', b'chatcmpl-0864fc8abd6a4ac2bc6e75a830afb3b3')])
+07:26:05 DEBUG   httpcore.http11: receive_response_body.started request=<Request [b'POST']>
+07:26:05 DEBUG   httpcore.http11: receive_response_body.complete
+07:26:05 DEBUG   httpcore.http11: response_closed.started
+07:26:05 DEBUG   httpcore.http11: response_closed.complete
+07:26:05 DEBUG   httpcore.http11: send_request_headers.started request=<Request [b'POST']>
+07:26:05 DEBUG   httpcore.http11: send_request_headers.complete
+07:26:05 DEBUG   httpcore.http11: send_request_body.started request=<Request [b'POST']>
+07:26:05 DEBUG   httpcore.http11: send_request_body.complete
+07:26:05 DEBUG   httpcore.http11: receive_response_headers.started request=<Request [b'POST']>
+07:26:28 DEBUG   httpcore.http11: receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Mon, 07 Sep 2026 07:26:28 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'38222'), (b'Connection', b'keep-alive'), (b'Fireworks-Cached-Prompt-Tokens', b'0'), (b'Fireworks-Prompt-Tokens', b'2490'), (b'Fireworks-Sampling-Options', b'{"max_tokens": 12000, "temperature": 0.9, "top_k": 20, "top_p": 0.95, "min_p": 0.0, "typical_p": 1.0, "frequency_penalty": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0, "mirostat_target": null, "mirostat_lr": 0.1, "cycle_multiplier": 0.0, "cycle_base": 0.0, "cycle_allowed_length": 0, "cycle_sequence_breakers": []}'), (b'Fireworks-Server-Processing-Time', b'54.340'), (b'Fireworks-Server-Time-To-First-Token', b'0.456'), (b'Fireworks-Speculation-Prompt-Matched-Tokens', b'0'), (b'Server', b'istio-envoy'), (b'Vary', b'Origin'), (b'X-Ratelimit-Over-Limit', b'no'), (b'X-Request-Id', b'chatcmpl-2d5ad5a066804f34a96c875e5963e223')])
+07:26:28 DEBUG   httpcore.http11: receive_response_body.started request=<Request [b'POST']>
+07:26:28 DEBUG   httpcore.http11: receive_response_body.complete
+07:26:28 DEBUG   httpcore.http11: response_closed.started
+07:26:28 DEBUG   httpcore.http11: response_closed.complete
+07:26:44 DEBUG   httpcore.http11: receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Mon, 07 Sep 2026 07:26:44 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'43024'), (b'Connection', b'keep-alive'), (b'Fireworks-Cached-Prompt-Tokens', b'0'), (b'Fireworks-Prompt-Tokens', b'2317'), (b'Fireworks-Sampling-Options', b'{"max_tokens": 12000, "temperature": 0.9, "top_k": 20, "top_p": 0.95, "min_p": 0.0, "typical_p": 1.0, "frequency_penalty": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0, "mirostat_target": null, "mirostat_lr": 0.1, "cycle_multiplier": 0.0, "cycle_base": 0.0, "cycle_allowed_length": 0, "cycle_sequence_breakers": []}'), (b'Fireworks-Server-Processing-Time', b'70.923'), (b'Fireworks-Server-Time-To-First-Token', b'0.332'), (b'Fireworks-Speculation-Prompt-Matched-Tokens', b'0'), (b'Server', b'istio-envoy'), (b'Vary', b'Origin'), (b'X-Ratelimit-Over-Limit', b'no'), (b'X-Request-Id', b'chatcmpl-6762155b05ff4aea82357b9277b3e036')])
+07:26:44 DEBUG   httpcore.http11: receive_response_body.started request=<Request [b'POST']>
+07:26:44 DEBUG   httpcore.http11: receive_response_body.complete
+07:26:44 DEBUG   httpcore.http11: response_closed.started
+07:26:44 DEBUG   httpcore.http11: response_closed.complete
+07:26:44 DEBUG   httpcore.connection: close.started
+07:26:44 DEBUG   httpcore.connection: close.complete
+07:26:44 DEBUG   httpcore.http11: receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Mon, 07 Sep 2026 07:26:44 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'49829'), (b'Connection', b'keep-alive'), (b'Fireworks-Cached-Prompt-Tokens', b'0'), (b'Fireworks-Prompt-Tokens', b'2378'), (b'Fireworks-Sampling-Options', b'{"max_tokens": 12000, "temperature": 0.9, "top_k": 20, "top_p": 0.95, "min_p": 0.0, "typical_p": 1.0, "frequency_penalty": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0, "mirostat_target": null, "mirostat_lr": 0.1, "cycle_multiplier": 0.0, "cycle_base": 0.0, "cycle_allowed_length": 0, "cycle_sequence_breakers": []}'), (b'Fireworks-Server-Processing-Time', b'71.173'), (b'Fireworks-Server-Time-To-First-Token', b'0.317'), (b'Fireworks-Speculation-Prompt-Matched-Tokens', b'0'), (b'Server', b'istio-envoy'), (b'Vary', b'Origin'), (b'X-Ratelimit-Over-Limit', b'no'), (b'X-Request-Id', b'chatcmpl-11a1bb07e1be48fb9671cc15da326939')])
+07:26:44 DEBUG   httpcore.http11: receive_response_body.started request=<Request [b'POST']>
+07:26:45 DEBUG   httpcore.http11: receive_response_body.complete
+07:26:45 DEBUG   httpcore.http11: response_closed.started
+07:26:45 DEBUG   httpcore.http11: response_closed.complete
+07:27:03 DEBUG   httpcore.http11: receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Mon, 07 Sep 2026 07:27:03 GMT'), (b'Content-Type', b'application/json'), (b'Content-Length', b'39497'), (b'Connection', b'keep-alive'), (b'Fireworks-Cached-Prompt-Tokens', b'0'), (b'Fireworks-Prompt-Tokens', b'2495'), (b'Fireworks-Sampling-Options', b'{"max_tokens": 12000, "temperature": 0.9, "top_k": 20, "top_p": 0.95, "min_p": 0.0, "typical_p": 1.0, "frequency_penalty": 0.0, "presence_penalty": 0.0, "repetition_penalty": 1.0, "mirostat_target": null, "mirostat_lr": 0.1, "cycle_multiplier": 0.0, "cycle_base": 0.0, "cycle_allowed_length": 0, "cycle_sequence_breakers": []}'), (b'Fireworks-Server-Processing-Time', b'57.619'), (b'Fireworks-Server-Time-To-First-Token', b'0.343'), (b'Fireworks-Speculation-Prompt-Matched-Tokens', b'0'), (b'Server', b'istio-envoy'), (b'Vary', b'Origin'), (b'X-Ratelimit-Over-Limit', b'no'), (b'X-Request-Id', b'chatcmpl-fc5d5230b39346d687ab6ec9580f556f')])
+07:27:03 DEBUG   httpcore.http11: receive_response_body.started request=<Request [b'POST']>
+07:27:03 DEBUG   httpcore.http11: receive_response_body.complete
+07:27:03 DEBUG   httpcore.http11: response_closed.started
+07:27:03 DEBUG   httpcore.http11: response_closed.complete
+07:27:03 DEBUG   httpcore.connection: close.started
+07:27:03 DEBUG   httpcore.connection: close.complete
+07:27:03 DEBUG   httpcore.connection: close.started
+07:27:03 DEBUG   httpcore.connection: close.complete
+07:27:03 INFO    pipeline.generate: responses: 5 total (5 new, 0 failed)
+07:27:03 DEBUG   httpcore.connection: close.started
+07:27:03 DEBUG   httpcore.connection: close.complete
+07:27:41 INFO    main: target toy v0.1 (3 principles, 2 tradeoffs, 5 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446
+07:27:41 INFO    main: === stage: validate ===
+07:28:55 INFO    pipeline.validate: validate: {'responses': 5, 'kept': 2, 'dropped': 3, 'similarity_method': 'embeddings', 'duplicate_clusters': 2, 'duplicates': 2, 'cue_hits': 0, 'eval_items_checked_for_leakage': 2, 'max_leakage_seen': 0.3527, 'divergence_confirmed': 0, 'divergence_not_confirmed': 0, 'divergence_unverified': 2}
+07:29:57 INFO    main: target toy v0.1 (3 principles, 2 tradeoffs, 5 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446
+07:29:57 INFO    main: === stage: validate ===
+07:29:57 INFO    pipeline.validate: validate: {'responses': 5, 'kept': 4, 'dropped': 1, 'similarity_method': 'embeddings', 'duplicate_clusters': 0, 'duplicates': 0, 'cue_hits': 0, 'eval_items_checked_for_leakage': 2, 'max_leakage_seen': 0.3504, 'divergence_confirmed': 0, 'divergence_not_confirmed': 0, 'divergence_unverified': 2}
+07:30:03 INFO    main: target toy v0.1 (3 principles, 2 tradeoffs, 5 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446
+07:30:03 INFO    main: === stage: export ===
+07:30:03 INFO    pipeline.export: export: 3 training rows, 1 eval rows -> /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446
+07:30:03 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446/report.md
+07:30:33 INFO    main: target toy v0.1 (3 principles, 2 tradeoffs, 5 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446
+07:30:33 INFO    main: === stage: export ===
+07:30:33 INFO    pipeline.export: export: 3 training rows, 1 eval rows -> /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446
+07:30:44 INFO    main: target toy v0.1 (3 principles, 2 tradeoffs, 5 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446
+07:30:44 INFO    main: === stage: baseline ===
+07:31:36 WARNING pipeline.model: base attempt 1/6 failed (RemoteProtocolError: Server disconnected without sending a response.); retrying in 1.1s
+07:31:37 ERROR   main: baseline stage cannot run: Cannot reach the local model server at http://127.0.0.1:8080/v1 (role 'base'). Start llama-server, or run this stage with the role disabled.
+07:33:03 INFO    main: target toy v0.1 (3 principles, 2 tradeoffs, 5 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446
+07:33:03 INFO    main: === stage: baseline ===
+07:35:29 INFO    pipeline.baseline: baseline: 2 answers total (2 new, 0 failed)
+07:36:44 INFO    main: target toy v0.1 (3 principles, 2 tradeoffs, 5 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446
+07:36:44 INFO    main: === stage: validate ===
+07:37:31 INFO    pipeline.validate: validate: {'responses': 5, 'kept': 4, 'dropped': 1, 'similarity_method': 'embeddings', 'duplicate_clusters': 0, 'duplicates': 0, 'cue_hits': 0, 'eval_items_checked_for_leakage': 2, 'max_leakage_seen': 0.3527, 'divergence_confirmed': 2, 'divergence_not_confirmed': 0, 'divergence_unverified': 0}
+07:37:39 INFO    main: target toy v0.1 (3 principles, 2 tradeoffs, 5 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446
+07:37:39 INFO    main: === stage: export ===
+07:37:39 INFO    pipeline.export: export: 3 training rows, 1 eval rows -> /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446
+07:37:39 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446/report.md
+07:37:43 INFO    main: target toy v0.1 (3 principles, 2 tradeoffs, 5 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446
+07:37:43 INFO    main: === stage: evaluate ===
+07:38:16 WARNING pipeline.model: base attempt 1/6 failed (RemoteProtocolError: Server disconnected without sending a response.); retrying in 2.0s
+07:39:08 INFO    main: target toy v0.1 (3 principles, 2 tradeoffs, 5 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446
+07:39:08 INFO    main: === stage: evaluate ===
+07:40:45 ERROR   pipeline.evaluate: eval answer failed: generator (accounts/fireworks/models/qwen3p8-max) returned only reasoning and hit the max_tokens limit (16000). Raise max_tokens for this role. request_id=chatcmpl-a952d5edd9534e6d85d14e9755da9119
+07:40:45 INFO    pipeline.evaluate: evaluate: wrote 0 results to /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446/eval_results_probe_generator.jsonl
+07:41:04 INFO    main: target toy v0.1 (3 principles, 2 tradeoffs, 5 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446
+07:41:04 INFO    main: === stage: evaluate ===
+07:41:04 ERROR   pipeline.evaluate: eval answer failed: eval_probe_a (accounts/fireworks/models/gpt-oss-120b) call failed. HTTP 400: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"Invalid reasoning effort: none"}}
+07:41:04 INFO    pipeline.evaluate: evaluate: wrote 0 results to /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446/eval_results_probe_a.jsonl
+07:41:12 INFO    main: target toy v0.1 (3 principles, 2 tradeoffs, 5 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446
+07:41:12 INFO    main: === stage: evaluate ===
+07:41:56 INFO    pipeline.evaluate: evaluate: wrote 1 results to /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446/eval_results_probe_a.jsonl
+07:42:02 INFO    main: target toy v0.1 (3 principles, 2 tradeoffs, 5 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446
+07:42:02 INFO    main: === stage: evaluate ===
+07:43:16 INFO    pipeline.evaluate: evaluate: wrote 1 results to /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446/eval_results_probe_b.jsonl
+07:43:34 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446/report.md
+07:43:51 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446/report.md
+07:44:54 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446/report.md
+07:44:55 INFO    main: target toy v0.1 (3 principles, 2 tradeoffs, 5 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446
+07:44:55 INFO    main: === stage: export ===
+07:44:55 INFO    pipeline.export: export: 3 training rows, 1 eval rows -> /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446
+07:45:24 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/toy/20260907-072446/report.md

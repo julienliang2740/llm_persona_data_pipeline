@@ -1,0 +1,5 @@
+{"response_id": "resp_ef54128ac5", "keep": true, "reasons": [], "final_case_type": "ordinary", "duplicate_of": null, "max_leakage": null, "divergence_status": "not_applicable"}
+{"response_id": "resp_c74facb8d6", "keep": true, "reasons": [], "final_case_type": "ordinary", "duplicate_of": null, "max_leakage": null, "divergence_status": "not_applicable"}
+{"response_id": "resp_87e27e2365", "keep": true, "reasons": [], "final_case_type": "ordinary", "duplicate_of": null, "max_leakage": null, "divergence_status": "not_applicable"}
+{"response_id": "resp_8da6875598", "keep": false, "reasons": ["note: reviewer asked for revision but all scores pass thresholds", "reviewer: confident resolution of an unresolved tradeoff"], "final_case_type": "divergence", "duplicate_of": null, "max_leakage": 0.3474, "divergence_status": "confirmed"}
+{"response_id": "resp_d133930687", "keep": true, "reasons": [], "final_case_type": "divergence", "duplicate_of": null, "max_leakage": 0.3527, "divergence_status": "confirmed"}

@@ -1,0 +1,98 @@
+# Full Part 1 run: about 500 SFT rows and 50 evaluation prompts.
+#
+# COST: measured unit costs on the defaults below are $0.055 per generated response
+# and $0.018 per review, so this file as written (600 responses, one revise round)
+# projects to roughly $89, and about $49 with revise_rounds: 0. That is well above
+# the $10-20 in the implementation brief. Read the cost note in README.md and decide
+# on the levers (reasoning_effort, a cheaper generator or reviewer, fewer revise
+# rounds) before launching it.
+#
+# 200 families x 3 prompts = 600 candidates; roughly 15-20% is dropped by the
+# reviewer, duplicates and leakage, which lands near 500 kept training rows.
+# 40 eval families x 1 prompt + 10 reframed = 50 evaluation prompts.
+
+targets_dir: targets
+runs_dir: runs
+pricing_file: configs/pricing.yaml
+
+generation:
+  n_families: 240            # 200 train families + 40 eval families
+  families_per_call: 4       # families requested in one generator call
+  prompts_per_family: 3      # user messages per training family
+  eval_prompts_per_family: 1
+  divergence_fraction: 0.4   # at least 100 intended-divergence cases after filtering
+  eval_family_fraction: 0.167
+  reserved_family_fraction: 0.05   # held back entirely, for novel-transfer tests later
+  reframing_variants: [setting_shift, fiction, roleplay, terse]
+  reframing_families: 10     # eval families that also get a reframed prompt
+  revise_rounds: 1           # one critique -> rewrite pass; set 0 to measure whether it helps
+  max_passage_chars: 6000
+
+validation:
+  use_embeddings: true
+  duplicate_threshold_embeddings: 0.92   # across families: a repeated situation
+  duplicate_threshold_jaccard: 0.75
+  # Within one family, several prompts and reframing variants are meant to be close.
+  # Only a near-verbatim repeat counts as a duplicate there.
+  within_family_duplicate_embeddings: 0.985
+  within_family_duplicate_jaccard: 0.9
+  leakage_threshold_embeddings: 0.85
+  leakage_threshold_jaccard: 0.6
+  min_fidelity: 4
+  min_judgment_not_terminology: 3
+  min_scenario_quality: 3
+  keep_revise_if_scores_pass: true
+
+evaluation:
+  temperature: 0.7           # matched before/after, per the plan
+  # null means each endpoint uses its own max_tokens, so before/after settings stay
+  # matched when you swap in the tuned checkpoint. Set a number to force one budget.
+  answer_max_tokens: null
+
+models:
+  generator:
+    model: accounts/fireworks/models/qwen3p8-max
+    base_url: https://api.fireworks.ai/inference/v1
+    api_key_source: fireworks
+    max_concurrency: 4
+    temperature: 0.9
+    # Measured: this model spends about 5,000 tokens on reasoning for a response-
+    # generation prompt (peak observed 10,700), and reasoning is charged against
+    # max_tokens. Below ~12,000 it sometimes returns reasoning only and no answer.
+    max_tokens: 16000
+    # Cost lever, measured on a real generation call: extra_body: {reasoning_effort: low}
+    # cuts reasoning tokens about fourfold and the per-response cost about in half.
+    # Not every model accepts every value ("none" is rejected by gpt-oss-120b).
+    extra_body: {}
+  reviewer:
+    model: accounts/fireworks/models/deepseek-v4-pro-0813
+    base_url: https://api.fireworks.ai/inference/v1
+    api_key_source: fireworks
+    max_concurrency: 4
+    temperature: 0.2
+    max_tokens: 8192         # reasoning tokens come out of this budget
+  judge:
+    model: accounts/fireworks/models/deepseek-v4-pro-0813
+    base_url: https://api.fireworks.ai/inference/v1
+    api_key_source: fireworks
+    max_concurrency: 4
+    temperature: 0.0
+    max_tokens: 6144         # reasoning tokens come out of this budget
+  embeddings:
+    model: accounts/fireworks/models/qwen3-embedding-8b
+    base_url: https://api.fireworks.ai/inference/v1
+    api_key_source: fireworks
+    max_concurrency: 2
+    supports_json_mode: false
+  base:
+    # Local llama-server, OpenAI-compatible. Start it before the baseline stage.
+    # Measured on this machine (8 CPU cores, no GPU): about 8 tokens/second, and
+    # llama-server serves one slot, so concurrency above 1 only queues.
+    model: qwen2.5-7b-instruct
+    base_url: http://127.0.0.1:8080/v1
+    api_key_source: none
+    max_concurrency: 1
+    temperature: 0.7
+    max_tokens: 512
+    timeout_s: 900
+    supports_json_mode: false
