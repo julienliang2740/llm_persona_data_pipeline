@@ -25,6 +25,10 @@ logger = logging.getLogger("pipeline.model")
 
 RETRY_STATUS = {408, 409, 425, 429, 500, 502, 503, 504}
 MAX_ATTEMPTS = 10  # a shared per-minute limit needs a multi-minute retry window
+# 429s back off further than other errors, and the endpoint-wide cooldown that makes
+# every other caller wait uses the same cap so the two cannot drift apart.
+RATE_LIMIT_BACKOFF_CAP_S = 90.0
+GENERAL_BACKOFF_CAP_S = 45.0
 # Ceiling for the one automatic retry when a reasoning model returns no answer.
 MAX_REASONING_RETRY_TOKENS = 32000
 
@@ -334,8 +338,10 @@ class ModelClient:
                     body = self._safe(response.text[:400])
                     last_error = f"HTTP {response.status_code}: {body}"
                     if response.status_code == 429:
+                        # Matches the 429 retry cap below: the endpoint-wide throttle
+                        # should not lift while individual attempts are still backing off.
                         self._cooldown_until[role.endpoint_key] = time.monotonic() + min(
-                            60.0, 2.0 * (2 ** (attempt - 1))
+                            RATE_LIMIT_BACKOFF_CAP_S, 2.0 * (2 ** (attempt - 1))
                         )
                     if response.status_code not in RETRY_STATUS:
                         raise ModelError(
@@ -344,7 +350,11 @@ class ModelClient:
                 if attempt == MAX_ATTEMPTS:
                     break
                 # 429s get a longer cap: the limit is per minute and shared across processes.
-                cap = 90.0 if last_error.startswith("HTTP 429") else 45.0
+                cap = (
+                    RATE_LIMIT_BACKOFF_CAP_S
+                    if last_error.startswith("HTTP 429")
+                    else GENERAL_BACKOFF_CAP_S
+                )
                 delay = min(cap, 1.5 * (2 ** (attempt - 1))) * (0.6 + 0.8 * random.random())
                 logger.warning(
                     "%s attempt %d/%d failed (%s); retrying in %.1fs",

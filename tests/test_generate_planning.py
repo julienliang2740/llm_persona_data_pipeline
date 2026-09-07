@@ -6,13 +6,13 @@ from collections import Counter
 
 import pytest
 
-from pipeline.generate import (
+from pipeline.plan import (
     FamilySlot,
-    _align_counterfactual_groups,
-    _avoided_topic_hit,
-    _pair_counterfactual_slots,
-    _selected_layers,
+    align_counterfactual_groups,
+    avoided_topic_hit,
+    pair_counterfactual_slots,
     plan_families,
+    selected_layers,
 )
 from pipeline.records import Family
 
@@ -84,11 +84,11 @@ def test_only_complete_pairs_survive_into_a_batch():
         FamilySlot(2, "work", [], "ordinary", "train", counterfactual_group="g2"),
         FamilySlot(3, "work", [], "ordinary", "train"),
     ]
-    assert _pair_counterfactual_slots(batch) == {0: "g1", 1: "g1"}
+    assert pair_counterfactual_slots(batch) == {0: "g1", 1: "g1"}
 
 
 def test_no_counterfactual_slots_means_no_pairs():
-    assert _pair_counterfactual_slots([FamilySlot(0, "work", [], "ordinary", "train")]) == {}
+    assert pair_counterfactual_slots([FamilySlot(0, "work", [], "ordinary", "train")]) == {}
 
 
 def test_batching_never_splits_a_plan_time_pair(toy_spec):
@@ -104,7 +104,7 @@ def test_batching_never_splits_a_plan_time_pair(toy_spec):
         ordered = sorted(domain_slots, key=lambda s: (s.counterfactual_group or "~", s.index))
         for start in range(0, len(ordered), batch_size):
             batch = ordered[start : start + batch_size]
-            intact += len(_pair_counterfactual_slots(batch)) // 2
+            intact += len(pair_counterfactual_slots(batch)) // 2
     total_pairs = len({s.counterfactual_group for s in slots if s.counterfactual_group})
     assert intact == total_pairs
 
@@ -115,7 +115,7 @@ def test_a_counterfactual_group_is_forced_onto_one_side_of_the_split():
         make_family("b", "eval", "cf_1"),
         make_family("c", "train", None),
     ]
-    _align_counterfactual_groups(families)
+    align_counterfactual_groups(families)
     assert [f.split for f in families] == ["eval", "eval", "train"]
 
 
@@ -124,7 +124,7 @@ def test_a_reserved_member_pulls_its_whole_group_into_reserved():
         make_family("a", "train", "cf_1"),
         make_family("b", "reserved", "cf_1", reason="avoided-topic keyword: probate"),
     ]
-    _align_counterfactual_groups(families)
+    align_counterfactual_groups(families)
     assert [f.split for f in families] == ["reserved", "reserved"]
     assert "probate" in families[0].reserved_reason
 
@@ -135,13 +135,13 @@ def test_split_group_id_falls_back_to_the_family_id():
 
 
 def test_avoided_topic_screen_is_word_bounded():
-    assert _avoided_topic_hit("a dispute over the estate", ["estate"]) == "estate"
-    assert _avoided_topic_hit("a real estate agent called", ["probate"]) == ""
-    assert _avoided_topic_hit("anything at all", []) == ""
+    assert avoided_topic_hit("a dispute over the estate", ["estate"]) == "estate"
+    assert avoided_topic_hit("a real estate agent called", ["probate"]) == ""
+    assert avoided_topic_hit("anything at all", []) == ""
 
 
-def test_selected_layers_uses_the_spec_default(toy_spec, pilot_config):
-    assert _selected_layers(toy_spec, pilot_config) == ["core"]
+def testselected_layers_uses_the_spec_default(toy_spec, pilot_config):
+    assert selected_layers(toy_spec, pilot_config) == ["core"]
 
 
 def test_config_target_layers_overrides_the_spec(toy_spec, pilot_config):
@@ -149,7 +149,7 @@ def test_config_target_layers_overrides_the_spec(toy_spec, pilot_config):
 
     config = copy.deepcopy(pilot_config)
     config.raw["generation"]["target_layers"] = ["core", "speculative"]
-    assert _selected_layers(toy_spec, config) == ["core", "speculative"]
+    assert selected_layers(toy_spec, config) == ["core", "speculative"]
 
 
 def test_an_unknown_layer_name_is_a_clear_error(toy_spec, pilot_config):
@@ -158,7 +158,7 @@ def test_an_unknown_layer_name_is_a_clear_error(toy_spec, pilot_config):
     config = copy.deepcopy(pilot_config)
     config.raw["generation"]["target_layers"] = ["nonexistent"]
     with pytest.raises(ValueError) as error:
-        _selected_layers(toy_spec, config)
+        selected_layers(toy_spec, config)
     assert "nonexistent" in str(error.value)
     assert "core" in str(error.value)
 
