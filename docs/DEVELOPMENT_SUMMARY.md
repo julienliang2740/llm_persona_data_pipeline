@@ -283,10 +283,14 @@ Do not scale yet. Three things must be true first, each checkable on one more 8-
    family (two responses per family, one must lose) plus the "would a strong no-spec assistant write this
    sentence" test on the evidence quote; keep per-response scores only as metadata. Gate: at least 15% of
    responses rejected or ranked-out per target, with a human reading 20 of them agreeing on most.
-2. **A fair, blind divergence judge.** Strong-generic leg = generator settings minus the spec; shuffled
-   labels; `generic_echo` required; value rate reported per family. Gate: value-attributed divergence of at
-   least 35% of intended-divergence families per target under the fixed judge, and a human agreeing on a
-   sample.
+2. **A fair, blind divergence judge.** Done in round 2: strong-generic leg = generator settings minus the
+   spec, shuffled labels, `generic_echo` required, every-prompt family rule. Still to do: give the no-spec
+   control the same deliberation pass the candidate gets (the reasoning asymmetry is 8–10k vs under 1.5k
+   tokens per answer); make `generic_makes_same_claim` demonstrably fire (it was false in all 32 records) by
+   having a second, provenance-blind pass check the echo; and watch for the register bias the third critic
+   named (values phrased technically escape the echo, shared values like honesty get scored capability).
+   Gate: value-attributed divergence of at least 35% of intended-divergence families per target, with a
+   human agreeing on a sample; the third critic's defended 8/16 (50%) already clears this on the pilot.
 3. **A plan that varies what it claims to vary.** Institution and role mixes per target, varied axis cycled
    across pairs, pairs reaching eval, eval mix matching intent. Gate: the report's coverage tables show no
    feature with one dominant value, and no two targets sharing more than two institutions.
