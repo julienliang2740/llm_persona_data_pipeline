@@ -292,3 +292,16 @@ Reply with the same JSON shape as before:
 
 {"deliberation": "...", "answer": "...", "principles_applied": ["..."], "source_passages": ["..."], "intended_divergence_note": "..."}
 """
+
+
+# Appended verbatim to a family or prompt call that came back short, so the retry is
+# told exactly what was missing without re-sending the whole task.
+SHAPE_REMINDER = """\
+
+IMPORTANT: your previous reply did not contain the {{expected}} item(s) this task asked for.
+Reply again with a single JSON object using exactly this shape and nothing else, with exactly
+{{expected}} item(s) in the list:
+
+{{shape}}
+
+Do not rename the key. Do not wrap it in another object. Do not add commentary."""

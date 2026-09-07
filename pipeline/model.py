@@ -15,7 +15,7 @@ import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Awaitable, Iterable, Sequence
+from typing import Any, Awaitable, Callable, Iterable, Sequence
 
 import httpx
 
@@ -30,7 +30,15 @@ MAX_REASONING_RETRY_TOKENS = 32000
 
 
 class ModelError(Exception):
-    """A model call failed after retries, or returned unusable output."""
+    """A model call failed after retries, or returned unusable output.
+
+    `raw_text` carries the model's unparsed output when the failure was a JSON parse
+    failure, so the caller can dump it for inspection instead of losing it.
+    """
+
+    def __init__(self, message: str, raw_text: str = "") -> None:
+        super().__init__(message)
+        self.raw_text = raw_text
 
 
 class LocalEndpointUnavailable(ModelError):
@@ -69,24 +77,49 @@ class UsageTotals:
         return self.unpriced_calls == 0
 
 
-def extract_list(payload: Any, *preferred_keys: str) -> list[Any]:
-    """Pull the list of items out of a model's JSON, tolerating the key it chose.
+def extract_list(
+    payload: Any,
+    *preferred_keys: str,
+    looks_like_item: Callable[[Any], bool] | None = None,
+) -> list[Any]:
+    """Pull the list of items out of a model's JSON, tolerating the shape it chose.
 
-    Generators drift between "families" and "family", or wrap the list in some other
-    single key. A silently empty batch is worse than a slightly lenient reader, so:
-    a bare list is used as-is, a preferred key wins, and otherwise the payload's only
-    list value is taken. Anything more ambiguous returns empty and the caller warns.
+    Generators drift between "families" and "family", wrap the list in some other key,
+    return a bare list, or return a single item that is not wrapped at all. A silently
+    empty batch is worse than a lenient reader, so all of those are accepted:
+
+    - a bare list is used as-is;
+    - a preferred key wins;
+    - with `looks_like_item`, the one list whose contents look right wins even when the
+      payload has several lists, and a lone dict that itself looks like an item is wrapped;
+    - otherwise the payload's only list value is taken.
+
+    Anything more ambiguous returns empty, and the caller warns and dumps the payload.
     """
     if isinstance(payload, list):
         return payload
-    if isinstance(payload, dict):
-        for key in preferred_keys:
-            value = payload.get(key)
-            if isinstance(value, list):
-                return value
-        lists = [value for value in payload.values() if isinstance(value, list)]
-        if len(lists) == 1:
-            return lists[0]
+    if not isinstance(payload, dict):
+        return []
+    for key in preferred_keys:
+        value = payload.get(key)
+        if isinstance(value, list):
+            return value
+        if looks_like_item is not None and isinstance(value, dict) and looks_like_item(value):
+            return [value]
+    lists = [value for value in payload.values() if isinstance(value, list)]
+    if looks_like_item is not None:
+        matching = [
+            candidate
+            for candidate in lists
+            if candidate and all(looks_like_item(item) for item in candidate)
+        ]
+        if len(matching) == 1:
+            return matching[0]
+        # The payload may be one unwrapped item: {"seed_situation": ..., ...}
+        if looks_like_item(payload):
+            return [payload]
+    if len(lists) == 1:
+        return lists[0]
     return []
 
 
@@ -452,7 +485,8 @@ class ModelClient:
                 raise ModelError(
                     f"{role.name} ({role.model}) did not return JSON after a repair retry. "
                     f"request_ids={response.request_id},{repaired.request_id}. "
-                    f"First failure: {first_error}. Second: {second_error}"
+                    f"First failure: {first_error}. Second: {second_error}",
+                    raw_text=repaired.text or response.text,
                 ) from None
 
     async def embed(
