@@ -88,7 +88,38 @@ no cue term leaked, but the reviewer almost never scores below 4 and the diverge
 never says no, so neither filter is yet doing much work. The 7B baseline answers are generic
 numbered-list advice, so "divergence" partly measures a capability gap rather than a value gap.
 
-(critique findings filled in below)
+### What six independent critics found (runs/critique/*.md, full detail there)
+
+- **Divergence was mostly a capability gap.** 33 of 34 intended-divergence verdicts were "diverges",
+  but on a critic's re-read only 3 (the Catholic double-effect family) were differences a strong
+  generic assistant would not produce. 18 of 34 baseline answers were truncated at 512 tokens. In 5
+  cases the user prompt itself stipulated the target's distinctive move.
+- **The reviewer never failed anything.** `judgment_not_terminology` was 5 on 80 of 83 responses;
+  three boolean flags were constant across all 83 reviews. The only two drops were the restraint
+  branch of a deliberately built counterfactual pair, graded against the family's own intent.
+- **A house style swamped the target.** Blunt-imperative opener 57/83, a "watch for" paragraph 46/83,
+  an obligation-ranking deliberation opener 57/83, identical across all four traditions; the reviewer
+  credited that template as Theravāda fidelity and penalised its absence elsewhere. A critic assigned
+  7 of 8 shuffled answers to their tradition by recognising doctrinal tests transposed into plain
+  English (double effect, the remonstrance ladder), not by judgment.
+- **Coverage was an accident of YAML order.** The planner walked tradeoffs by index, so unresolved
+  tradeoffs got 0 families for Confucian and Protestant; `confident_on_unresolved` was vacuous. Only
+  12 of 45 specified tradeoffs and a handful of divergence hypotheses were exercised.
+- **Splits were wrong by construction.** The one counterfactual pair always straddled train/eval and
+  was promoted to eval, so eval was 3/8 instead of 2/8 and no training row carried a contrast; retries
+  refilled slots by count, regenerating the wrong slot (Theravāda: three near-identical eval families).
+- **Dedupe and leakage checks were inert.** Similarity ran over prompt+answer, and long answers washed
+  out the scenario: a near-verbatim eval pair scored 0.78 on prompts but 0.41 as checked. Structural
+  duplicates (same tradeoff, role, harm) repeated in three of four eval sets.
+- **Spec knobs the code supported were never populated.** `soft_terms`, `avoid_keywords`, and the
+  allow-lists researchers wrote into free-text notes were invisible, so Theravāda responses never used
+  "craving" or "equanimity" and the avoided-topic screen protected nothing.
+- **What generalised and what did not.** The code is tradition-agnostic; the assumptions were not: one
+  deliberation shape (duty ranking) fitted Catholic and Protestant and misrepresented Theravāda and
+  Confucian; the forbidden-term burden ranged from 4 to 16 ordinary concept words per target; layers
+  defaulted differently per target.
+
+The round-2 change list derived from these is `docs/round2-changes.md`.
 
 ## 6. Failures discovered by running real pilots
 
