@@ -87,3 +87,26 @@
 08:42:59 INFO    pipeline.export: export: 14 training rows, 7 eval rows -> /home/ubuntu/part1_data_pipeline/runs/confucian/20260907-075012
 08:42:59 INFO    main: === stage: report ===
 08:42:59 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/confucian/20260907-075012/report.md
+09:28:15 INFO    main: target confucian v0.1 (16 principles, 10 tradeoffs, 91 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/confucian/20260907-075012
+09:28:15 INFO    main: === stage: generate ===
+09:28:15 INFO    pipeline.generate: families: 8 already present, nothing to generate
+09:28:15 INFO    pipeline.generate: prompts: 22 already present, nothing to generate
+09:28:15 INFO    pipeline.generate: responses: 22 already present, nothing to generate
+09:28:15 INFO    main: === stage: baseline ===
+09:28:15 INFO    pipeline.baseline: baseline: 16 answers already present, nothing to do
+09:28:15 INFO    main: === stage: validate ===
+09:28:39 INFO    pipeline.validate: validate: {'responses': 22, 'kept': 22, 'dropped': 0, 'similarity_method': 'embeddings', 'duplicate_clusters': 0, 'duplicates': 0, 'cue_hits': 0, 'eval_items_checked_for_leakage': 7, 'max_leakage_seen': 0.549, 'divergence_confirmed': 8, 'divergence_not_confirmed': 1, 'divergence_unverified': 0, 'divergence_action': 8, 'divergence_reasons': 4, 'soft_cue_flags': 0, 'explicit_mode_records': 0, 'quoted_source_flags': 0, 'archaic_register_flags': 0}
+09:28:39 INFO    main: === stage: export ===
+09:28:39 INFO    pipeline.export: export: 15 training rows, 7 eval rows -> /home/ubuntu/part1_data_pipeline/runs/confucian/20260907-075012
+09:28:39 INFO    main: === stage: report ===
+09:28:39 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/confucian/20260907-075012/report.md
+09:30:07 INFO    main: target confucian v0.1 (16 principles, 10 tradeoffs, 91 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/confucian/20260907-075012
+09:30:07 INFO    main: === stage: evaluate ===
+09:35:33 INFO    main: target confucian v0.1 (16 principles, 10 tradeoffs, 91 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/confucian/20260907-075012
+09:35:33 INFO    main: === stage: evaluate ===
+09:38:17 INFO    main: target confucian v0.1 (16 principles, 10 tradeoffs, 91 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/confucian/20260907-075012
+09:38:17 INFO    main: === stage: evaluate ===
+09:41:58 INFO    pipeline.evaluate: evaluate: wrote 7 results to /home/ubuntu/part1_data_pipeline/runs/confucian/20260907-075012/eval_results_base_7b.jsonl
+09:41:58 INFO    main: target confucian v0.1 (16 principles, 10 tradeoffs, 91 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/confucian/20260907-075012
+09:41:58 INFO    main: === stage: evaluate ===
+09:43:42 INFO    pipeline.evaluate: evaluate: wrote 7 results to /home/ubuntu/part1_data_pipeline/runs/confucian/20260907-075012/eval_results_smoke_0p5b_adapter.jsonl

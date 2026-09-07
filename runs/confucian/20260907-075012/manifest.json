@@ -3,7 +3,7 @@
   "target_name": "Early Confucian (Analects and Mengzi)",
   "spec_version": "0.1",
   "run_id": "20260907-075012",
-  "exported_at": "2026-09-07T08:42:59+00:00",
+  "exported_at": "2026-09-07T09:28:39+00:00",
   "config_file": "/home/ubuntu/part1_data_pipeline/configs/pilot.yaml",
   "config_hash": "084c54295cf8",
   "models": {
@@ -20,9 +20,9 @@
     "families_reserved": 0,
     "prompts": 22,
     "responses": 22,
-    "kept": 21,
-    "dropped": 1,
-    "sft_train_rows": 14,
+    "kept": 22,
+    "dropped": 0,
+    "sft_train_rows": 15,
     "eval_rows": 7,
     "explicit_mode_rows": 0,
     "counterfactual_groups": 0,
@@ -33,10 +33,10 @@
       "eval_case:reframing": 4,
       "train:advice_and_correction": 6,
       "train:interpersonal_conflict": 3,
-      "train:learning_and_self_cultivation": 2,
+      "train:learning_and_self_cultivation": 3,
       "train:work": 3,
       "train_case:divergence": 8,
-      "train_case:ordinary": 6
+      "train_case:ordinary": 7
     }
   },
   "license_constraints": [
@@ -53,11 +53,11 @@
   ],
   "redistribution_note": "",
   "cost": {
-    "usd": 3.0285868599999994,
-    "display": "$3.0286",
-    "calls": 99,
-    "prompt_tokens": 621800,
-    "completion_tokens": 396040,
-    "reasoning_tokens": 362179
+    "usd": 3.0502452199999994,
+    "display": "$3.0502",
+    "calls": 102,
+    "prompt_tokens": 645566,
+    "completion_tokens": 397755,
+    "reasoning_tokens": 363755
   }
 }

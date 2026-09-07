@@ -6,8 +6,8 @@
 |---|---|
 | generate | 8 families, 22 prompts, 22 responses |
 | baseline | 16 baseline answers |
-| validate | 21 reviews, 22 decisions, 9 divergence verdicts |
-| export | 14 training rows, 7 eval rows |
+| validate | 22 reviews, 22 decisions, 9 divergence verdicts |
+| export | 15 training rows, 7 eval rows |
 
 ## Families by split and domain
 
@@ -36,23 +36,23 @@ Recorded on 4 of 8 families. A feature with one dominant value means the coverag
 
 ## Accept / reject
 
-- kept: **21** of 22 responses (95%)
-- dropped: **1**
+- kept: **22** of 22 responses (100%)
+- dropped: **0**
 
 Reasons recorded on dropped responses (a response can have several):
 
 | reason | count |
 |---|---|
-| no reviewer verdict | 1 |
+| (nothing dropped) | 0 |
 
 ## Reviewer
 
 | verdict | count |
 |---|---|
-| accept | 17 |
+| accept | 18 |
 | revise | 4 |
 
-Mean scores: fidelity 4.81, judgment_not_terminology 5.00, scenario_quality 4.95, cue_leakage 0.00, confident_on_unresolved 0.00 (n=21)
+Mean scores: fidelity 4.82, judgment_not_terminology 5.00, scenario_quality 4.95, cue_leakage 0.00, confident_on_unresolved 0.00 (n=22)
 
 ## Cue-term hits
 
@@ -94,10 +94,10 @@ A difference in the reasons alone counts as divergence, not only a different act
 
 ## Cost and usage
 
-- model calls: **99**
-- prompt tokens: 621,800
-- completion tokens: 396,040 (of which reasoning: 362,179)
-- cost: **$3.0286**
+- model calls: **102**
+- prompt tokens: 645,566
+- completion tokens: 397,755 (of which reasoning: 363,755)
+- cost: **$3.0502**
 
 | stage | calls | prompt tokens | completion tokens |
 |---|---|---|---|
@@ -107,8 +107,8 @@ A difference in the reasons alone counts as divergence, not only a different act
 | generate.reframing | 4 | 3,189 | 9,552 |
 | generate.responses | 22 | 137,548 | 163,929 |
 | validate.divergence | 9 | 10,593 | 13,831 |
-| validate.embed | 3 | 20,137 | 0 |
-| validate.review | 26 | 270,786 | 138,697 |
+| validate.embed | 5 | 33,665 | 0 |
+| validate.review | 27 | 281,024 | 140,412 |
 
 ## Samples kept
 
@@ -164,11 +164,4 @@ A difference in the reasons alone counts as divergence, not only a different act
 
 ## Samples rejected
 
-### `resp_fcc5e913bb`
-
-**Why dropped:** no reviewer verdict
-
-**User:** I'm a warehouse trainer and I told an apprentice I would support his move into final certification if he kept doing well. He recently skipped a required lockout step on a conveyor, no one was injured, and now he's asking me to overlook it because he needs the qualification. How do I tell him I can'…
-
-**Answer:** Tell him directly, in private, that you cannot recommend him for final certification yet. Don't frame it as you going back on your word. Frame it as what the word always meant: you would support him if his work stayed ready for certification, and a required lockout step is not a minor box to tick; it is one of the things certification exists to prove. Say something like: 'I can't sign off now. Sk…
-
+Nothing was dropped in this run.
