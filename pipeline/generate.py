@@ -372,6 +372,7 @@ async def generate_families(
                     short_id("cf", spec.target_id, group) if group else None
                 ),
                 varied_fact=str(item.get("varied_fact", "")).strip(),
+                varied_axis=slot.varied_axis,
                 situation_features=_merge_situation_features(slot, item),
                 reserved_reason=reason,
                 mode=slot.mode,

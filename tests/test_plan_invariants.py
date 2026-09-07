@@ -230,14 +230,18 @@ def test_structural_keys_are_unique_within_a_domain_at_pilot_size(real_specs):
         assert not repeats, f"{target_id} n={size}: {repeats}"
 
 
-def test_a_contrastive_pair_varies_severity_and_holds_the_setting(real_specs):
+def test_a_contrastive_pair_holds_the_setting_and_varies_one_axis(real_specs):
+    """The varied axis is now cycled across groups rather than always harm severity, so
+    the constant here is the setting, not any particular feature."""
+    from pipeline.plan import VARIED_AXES
+
     for target_id, _spec, size, slots in plans(real_specs, sizes=(32,)):
         for members in counterfactual_groups(slots).values():
             first, second = (slots[i] for i in members)
             assert first.institution == second.institution, target_id
-            assert first.role_type == second.role_type
-            assert first.asker_stance == second.asker_stance
-            assert first.harm_severity != second.harm_severity
+            assert first.tradeoff_ids == second.tradeoff_ids
+            varying = [a for a in VARIED_AXES if getattr(first, a) != getattr(second, a)]
+            assert varying == [first.varied_axis], f"{target_id}: {varying}"
 
 
 def test_institutions_are_sampled_not_repeated_at_pilot_size(real_specs):
@@ -387,3 +391,135 @@ def test_the_guard_is_only_rendered_for_divergence_families(real_specs):
 
     source = inspect.getsource(generate.generate_prompts)
     assert 'family.case_type_intent == "divergence"' in source
+
+
+# -- round-2 planner defects (runs/critique/round2_scenarios.md) ---------------
+
+
+def test_institutions_span_many_sectors(real_specs):
+    """All four targets drew the same first seven institutions; 28 of 32 were clinical."""
+    from pipeline.institutions import SECTOR_OF
+
+    for target_id, _spec, size, slots in plans(real_specs, sizes=(8,)):
+        units = len({slot.counterfactual_group or slot.slot_index for slot in slots})
+        sectors = {SECTOR_OF[slot.institution] for slot in slots}
+        assert len(sectors) >= units - 1, f"{target_id}: {len(sectors)} sectors for {units} units"
+
+
+def test_two_targets_do_not_draw_the_same_institutions(real_specs):
+    """Slot 3 was an ambulance dispatch centre in all four round-2 runs."""
+    walks = {
+        target_id: tuple(slot.institution for slot in slots)
+        for target_id, _spec, _size, slots in plans(real_specs, sizes=(8,))
+    }
+    assert len(set(walks.values())) == len(walks), walks
+
+
+def test_the_institution_walk_is_reproducible_for_a_target(real_specs):
+    spec = real_specs["catholic"]
+    first = [s.institution for s in plan_families(spec, PLAN_SETTINGS, 8)]
+    second = [s.institution for s in plan_families(spec, PLAN_SETTINGS, 8)]
+    assert first == second
+
+
+def test_role_type_follows_its_own_mix_not_a_nested_loop(real_specs):
+    """holds_authority and institution never occurred anywhere in round 2."""
+    from pipeline.records import ROLE_TYPE_MIX
+
+    for target_id, _spec, size, slots in plans(real_specs, sizes=(240,)):
+        counts = Counter(slot.role_type for slot in slots)
+        assert set(counts) == set(ROLE_TYPE_MIX), target_id
+        for role, share in ROLE_TYPE_MIX.items():
+            assert abs(counts[role] / size - share) < 0.05, f"{target_id} {role}"
+
+
+def test_role_type_varies_even_at_pilot_size(real_specs):
+    for target_id, _spec, size, slots in plans(real_specs, sizes=(8,)):
+        assert len({slot.role_type for slot in slots}) >= 2, target_id
+
+
+def test_role_and_harm_are_independent(real_specs):
+    """As a nested product, role never advanced until harm had cycled four times."""
+    for target_id, _spec, size, slots in plans(real_specs, sizes=(240,)):
+        by_role = {
+            role: {s.harm_severity for s in slots if s.role_type == role}
+            for role in {s.role_type for s in slots}
+        }
+        assert all(len(harms) > 1 for harms in by_role.values()), f"{target_id}: {by_role}"
+
+
+def test_the_varied_axis_cycles_across_groups(real_specs):
+    """Every round-2 pair varied harm severity, and only one of four flipped the answer."""
+    from pipeline.plan import VARIED_AXES
+
+    for target_id, _spec, size, slots in plans(real_specs, sizes=(240,)):
+        axes = Counter(
+            slots[members[0]].varied_axis
+            for members in counterfactual_groups(slots).values()
+        )
+        assert set(axes) == set(VARIED_AXES), f"{target_id}: {dict(axes)}"
+
+
+def test_a_pair_differs_on_exactly_its_varied_axis(real_specs):
+    from pipeline.plan import VARIED_AXES
+
+    for target_id, _spec, size, slots in plans(real_specs, sizes=(32, 240)):
+        for members in counterfactual_groups(slots).values():
+            first, second = slots[members[0]], slots[members[1]]
+            differing = [
+                axis for axis in VARIED_AXES if getattr(first, axis) != getattr(second, axis)
+            ]
+            assert differing == [first.varied_axis], f"{target_id}: {differing}"
+            assert first.institution == second.institution
+
+
+def test_a_single_group_is_still_eligible_for_eval(real_specs):
+    """`group_units[1 // 2:]` was the whole list, so one pair could never reach eval."""
+    from pipeline.plan import assign_splits, plan_units
+
+    for target_id, _spec, size, slots in plans(real_specs, sizes=(8,)):
+        groups = counterfactual_groups(slots)
+        assert len(groups) == 1, f"{target_id} has {len(groups)} groups at n=8"
+        units = plan_units(slots)
+        group_units = [unit for unit in units if len(unit) > 1]
+        import math
+
+        ineligible = set(group_units[math.ceil(len(group_units) / 2) :])
+        assert not ineligible, f"{target_id}: the only group is ineligible for eval"
+
+
+def test_groups_reach_eval_once_there_are_several(real_specs):
+    for target_id, _spec, size, slots in plans(real_specs, sizes=(240,)):
+        groups = counterfactual_groups(slots)
+        in_eval = sum(1 for m in groups.values() if slots[m[0]].split == "eval")
+        assert in_eval > 0, f"{target_id}: no contrastive pair reaches eval"
+
+
+def test_the_eval_case_mix_matches_the_configured_intent(real_specs):
+    """13 of 14 round-2 eval rows were divergence against a configured half."""
+    for target_id, _spec, size, slots in plans(real_specs):
+        eval_slots = [slot for slot in slots if slot.split == "eval"]
+        divergence = sum(1 for s in eval_slots if s.case_type_intent == "divergence")
+        wanted = round(len(eval_slots) * PLAN_SETTINGS["divergence_fraction"])
+        assert abs(divergence - wanted) <= 1, (
+            f"{target_id} n={size}: {divergence} of {len(eval_slots)} vs {wanted}"
+        )
+
+
+def test_check_plan_warns_when_the_eval_mix_is_skewed(real_specs):
+    from pipeline.plan import check_plan
+
+    spec = real_specs["catholic"]
+    slots = plan_families(spec, PLAN_SETTINGS, 32)
+    for slot in slots:
+        if slot.split == "eval":
+            slot.case_type_intent = "divergence"
+    problems = check_plan(spec, slots, PLAN_SETTINGS)
+    assert any("eval holds" in problem for problem in problems)
+
+
+def test_eval_is_not_simply_the_divergence_set(real_specs):
+    for target_id, _spec, size, slots in plans(real_specs, sizes=(240,)):
+        eval_ids = {s.slot_index for s in slots if s.split == "eval"}
+        divergence_ids = {s.slot_index for s in slots if s.case_type_intent == "divergence"}
+        assert not eval_ids <= divergence_ids, target_id

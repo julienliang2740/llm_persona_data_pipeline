@@ -11,15 +11,18 @@ now either impossible to express or a hard error before any model is called.
 
 from __future__ import annotations
 
+import hashlib
+import math
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
 from pipeline.config import RunConfig
-from pipeline.institutions import INSTITUTIONS
+from pipeline.institutions import INSTITUTIONS, INSTITUTIONS_BY_SECTOR
 from pipeline.records import (
     ASKER_STANCE,
     ASKER_STANCE_MIX,
+    ROLE_TYPE_MIX,
     HARM_SEVERITY,
     PUBLIC_OR_PRIVATE,
     ROLE_TYPE,
@@ -50,6 +53,8 @@ class FamilySlot:
     # Filled in by A3 structural diversity; empty until then.
     asker_stance: str = ""
     institution: str = ""
+    #: For a slot in a counterfactual group, the one feature that differs from its partner.
+    varied_axis: str = ""
     role_type: str = ""
     harm_severity: str = ""
     urgency: str = ""
@@ -90,7 +95,7 @@ def plan_families(
     assign_tradeoffs(spec, representatives, settings)
     assign_modes(representatives, float(settings.get("explicit_fraction", 0.0)))
     assign_situation_features(representatives)
-    assign_institutions(representatives)
+    assign_institutions(representatives, seed=spec.target_id)
     _propagate_within_groups(slots, units)
     assign_splits(slots, settings)
 
@@ -135,7 +140,9 @@ def assign_divergence_intent(
 ) -> None:
     """Mark whole units as divergence cases until the family target is reached."""
     wanted = round(len(slots) * divergence_fraction)
-    for unit in _draw_units(slots, units, wanted, skip=set()):
+    # Offset 0: the eval draw deliberately uses a different one. Sharing it made 7 of 8
+    # eval families divergence-intent against a configured half.
+    for unit in _draw_units(slots, units, wanted, skip=set(), offset=0):
         for slot_index in unit:
             slots[slot_index].case_type_intent = "divergence"
 
@@ -277,16 +284,28 @@ def plan_units(slots: list[FamilySlot]) -> list[tuple[int, ...]]:
     return sorted(units)
 
 
-def _propagate_within_groups(slots: list[FamilySlot], units: list[tuple[int, ...]]) -> None:
-    """Copy the unit's decisions onto the partner slot.
+#: The axes a contrastive pair may vary, cycled across groups. Round 2 hard-coded harm
+#: severity for every pair, and only one of the four flipped the recommended action: a
+#: minor and a career-affecting condition drew the same advice. Intensity is the axis a
+#: target is least likely to pivot on.
+VARIED_AXES = ("harm_severity", "role_type", "public_or_private", "urgency", "asker_stance")
 
-    Both members of a contrast must share the tradeoff, the case type, the hypothesis and
-    the mode; the single varied fact is the only difference between them.
+
+def _propagate_within_groups(slots: list[FamilySlot], units: list[tuple[int, ...]]) -> None:
+    """Copy the unit's decisions onto the partner slot, varying exactly one axis.
+
+    Both members share the tradeoff, the case type, the hypothesis, the mode and the
+    setting. Which single axis differs is cycled across groups so a run does not test the
+    same kind of contrast every time.
     """
+    group_number = 0
     for unit in units:
         if len(unit) < 2:
             continue
         first = slots[unit[0]]
+        axis = VARIED_AXES[group_number % len(VARIED_AXES)]
+        group_number += 1
+        first.varied_axis = axis
         for slot_index in unit[1:]:
             partner = slots[slot_index]
             partner.tradeoff_ids = list(first.tradeoff_ids)
@@ -294,15 +313,15 @@ def _propagate_within_groups(slots: list[FamilySlot], units: list[tuple[int, ...
             partner.divergence_hypothesis_id = first.divergence_hypothesis_id
             partner.unresolved_choice_id = first.unresolved_choice_id
             partner.mode = first.mode
-            # A contrast holds everything constant but the one varied fact, so the
-            # partner keeps the same setting, roles and stakes. harm_severity is the
-            # exception: it is the axis a pair most often varies.
+            partner.varied_axis = axis
+            # Everything is held constant except the one axis this group varies.
             partner.institution = first.institution
             partner.role_type = first.role_type
             partner.asker_stance = first.asker_stance
             partner.public_or_private = first.public_or_private
             partner.urgency = first.urgency
-            partner.harm_severity = _contrasting_severity(first.harm_severity)
+            partner.harm_severity = first.harm_severity
+            setattr(partner, axis, _contrasting_value(axis, getattr(first, axis)))
 
 
 def assign_situation_features(slots: list[FamilySlot]) -> None:
@@ -313,27 +332,32 @@ def assign_situation_features(slots: list[FamilySlot]) -> None:
     is that no two families in a domain share (tradeoff, role_type, harm_severity).
     """
     stance_cycle = _proportional_cycle(ASKER_STANCE_MIX, len(slots))
+    # role_type gets its own enforced mix rather than being the outer loop of a
+    # (role, harm) product. As a product it needed four slots in one domain before the
+    # role advanced, and since almost every domain held one family, every family in every
+    # target came out no_authority; holds_authority and institution never occurred at all.
+    role_cycle = _proportional_cycle(ROLE_TYPE_MIX, len(slots))
     for position, slot in enumerate(slots):
         slot.asker_stance = stance_cycle[position]
+        slot.role_type = role_cycle[position]
         slot.urgency = URGENCY[position % len(URGENCY)]
         slot.public_or_private = PUBLIC_OR_PRIVATE[(position // 2) % len(PUBLIC_OR_PRIVATE)]
 
-    # role_type and harm_severity are chosen together so the structural key stays unique
-    # inside a domain; a domain larger than the key space repeats only once it must.
+    # harm_severity is then chosen per domain to keep the structural key unique, with the
+    # role already fixed; a domain larger than the key space repeats only once it must.
     by_domain: dict[str, list[FamilySlot]] = {}
     for slot in slots:
         by_domain.setdefault(slot.domain, []).append(slot)
     for domain_slots in by_domain.values():
         used: set[tuple[str, str, str]] = set()
-        combinations = [(role, harm) for role in ROLE_TYPE for harm in HARM_SEVERITY]
         for offset, slot in enumerate(domain_slots):
             tradeoff = slot.tradeoff_ids[0] if slot.tradeoff_ids else ""
-            for step in range(len(combinations)):
-                role, harm = combinations[(offset + step) % len(combinations)]
-                if (tradeoff, role, harm) not in used:
+            for step in range(len(HARM_SEVERITY)):
+                harm = HARM_SEVERITY[(offset + step) % len(HARM_SEVERITY)]
+                if (tradeoff, slot.role_type, harm) not in used:
                     break
-            used.add((tradeoff, role, harm))
-            slot.role_type, slot.harm_severity = role, harm
+            used.add((tradeoff, slot.role_type, harm))
+            slot.harm_severity = harm
 
 
 def _proportional_cycle(mix: dict[str, float], count: int) -> list[str]:
@@ -363,12 +387,26 @@ def _proportional_cycle(mix: dict[str, float], count: int) -> list[str]:
     return out
 
 
-def assign_institutions(slots: list[FamilySlot]) -> None:
-    """One institution per slot, walked through the sector list so settings do not cluster."""
+def assign_institutions(slots: list[FamilySlot], seed: str = "") -> None:
+    """One institution per slot, sectors first and offset per target.
+
+    Walking a sector-ordered flat list from index 0 gave every target the same first seven
+    institutions: six healthcare plus one college, so 28 of 32 round-2 families were
+    clinical and eight of nine sectors were never reached. Sectors are now round-robined
+    before institutions within them, and the starting point is derived from the target id,
+    so a target's families span as many sectors as it has families and two targets do not
+    line up slot for slot.
+    """
     if not INSTITUTIONS:
         return
+    sectors = sorted(INSTITUTIONS_BY_SECTOR)
+    offset = int(hashlib.sha256(seed.encode("utf-8")).hexdigest()[:8], 16) if seed else 0
     for position, slot in enumerate(slots):
-        slot.institution = INSTITUTIONS[position % len(INSTITUTIONS)]
+        sector = sectors[(offset + position) % len(sectors)]
+        options = INSTITUTIONS_BY_SECTOR[sector]
+        # Advance within the sector once the walk comes round to it again.
+        within = (offset // len(sectors) + position // len(sectors)) % len(options)
+        slot.institution = options[within]
 
 
 def counterfactual_groups(slots: list[FamilySlot]) -> dict[str, list[int]]:
@@ -394,7 +432,10 @@ def assign_splits(slots: list[FamilySlot], settings: dict[str, Any]) -> None:
     """
     units = plan_units(slots)
     group_units = [unit for unit in units if len(unit) > 1]
-    eval_ineligible = set(group_units[len(group_units) // 2 :])
+    # Round up, so with exactly one group `1 // 2 == 0` no longer makes the whole list
+    # ineligible. Round 2 put every pair in train in all four targets, and varied_fact was
+    # empty on all 14 eval rows as a result.
+    eval_ineligible = set(group_units[math.ceil(len(group_units) / 2) :])
 
     wanted_eval = round(len(slots) * float(settings.get("eval_family_fraction", 0.0)))
     if len(slots) > 1:
@@ -413,8 +454,33 @@ def assign_splits(slots: list[FamilySlot], settings: dict[str, Any]) -> None:
             slots[slot_index].split = "eval"
 
     remaining_eval = max(0, wanted_eval - held_families)
+    # Draw eval separately from the divergence units and the ordinary ones, in the
+    # configured proportion. A single draw over the same round-robin the divergence draw
+    # used put 7 of 8 eval families on divergence against a configured half; a different
+    # offset alone does not fix it, because half the units carry the label either way.
+    divergence_fraction = float(settings.get("divergence_fraction", 0.35))
+    held_divergence = sum(
+        1
+        for unit in held_units
+        for index in unit
+        if slots[index].case_type_intent == "divergence"
+    )
+    wanted_eval_divergence = max(
+        0, round(wanted_eval * divergence_fraction) - held_divergence
+    )
+    is_divergence = lambda unit: slots[unit[0]].case_type_intent == "divergence"
+    divergence_units = [unit for unit in units if is_divergence(unit)]
+    ordinary_units = [unit for unit in units if not is_divergence(unit)]
+    skip = eval_ineligible | held_units
     chosen_eval = _draw_units(
-        slots, units, remaining_eval, skip=eval_ineligible | held_units
+        slots, divergence_units, wanted_eval_divergence, skip=skip, offset=2
+    )
+    chosen_eval += _draw_units(
+        slots,
+        ordinary_units,
+        remaining_eval - sum(len(unit) for unit in chosen_eval),
+        skip=skip,
+        offset=1,
     )
     for unit in chosen_eval:
         for slot_index in unit:
@@ -425,7 +491,7 @@ def assign_splits(slots: list[FamilySlot], settings: dict[str, Any]) -> None:
         units,
         wanted_reserved,
         skip=eval_ineligible | held_units | set(chosen_eval),
-        offset=1,
+        offset=4,
     )
     for unit in chosen_reserved:
         for slot_index in unit:
@@ -589,11 +655,24 @@ def align_counterfactual_groups(families: list[Family]) -> None:
                     )
 
 
-def _contrasting_severity(severity: str) -> str:
-    """The other end of the severity axis, which is what a contrastive pair usually varies."""
-    if severity == HARM_SEVERITY[0]:
-        return HARM_SEVERITY[-1]
-    return HARM_SEVERITY[0]
+#: The two ends of each axis a pair can be contrasted along.
+_AXIS_VALUES = {
+    "harm_severity": HARM_SEVERITY,
+    "role_type": ROLE_TYPE,
+    "public_or_private": PUBLIC_OR_PRIVATE,
+    "urgency": URGENCY,
+    "asker_stance": ASKER_STANCE,
+}
+
+
+def _contrasting_value(axis: str, value: str) -> str:
+    """The far end of `axis` from `value`, so the pair differs as widely as the axis allows."""
+    options = _AXIS_VALUES.get(axis, ())
+    if not options:
+        return value
+    if value == options[0]:
+        return options[-1]
+    return options[0]
 
 
 def selected_layers(spec: TargetSpec, config: RunConfig) -> list[str]:
@@ -651,6 +730,17 @@ def check_plan(
             f"ERROR eval split is {eval_count} of {total} families, but "
             f"eval_family_fraction asks for {wanted_eval} (tolerance is one family)."
         )
+
+    eval_slots = [slot for slot in slots if slot.split == "eval"]
+    if eval_slots:
+        eval_divergence = sum(1 for slot in eval_slots if slot.case_type_intent == "divergence")
+        wanted_divergence = round(len(eval_slots) * float(settings.get("divergence_fraction", 0.35)))
+        if abs(eval_divergence - wanted_divergence) > 1:
+            problems.append(
+                f"WARN eval holds {eval_divergence} divergence of {len(eval_slots)} families, "
+                f"but divergence_fraction asks for about {wanted_divergence}; the eval set "
+                f"does not reflect the configured mix."
+            )
 
     for label, members in counterfactual_groups(slots).items():
         splits = {slots[i].split for i in members}

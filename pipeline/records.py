@@ -53,6 +53,15 @@ ASKER_STANCE_MIX = {
     "defensive": 0.15,
     "transactional": 0.10,
 }
+#: role_type needs an enforced mix for the same reason asker_stance does: left to fall out
+#: of a nested loop it never advanced past the first value in a whole round of pilots.
+ROLE_TYPE_MIX = {
+    "no_authority": 0.45,
+    "peer": 0.25,
+    "holds_authority": 0.25,
+    "institution": 0.05,
+}
+
 SITUATION_FEATURE_ENUMS = {
     "harm_severity": HARM_SEVERITY,
     "urgency": URGENCY,
@@ -96,6 +105,8 @@ class Family:
     # against each other: the contrast is the point.
     counterfactual_group_id: str | None = None
     varied_fact: str = ""
+    #: Which situation feature this pair varies. Round 2 varied harm severity every time.
+    varied_axis: str = ""
     situation_features: dict[str, str] = field(default_factory=dict)
     reserved_reason: str = ""
     mode: str = "neutral"  # neutral | explicit, inherited by the family's prompts
