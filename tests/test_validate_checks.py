@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pipeline.validate import (
+from pipeline.similarity import (
     cosine,
     find_cue_hits,
     find_near_duplicates,

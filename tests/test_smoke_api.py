@@ -10,7 +10,7 @@ import pytest
 
 from pipeline.config import REPO_ROOT, load_config
 from pipeline.model import ModelClient
-from pipeline.validate import cosine
+from pipeline.similarity import cosine
 
 pytestmark = [
     pytest.mark.smoke,

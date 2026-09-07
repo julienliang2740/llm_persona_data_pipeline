@@ -6,7 +6,7 @@ import pytest
 
 from pipeline.records import BaselineAnswer, Response, Review
 from pipeline.target import render_open_questions, render_signature_moves
-from pipeline.validate import _review_from_payload, missing_score_keys
+from pipeline.review import _review_from_payload, missing_score_keys
 
 
 def payload(**overrides):

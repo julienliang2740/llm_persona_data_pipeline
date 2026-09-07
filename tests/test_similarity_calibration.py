@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from pipeline.records import Family, Prompt
-from pipeline.validate import (
+from pipeline.similarity import (
     all_pair_scores,
     calibrated_threshold,
     _comparison_text,

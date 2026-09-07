@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from pipeline.config import RunConfig
-from pipeline.institutions import INSTITUTIONS, SECTOR_OF
+from pipeline.institutions import INSTITUTIONS
 from pipeline.records import (
     ASKER_STANCE,
     ASKER_STANCE_MIX,
