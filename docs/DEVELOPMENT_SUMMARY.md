@@ -181,8 +181,15 @@ Confucian rose from 1/4 because its first strong-generic leg had lost five answe
 the lead read four of its re-judged verdicts (private correction before escalation vs "go to the shift
 lead"; a family claim affirmed then bounded vs fairness-only) and found them defensible. A third critic
 re-read all 32 re-judged verdicts; its defended rates are in `runs/critique/round3_rejudge.md` and below.
-With four judged families per target the rate moves in 25-point steps, so differences between traditions
-at this size are one family and should not be read as differences between traditions.
+The third critic accepted 26 of 32 verdicts and defends **8 of 16 families** under the every-prompt rule
+(Confucian 2/4, Catholic 1/4, Protestant 2/4, Theravāda 3/4; 10/16 if real divergences the judge
+mis-quoted are credited). In each rejected verdict a closer no-spec sentence made the same claim. Two
+remaining concerns: the candidate still reasons 8–10k tokens per answer against 0.3–1.4k for the no-spec
+leg, because the candidate gets a deliberation pass and the control a single instruction, so the
+asymmetry moved rather than closed; and `generic_makes_same_claim` never fired in 32 records, so the
+gate's power is undemonstrated and it structurally favours values stated in a technical register (no
+generic echo by construction) over shared values like honesty and fairness. With four judged families per
+target the rate moves in 25-point steps; differences between traditions at this size are one family.
 
 What round 2 fixed (per the second critique pass, `runs/critique/round2_*.md`): the shared house style
 ("watch for" paragraph 52/83 → 1/64; shared four-grams from dozens to one); the round-1 33/34 divergence
