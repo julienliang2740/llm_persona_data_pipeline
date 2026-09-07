@@ -184,3 +184,27 @@ async def test_other_error_bodies_raise(tmp_path, monkeypatch):
     monkeypatch.setattr(ModelClient, "_post", fake_post)
     with pytest.raises(ModelError, match="error body"):
         await client.complete("generator", [{"role": "user", "content": "hi"}])
+
+
+@pytest.mark.asyncio
+async def test_reasoning_overflow_ends_with_a_low_effort_attempt(tmp_path, monkeypatch):
+    """Seen in round 2: a review overflowed 32000 reasoning tokens twice. The ladder's last
+    rung retries once at reasoning_effort=low instead of losing the record."""
+    role = ModelRole(name="reviewer", model="big-model", api_key_source="none", max_tokens=16000)
+    client = ModelClient({"reviewer": role}, PRICING, usage_path=tmp_path / "usage.jsonl", api_key="")
+    seen = []
+
+    async def fake_post(self, role, url, payload):
+        seen.append((payload["max_tokens"], payload.get("reasoning_effort")))
+        if payload.get("reasoning_effort") == "low":
+            return {"id": "ok", "choices": [{"message": {"content": "answer"}, "finish_reason": "stop"}],
+                    "usage": {"prompt_tokens": 1, "completion_tokens": 1}}, 0.1
+        return {"id": "x", "choices": [{"message": {"content": "", "reasoning_content": "..."},
+                                        "finish_reason": "length"}],
+                "usage": {"prompt_tokens": 1, "completion_tokens": payload["max_tokens"],
+                          "completion_tokens_details": {"reasoning_tokens": payload["max_tokens"]}}}, 0.1
+
+    monkeypatch.setattr(ModelClient, "_post", fake_post)
+    result = await client.complete("reviewer", [{"role": "user", "content": "hi"}])
+    assert result.text == "answer"
+    assert seen == [(16000, None), (32000, None), (32000, "low")]

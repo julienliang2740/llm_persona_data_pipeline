@@ -13,7 +13,7 @@ import logging
 import random
 import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import replace, dataclass, field
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Iterable, Sequence
 
@@ -472,10 +472,29 @@ class ModelClient:
                     record_id=record_id,
                     retry_on_reasoning_overflow=False,
                 )
+            if "reasoning_effort" not in payload:
+                # Last rung of the ladder: a reasoning model that overflows twice at the
+                # doubled budget is looping, not thinking. Ask for a low-effort answer once.
+                logger.warning(
+                    "%s (%s) overflowed reasoning twice; retrying once with reasoning_effort=low",
+                    role.name,
+                    role.model,
+                )
+                low_effort_role = replace(role, extra_body={**role.extra_body, "reasoning_effort": "low"})
+                return await self.complete(
+                    low_effort_role,
+                    messages,
+                    temperature=temperature,
+                    max_tokens=budget,
+                    json_mode=json_mode,
+                    stage=stage,
+                    record_id=record_id,
+                    retry_on_reasoning_overflow=False,
+                )
             raise ModelError(
                 f"{role.name} ({role.model}) returned only reasoning and hit the "
-                f"max_tokens limit ({budget}) twice. Raise max_tokens for this role, or "
-                f"set extra_body: {{reasoning_effort: low}}. request_id={result.request_id}"
+                f"max_tokens limit ({budget}) even at reasoning_effort=low. "
+                f"request_id={result.request_id}"
             )
         return result
 
