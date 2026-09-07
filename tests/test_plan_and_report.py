@@ -1,11 +1,14 @@
-"""Coverage planning, the run report, and the before/after table. All offline."""
+"""The run report and the before/after table. All offline.
+
+Coverage-plan tests live in tests/test_plan_invariants.py and
+tests/test_generate_planning.py.
+"""
 
 from __future__ import annotations
 
 from collections import Counter
 
 from pipeline.evaluate import before_after_table
-from pipeline.generate import plan_families
 from pipeline.records import write_jsonl
 from pipeline.report import build_report
 from tests.test_export import build_run
@@ -15,46 +18,6 @@ SETTINGS = {
     "eval_family_fraction": 0.25,
     "reserved_family_fraction": 0.0,
 }
-
-
-def test_plan_allocates_every_family_and_respects_weights(toy_spec):
-    slots = plan_families(toy_spec, SETTINGS, 20)
-    assert len(slots) == 20
-    by_domain = Counter(slot.domain for slot in slots)
-    # The toy target weights work and household 0.5 / 0.5.
-    assert by_domain["work"] == 10 and by_domain["household"] == 10
-
-
-def test_plan_hits_the_requested_divergence_and_eval_shares(toy_spec):
-    slots = plan_families(toy_spec, SETTINGS, 20)
-    assert sum(1 for s in slots if s.case_type_intent == "divergence") == 8
-    assert sum(1 for s in slots if s.split == "eval") == 5
-
-
-def test_plan_spreads_eval_over_domains(toy_spec):
-    slots = plan_families(toy_spec, SETTINGS, 20)
-    eval_domains = {slot.domain for slot in slots if slot.split == "eval"}
-    assert eval_domains == {"work", "household"}
-
-
-def test_plan_covers_every_tradeoff_when_there_is_room(toy_spec):
-    slots = plan_families(toy_spec, SETTINGS, 20)
-    covered = {tid for slot in slots for tid in slot.tradeoff_ids}
-    assert covered == {"speed_vs_checking", "candour_vs_a_promise"}
-
-
-def test_plan_is_deterministic(toy_spec):
-    first = plan_families(toy_spec, SETTINGS, 13)
-    second = plan_families(toy_spec, SETTINGS, 13)
-    assert [(s.domain, s.case_type_intent, s.split) for s in first] == [
-        (s.domain, s.case_type_intent, s.split) for s in second
-    ]
-
-
-def test_tiny_plans_still_produce_one_eval_family(toy_spec):
-    slots = plan_families(toy_spec, SETTINGS, 2)
-    assert len(slots) == 2
-    assert sum(1 for s in slots if s.split == "eval") == 1
 
 
 def test_report_summarises_a_run(tmp_path, pilot_config, toy_spec):

@@ -2,40 +2,102 @@
 
 Pure functions over a TargetSpec and the config. No model calls and no file IO happen
 here, so the whole coverage plan can be inspected and tested without spending anything.
+
+The plan is built by construction rather than checked afterwards. Round 1 lost
+counterfactual pairs to a count-based retry, drew 37.5% eval against a configured 25%,
+and never touched a single unresolved tradeoff in two of four targets. Each of those is
+now either impossible to express or a hard error before any model is called.
 """
 
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from pipeline.config import RunConfig
-from pipeline.records import Family
+from pipeline.records import ASKER_STANCE, ASKER_STANCE_MIX, Family
 from pipeline.target import TargetSpec
 from pipeline.validate import find_cue_hits
 
 
+class PlanError(ValueError):
+    """The coverage plan cannot be built as configured. Raised before any model call."""
+
+
 @dataclass
 class FamilySlot:
-    """One planned family: which domain, which tradeoff, ordinary or divergence, which split."""
+    """One planned family. Everything the generator is told to vary is decided here."""
 
-    index: int
+    slot_index: int
     domain: str
-    tradeoff_ids: list[str]
-    case_type_intent: str
-    split: str
-    # Paired at plan time with another slot in the same domain, so both members are
-    # generated in one call and can genuinely be the same situation.
+    tradeoff_ids: list[str] = field(default_factory=list)
+    case_type_intent: str = "ordinary"
+    split: str = "train"
     counterfactual_group: str | None = None
-    mode: str = "neutral"  # neutral | explicit
+    mode: str = "neutral"
+    divergence_hypothesis_id: str = ""
+    unresolved_choice_id: str = ""
+    # Filled in by A3 structural diversity; empty until then.
+    asker_stance: str = ""
+    institution: str = ""
+    role_type: str = ""
+    harm_severity: str = ""
+    urgency: str = ""
+    public_or_private: str = ""
+
+    @property
+    def index(self) -> int:
+        """Backwards-compatible alias: the slot index is the slot's identity."""
+        return self.slot_index
+
+    @property
+    def structural_key(self) -> str:
+        tradeoff = self.tradeoff_ids[0] if self.tradeoff_ids else ""
+        return "|".join([tradeoff, self.role_type, self.harm_severity, self.domain])
 
 
-def plan_families(spec: TargetSpec, settings: dict[str, Any], n_families: int) -> list[FamilySlot]:
-    """Allocate families over domains by weight, then over tradeoffs, then over splits.
+def plan_families(
+    spec: TargetSpec, settings: dict[str, Any], n_families: int
+) -> list[FamilySlot]:
+    """Build the whole coverage plan. Deterministic for a given spec, settings and size."""
+    if n_families <= 0:
+        raise PlanError(f"n_families must be positive, got {n_families}.")
 
-    Deterministic, so a re-run with the same sizes plans the same coverage.
-    """
+    slots = [
+        FamilySlot(slot_index=index, domain=domain)
+        for index, domain in enumerate(_ordered_domains(spec, n_families))
+    ]
+    # Pairs are formed first and everything else is decided per unit, where a pair is one
+    # unit. Assigning tradeoffs first and pairing afterwards let the copy-to-partner step
+    # overwrite coverage: theravada went from 7 unresolved tradeoffs covered to 2.
+    assign_counterfactual_pairs(
+        slots, round(n_families * float(settings.get("counterfactual_fraction", 0.0)))
+    )
+    units = plan_units(slots)
+    # Divergence is counted in families, not units: a pair contributes two.
+    assign_divergence_intent(slots, units, float(settings.get("divergence_fraction", 0.35)))
+    representatives = [slots[unit[0]] for unit in units]
+    assign_tradeoffs(spec, representatives, settings)
+    assign_modes(representatives, float(settings.get("explicit_fraction", 0.0)))
+    _propagate_within_groups(slots, units)
+    assign_splits(slots, settings)
+
+    problems = check_plan(spec, slots, settings)
+    fatal = [problem for problem in problems if problem.startswith("ERROR")]
+    if fatal:
+        raise PlanError(
+            f"Coverage plan for '{spec.target_id}' at n={n_families} is not usable:\n  - "
+            + "\n  - ".join(fatal)
+        )
+    return slots
+
+
+# -- domains ----------------------------------------------------------------
+
+
+def _ordered_domains(spec: TargetSpec, n_families: int) -> list[str]:
+    """Allocate families over domains by weight, interleaved so labels spread evenly."""
     weights = spec.domain_weights()
     exact = [(domain_id, weight * n_families) for domain_id, weight in weights]
     counts = {domain_id: int(value) for domain_id, value in exact}
@@ -45,64 +107,124 @@ def plan_families(spec: TargetSpec, settings: dict[str, Any], n_families: int) -
             break
         counts[domain_id] += 1
         remainder -= 1
-    # Interleave domains so that eval and divergence slots spread across all of them.
-    ordered_domains: list[str] = []
+    ordered: list[str] = []
     while sum(counts.values()) > 0:
         for domain_id, _ in weights:
             if counts.get(domain_id, 0) > 0:
-                ordered_domains.append(domain_id)
+                ordered.append(domain_id)
                 counts[domain_id] -= 1
+    return ordered
 
-    tradeoff_ids = [t["id"] for t in spec.tradeoffs] or [""]
-    divergence_share = float(settings.get("divergence_fraction", 0.35))
-    eval_share = float(settings.get("eval_family_fraction", 0.2))
-    reserved_share = float(settings.get("reserved_family_fraction", 0.0))
-    counterfactual_share = float(settings.get("counterfactual_fraction", 0.0))
-    explicit_share = float(settings.get("explicit_fraction", 0.0))
-    n_divergence = round(n_families * divergence_share)
-    n_eval = max(1, round(n_families * eval_share)) if n_families > 1 else 0
-    n_reserved = round(n_families * reserved_share)
 
-    slots: list[FamilySlot] = []
-    for index, domain_id in enumerate(ordered_domains):
-        tradeoff = tradeoff_ids[index % len(tradeoff_ids)]
-        slots.append(
-            FamilySlot(
-                index=index,
-                domain=domain_id,
-                tradeoff_ids=[tradeoff] if tradeoff else [],
-                case_type_intent="ordinary",
-                split="train",
-            )
-        )
-    # Divergence, eval and reserved are each spread across domains rather than taken
-    # from consecutive slots, so no domain ends up carrying all of one label.
-    for position in stratified_indices(slots, n_divergence, offset=0.0):
-        slots[position].case_type_intent = "divergence"
-    eval_positions = stratified_indices(slots, n_eval, offset=0.5)
-    for position in eval_positions:
-        slots[position].split = "eval"
-    for position in stratified_indices(slots, n_reserved, exclude=set(eval_positions), offset=0.25):
-        slots[position].split = "reserved"
-    # Contrastive pairs must be written together, so both members sit in the same domain
-    # and share a tradeoff: they are one situation with one fact changed. A domain with
-    # fewer than two families cannot host a pair, so a very small pilot may produce none.
-    assign_counterfactual_pairs(slots, round(n_families * counterfactual_share))
-    for position in stratified_indices(slots, round(n_families * explicit_share), offset=0.4):
-        slots[position].mode = "explicit"
-    return slots
+# -- case type and coverage floors -------------------------------------------
+
+
+def assign_divergence_intent(
+    slots: list[FamilySlot], units: list[tuple[int, ...]], divergence_fraction: float
+) -> None:
+    """Mark whole units as divergence cases until the family target is reached."""
+    wanted = round(len(slots) * divergence_fraction)
+    for unit in _draw_units(slots, units, wanted, skip=set()):
+        for slot_index in unit:
+            slots[slot_index].case_type_intent = "divergence"
+
+
+def assign_tradeoffs(spec: TargetSpec, slots: list[FamilySlot], settings: dict[str, Any]) -> None:
+    """Give every slot a tradeoff, an unresolved choice where relevant, and a hypothesis.
+
+    Coverage floors first: no tradeoff gets a second family while another is uncovered,
+    and unresolved tradeoffs are covered before resolved ones. Round 1 assigned
+    `tradeoff_ids[index % len(tradeoff_ids)]`, which at n=8 could only ever reach the
+    first eight tradeoffs in YAML order and touched zero unresolved ones in two targets.
+    """
+    unresolved = [t["id"] for t in spec.tradeoffs if t.get("unresolved")]
+    resolved = [t["id"] for t in spec.tradeoffs if not t.get("unresolved")]
+    if not unresolved and not resolved:
+        return
+
+    share = float(settings.get("unresolved_tradeoff_fraction", 0.25))
+    wanted_unresolved = round(len(slots) * share)
+    if unresolved:
+        # Raise the allocation when needed to reach every unresolved tradeoff once,
+        # but never let hedging cases take more than half the run.
+        wanted_unresolved = max(wanted_unresolved, min(len(unresolved), len(slots) // 2))
+    wanted_unresolved = min(wanted_unresolved, len(slots) if not resolved else len(slots) - 1)
+    unresolved_positions = set(stratified_indices(slots, wanted_unresolved, offset=0.3))
+
+    unresolved_cycle = _coverage_cycle(unresolved)
+    resolved_cycle = _coverage_cycle(resolved)
+    for slot in slots:
+        pool = unresolved_cycle if (slot.slot_index in unresolved_positions and unresolved) else resolved_cycle
+        if not pool.pool:
+            pool = unresolved_cycle if unresolved_cycle.pool else resolved_cycle
+        slot.tradeoff_ids = [pool.take()]
+
+    _assign_unresolved_choices(spec, slots)
+    assign_divergence_hypotheses(spec, slots)
+
+
+class _coverage_cycle:
+    """Round-robin that exhausts every item once before repeating any of them."""
+
+    def __init__(self, pool: list[str]) -> None:
+        self.pool = list(pool)
+        self._remaining = list(pool)
+
+    def take(self) -> str:
+        if not self.pool:
+            return ""
+        if not self._remaining:
+            self._remaining = list(self.pool)
+        return self._remaining.pop(0)
+
+
+def _assign_unresolved_choices(spec: TargetSpec, slots: list[FamilySlot]) -> None:
+    """Cover every `mark_ambiguous` interpretation choice before repeating one."""
+    choices = [
+        str(choice.get("id"))
+        for choice in spec.unresolved_choices
+        if str(choice.get("generation_policy", "")).strip() == "mark_ambiguous"
+    ]
+    if not choices:
+        return
+    cycle = _coverage_cycle(choices)
+    # Attach them to the slots already carrying an unresolved tradeoff where possible,
+    # so the hedging cases cluster rather than diluting every family.
+    unresolved_ids = {t["id"] for t in spec.tradeoffs if t.get("unresolved")}
+    carriers = [s for s in slots if set(s.tradeoff_ids) & unresolved_ids] or slots
+    for position in stratified_indices(carriers, min(len(choices), len(carriers))):
+        carriers[position].unresolved_choice_id = cycle.take()
+
+
+def assign_divergence_hypotheses(spec: TargetSpec, slots: list[FamilySlot]) -> None:
+    """Every divergence-intent slot names the hypothesis it is written to instantiate.
+
+    Round 1 had no such field, and hand-mapping afterwards found 2 of 9 to 3 of 11
+    hypotheses exercised per target. Round-robin here makes coverage a plan property.
+    """
+    hypotheses = [str(item.get("id")) for item in spec.divergence_hypotheses if item.get("id")]
+    if not hypotheses:
+        return
+    cycle = _coverage_cycle(hypotheses)
+    for slot in slots:
+        if slot.case_type_intent == "divergence":
+            slot.divergence_hypothesis_id = cycle.take()
+
+
+# -- counterfactual pairs ----------------------------------------------------
 
 
 def assign_counterfactual_pairs(slots: list[FamilySlot], wanted_slots: int) -> int:
-    """Pair up slots inside each domain until `wanted_slots` are grouped. Returns pair count.
+    """Pair slots inside each domain. Runs BEFORE the split is drawn.
 
-    Pairs are allocated to the largest domains first, spread evenly inside each domain,
-    and the second member copies the first member's tradeoff so the pair really is one
-    situation with one fact changed.
+    Both members share domain, tradeoff, hypothesis and case type: a contrastive pair is
+    one situation with one fact changed, so everything except that fact must match.
     """
+    if wanted_slots < 2:
+        return 0
     positions_by_domain: dict[str, list[int]] = {}
-    for index, slot in enumerate(slots):
-        positions_by_domain.setdefault(slot.domain, []).append(index)
+    for slot in slots:
+        positions_by_domain.setdefault(slot.domain, []).append(slot.slot_index)
     capacity = {domain: len(p) // 2 for domain, p in positions_by_domain.items()}
     allocation = {domain: 0 for domain in positions_by_domain}
     pairs_left = wanted_slots // 2
@@ -120,7 +242,6 @@ def assign_counterfactual_pairs(slots: list[FamilySlot], wanted_slots: int) -> i
         wanted_pairs = allocation[domain]
         if wanted_pairs <= 0:
             continue
-        # Evenly spaced pair starts, so pairs are not all bunched at the front.
         step = len(positions) / wanted_pairs
         used: set[int] = set()
         for pair_index in range(wanted_pairs):
@@ -132,11 +253,134 @@ def assign_counterfactual_pairs(slots: list[FamilySlot], wanted_slots: int) -> i
             used.update({start, start + 1})
             pair_number += 1
             label = f"g{pair_number}"
-            first, second = slots[positions[start]], slots[positions[start + 1]]
-            first.counterfactual_group = label
-            second.counterfactual_group = label
-            second.tradeoff_ids = list(first.tradeoff_ids)
+            slots[positions[start]].counterfactual_group = label
+            slots[positions[start + 1]].counterfactual_group = label
     return pair_number
+
+
+def plan_units(slots: list[FamilySlot]) -> list[tuple[int, ...]]:
+    """Slot indices grouped into planning units: a counterfactual pair counts as one."""
+    groups = counterfactual_groups(slots)
+    units = [tuple(sorted(members)) for members in groups.values()]
+    units += [(slot.slot_index,) for slot in slots if not slot.counterfactual_group]
+    return sorted(units)
+
+
+def _propagate_within_groups(slots: list[FamilySlot], units: list[tuple[int, ...]]) -> None:
+    """Copy the unit's decisions onto the partner slot.
+
+    Both members of a contrast must share the tradeoff, the case type, the hypothesis and
+    the mode; the single varied fact is the only difference between them.
+    """
+    for unit in units:
+        if len(unit) < 2:
+            continue
+        first = slots[unit[0]]
+        for slot_index in unit[1:]:
+            partner = slots[slot_index]
+            partner.tradeoff_ids = list(first.tradeoff_ids)
+            partner.case_type_intent = first.case_type_intent
+            partner.divergence_hypothesis_id = first.divergence_hypothesis_id
+            partner.unresolved_choice_id = first.unresolved_choice_id
+            partner.mode = first.mode
+
+
+def counterfactual_groups(slots: list[FamilySlot]) -> dict[str, list[int]]:
+    groups: dict[str, list[int]] = {}
+    for slot in slots:
+        if slot.counterfactual_group:
+            groups.setdefault(slot.counterfactual_group, []).append(slot.slot_index)
+    return groups
+
+
+# -- splits ------------------------------------------------------------------
+
+
+def assign_splits(slots: list[FamilySlot], settings: dict[str, Any]) -> None:
+    """Draw eval and reserved over whole units, where a counterfactual pair is one unit.
+
+    Drawing over slots let `align_counterfactual_groups` promote a pair's partner into
+    eval afterwards, which is how a configured 25% became an actual 37.5%. At most half
+    the groups may go to eval, so the contrast is exercised on both sides of the split.
+    """
+    units = plan_units(slots)
+    group_units = [unit for unit in units if len(unit) > 1]
+    eval_ineligible = set(group_units[len(group_units) // 2 :])
+
+    wanted_eval = round(len(slots) * float(settings.get("eval_family_fraction", 0.0)))
+    if len(slots) > 1:
+        wanted_eval = max(1, wanted_eval)
+    wanted_reserved = round(len(slots) * float(settings.get("reserved_family_fraction", 0.0)))
+
+    chosen_eval = _draw_units(slots, units, wanted_eval, skip=eval_ineligible)
+    chosen_reserved = _draw_units(
+        slots, units, wanted_reserved, skip=eval_ineligible | set(chosen_eval), offset=1
+    )
+    for unit in chosen_eval:
+        for slot_index in unit:
+            slots[slot_index].split = "eval"
+    for unit in chosen_reserved:
+        for slot_index in unit:
+            slots[slot_index].split = "reserved"
+
+
+def _draw_units(
+    slots: list[FamilySlot],
+    units: list[tuple[int, ...]],
+    wanted_families: int,
+    skip: set[tuple[int, ...]],
+    offset: int = 0,
+) -> list[tuple[int, ...]]:
+    """Pick whole units until `wanted_families` slots are covered, spread across domains.
+
+    Round-robins over domains so the eval set is not drawn from one corner of the target;
+    a unit is never split, so a contrastive pair lands whole on one side.
+    """
+    if wanted_families <= 0:
+        return []
+    available = [unit for unit in units if unit not in skip]
+    if not available:
+        return []
+    by_domain: dict[str, list[tuple[int, ...]]] = {}
+    for unit in available:
+        by_domain.setdefault(slots[unit[0]].domain, []).append(unit)
+    for pool in by_domain.values():
+        pool.sort()
+    cursors = {domain: offset % len(pool) for domain, pool in by_domain.items()}
+    order = sorted(by_domain, key=lambda domain: (-len(by_domain[domain]), domain))
+
+    chosen: list[tuple[int, ...]] = []
+    taken: set[tuple[int, ...]] = set()
+    covered = 0
+    while covered < wanted_families:
+        progressed = False
+        for domain in order:
+            if covered >= wanted_families:
+                break
+            pool = by_domain[domain]
+            for _ in range(len(pool)):
+                unit = pool[cursors[domain] % len(pool)]
+                cursors[domain] += 1
+                if unit in taken:
+                    continue
+                if covered + len(unit) > wanted_families and covered > 0:
+                    continue
+                taken.add(unit)
+                chosen.append(unit)
+                covered += len(unit)
+                progressed = True
+                break
+        if not progressed:
+            break
+    return chosen
+
+
+def assign_modes(slots: list[FamilySlot], explicit_fraction: float) -> None:
+    for position in stratified_indices(slots, round(len(slots) * explicit_fraction), offset=0.4):
+        slots[position].mode = "explicit"
+
+
+# -- shared helpers -----------------------------------------------------------
 
 
 def stratified_indices(
@@ -145,17 +389,14 @@ def stratified_indices(
     exclude: set[int] | None = None,
     offset: float = 0.0,
 ) -> list[int]:
-    """Pick `count` slot positions, allocated across domains in proportion to their size.
-
-    Within a domain the picks are evenly spaced. Deterministic for a given input.
-    """
+    """Pick `count` positions in `slots`, allocated across domains by domain size."""
     if count <= 0 or not slots:
         return []
     excluded = exclude or set()
     groups: dict[str, list[int]] = {}
-    for index, slot in enumerate(slots):
-        if index not in excluded:
-            groups.setdefault(slot.domain, []).append(index)
+    for position, slot in enumerate(slots):
+        if position not in excluded:
+            groups.setdefault(slot.domain, []).append(position)
     names = sorted(groups)
     available = sum(len(groups[name]) for name in names)
     if available == 0:
@@ -183,7 +424,7 @@ def stratified_indices(
             member = members[min(len(members) - 1, int(offset * step + position * step))]
             if member not in chosen:
                 chosen.append(member)
-        for member in members:  # fill any collisions from rounding
+        for member in members:
             if len(chosen) >= wanted:
                 break
             if member not in chosen:
@@ -193,11 +434,7 @@ def stratified_indices(
 
 
 def pair_counterfactual_slots(batch: list[FamilySlot]) -> dict[int, str]:
-    """Group labels for the slots in this batch, keeping only complete pairs.
-
-    Pairing happens in the plan. A group whose partner fell into a different batch is
-    dropped here, because a contrastive group of one has nothing to contrast with.
-    """
+    """Group labels for the slots in one generation batch, keeping only complete pairs."""
     counts: Counter[str] = Counter(
         slot.counterfactual_group for slot in batch if slot.counterfactual_group
     )
@@ -209,10 +446,10 @@ def pair_counterfactual_slots(batch: list[FamilySlot]) -> dict[int, str]:
 
 
 def align_counterfactual_groups(families: list[Family]) -> None:
-    """Give every member of a counterfactual group the same split.
+    """Keep a group on one side of the split.
 
-    The group is the unit of splitting, so a contrast cannot straddle train and eval.
-    The strictest split any member carries wins: reserved beats eval beats train.
+    The plan already places groups whole, so this only repairs a family that arrived from
+    an older run or was reserved by the avoided-topic screen after generation.
     """
     priority = {"train": 0, "eval": 1, "reserved": 2}
     groups: dict[str, list[Family]] = {}
@@ -237,7 +474,7 @@ def selected_layers(spec: TargetSpec, config: RunConfig) -> list[str]:
         known = {str(layer.get("id")) for layer in spec.layers}
         unknown = [name for name in configured if name not in known]
         if unknown:
-            raise ValueError(
+            raise PlanError(
                 f"config generation.target_layers names layers that target "
                 f"'{spec.target_id}' does not define: {unknown}. Known: {sorted(known)}"
             )
@@ -251,3 +488,86 @@ def avoided_topic_hit(text: str, avoid_words: list[str]) -> str:
         return ""
     hits = find_cue_hits(text, avoid_words)
     return hits[0] if hits else ""
+
+
+# -- plan validation ----------------------------------------------------------
+
+
+def check_plan(
+    spec: TargetSpec, slots: list[FamilySlot], settings: dict[str, Any]
+) -> list[str]:
+    """Every plan invariant, as ERROR (refuse to run) or WARN (log and continue)."""
+    problems: list[str] = []
+    total = len(slots)
+
+    eval_count = sum(1 for slot in slots if slot.split == "eval")
+    wanted_eval = round(total * float(settings.get("eval_family_fraction", 0.0)))
+    if total > 1:
+        wanted_eval = max(1, wanted_eval)
+    if abs(eval_count - wanted_eval) > 1:
+        problems.append(
+            f"ERROR eval split is {eval_count} of {total} families, but "
+            f"eval_family_fraction asks for {wanted_eval} (tolerance is one family)."
+        )
+
+    for label, members in counterfactual_groups(slots).items():
+        splits = {slots[i].split for i in members}
+        if len(members) != 2:
+            problems.append(
+                f"ERROR counterfactual group {label} has {len(members)} members; a "
+                f"contrast needs exactly two."
+            )
+        if len(splits) > 1:
+            problems.append(
+                f"ERROR counterfactual group {label} straddles splits {sorted(splits)}."
+            )
+        domains = {slots[i].domain for i in members}
+        if len(domains) > 1:
+            problems.append(
+                f"ERROR counterfactual group {label} spans domains {sorted(domains)}; a "
+                f"contrast must hold everything but one fact constant."
+            )
+
+    groups = counterfactual_groups(slots)
+    if groups:
+        in_train = sum(
+            1 for members in groups.values() if slots[members[0]].split == "train"
+        )
+        if in_train == 0 and len(groups) > 1:
+            problems.append(
+                f"WARN all {len(groups)} counterfactual groups are outside train; the "
+                f"contrast is never seen during training."
+            )
+
+    if {slot.slot_index for slot in slots} != set(range(total)):
+        problems.append("ERROR slot indices are not a contiguous range; retries rely on them.")
+
+    for slot in slots:
+        if slot.case_type_intent == "divergence" and spec.divergence_hypotheses:
+            if not slot.divergence_hypothesis_id:
+                problems.append(
+                    f"ERROR slot {slot.slot_index} is a divergence case with no "
+                    f"divergence_hypothesis_id."
+                )
+
+    # Coverage floors are scale-dependent: at 100 families everything must be reached.
+    floor_scale = total >= 100
+    unresolved = [t["id"] for t in spec.tradeoffs if t.get("unresolved")]
+    covered_tradeoffs = {tid for slot in slots for tid in slot.tradeoff_ids}
+    missing_unresolved = [tid for tid in unresolved if tid not in covered_tradeoffs]
+    if missing_unresolved:
+        severity = "ERROR" if floor_scale else "WARN"
+        problems.append(
+            f"{severity} {len(missing_unresolved)} unresolved tradeoff(s) get no family "
+            f"at n={total}: {missing_unresolved}"
+        )
+    hypotheses = [str(h.get("id")) for h in spec.divergence_hypotheses if h.get("id")]
+    covered_hypotheses = {slot.divergence_hypothesis_id for slot in slots if slot.divergence_hypothesis_id}
+    missing_hypotheses = [h for h in hypotheses if h not in covered_hypotheses]
+    if missing_hypotheses:
+        severity = "ERROR" if floor_scale else "WARN"
+        problems.append(
+            f"{severity} {len(missing_hypotheses)} divergence hypothes(es) get no family "
+            f"at n={total}: {missing_hypotheses[:6]}"
+        )
+    return problems

@@ -182,3 +182,127 @@ def test_neutral_instructions_carry_the_forbidden_terms_not_the_name(toy_spec):
     neutral = mode_instructions("neutral", "Careful Practice, HCP", toy_spec.name)
     assert "Careful Practice" in neutral
     assert toy_spec.name not in neutral
+
+
+# -- A1/A2: slot-index retry and id validation (offline) ---------------------
+
+
+def test_slot_indices_are_backfilled_for_pre_round_two_families(toy_spec):
+    """Round-1 families have slot_index -1; a resume must place them, not duplicate them."""
+    from pipeline.generate import _backfill_slot_indices
+    from pipeline.plan import plan_families
+
+    slots = plan_families(toy_spec, SETTINGS, 6)
+    families = [make_family(f"f{i}", "train") for i in range(3)]
+    _backfill_slot_indices(families, slots)
+    assert [f.slot_index for f in families] == [0, 1, 2]
+
+
+def test_backfill_does_not_move_families_that_already_have_indices(toy_spec):
+    from pipeline.generate import _backfill_slot_indices
+    from pipeline.plan import plan_families
+
+    slots = plan_families(toy_spec, SETTINGS, 6)
+    families = [make_family("a", "train"), make_family("b", "train")]
+    families[0].slot_index = 4
+    _backfill_slot_indices(families, slots)
+    assert families[0].slot_index == 4
+    assert families[1].slot_index == 0
+
+
+def test_an_incomplete_group_stops_the_stage(toy_spec):
+    """A half-generated pair loses the contrast it exists to draw."""
+    from pipeline.generate import IncompleteGroupError, _require_complete_groups
+    from pipeline.plan import plan_families
+
+    slots = plan_families(toy_spec, SETTINGS, 6)
+    group_slots = [s.slot_index for s in slots if s.counterfactual_group]
+    assert len(group_slots) == 2
+    families = [make_family("only-one", "train")]
+    families[0].slot_index = group_slots[0]
+    with pytest.raises(IncompleteGroupError) as error:
+        _require_complete_groups(families, slots)
+    assert str(group_slots[1]) in str(error.value)
+    assert "Re-run the generate stage" in str(error.value)
+
+
+def test_a_complete_group_passes(toy_spec):
+    from pipeline.generate import _require_complete_groups
+    from pipeline.plan import plan_families
+
+    slots = plan_families(toy_spec, SETTINGS, 6)
+    families = []
+    for slot in slots:
+        family = make_family(f"f{slot.slot_index}", slot.split)
+        family.slot_index = slot.slot_index
+        families.append(family)
+    _require_complete_groups(families, slots)  # must not raise
+
+
+def test_unknown_ids_fall_back_to_the_slot_assignment():
+    """The generator returned 'f orgiveness_vs_protection'; it must not reach a family."""
+    from pipeline.generate import validated_ids
+
+    known = {"forgiveness_vs_protection", "truth_vs_privacy"}
+    assert validated_ids(
+        ["f orgiveness_vs_protection"], known, ["truth_vs_privacy"], "tradeoff", "slot 3"
+    ) == ["truth_vs_privacy"]
+
+
+def test_known_ids_are_kept_and_unknown_ones_dropped():
+    from pipeline.generate import validated_ids
+
+    known = {"a", "b"}
+    assert validated_ids(["a", "zzz", "b"], known, ["a"], "tradeoff", "slot 0") == ["a", "b"]
+
+
+def test_validated_ids_with_nothing_returned_uses_the_fallback():
+    from pipeline.generate import validated_ids
+
+    assert validated_ids(None, {"a"}, ["a"], "tradeoff", "slot 0") == ["a"]
+    assert validated_ids([], {"a"}, [], "principle", "slot 0") == []
+
+
+# -- toy-spec plan checks (the real-spec versions live in test_plan_invariants.py) --
+
+def test_plan_allocates_every_family_and_respects_weights(toy_spec):
+    slots = plan_families(toy_spec, SETTINGS, 20)
+    assert len(slots) == 20
+    by_domain = Counter(slot.domain for slot in slots)
+    # The toy target weights work and household 0.5 / 0.5.
+    assert by_domain["work"] == 10 and by_domain["household"] == 10
+
+
+def test_plan_hits_the_requested_divergence_and_eval_shares(toy_spec):
+    """Eval is drawn over whole units, so a pair can put it one family off the target."""
+    slots = plan_families(toy_spec, SETTINGS, 20)
+    assert sum(1 for s in slots if s.case_type_intent == "divergence") == 8
+    assert abs(sum(1 for s in slots if s.split == "eval") - 5) <= 1
+
+
+def test_plan_spreads_eval_over_domains(toy_spec):
+    slots = plan_families(toy_spec, SETTINGS, 20)
+    eval_domains = {slot.domain for slot in slots if slot.split == "eval"}
+    assert eval_domains == {"work", "household"}
+
+
+def test_plan_covers_every_tradeoff_when_there_is_room(toy_spec):
+    slots = plan_families(toy_spec, SETTINGS, 20)
+    covered = {tid for slot in slots for tid in slot.tradeoff_ids}
+    assert covered == {"speed_vs_checking", "candour_vs_a_promise"}
+
+
+def test_plan_is_deterministic(toy_spec):
+    first = plan_families(toy_spec, SETTINGS, 13)
+    second = plan_families(toy_spec, SETTINGS, 13)
+    assert [(s.domain, s.case_type_intent, s.split) for s in first] == [
+        (s.domain, s.case_type_intent, s.split) for s in second
+    ]
+
+
+def test_tiny_plans_still_produce_one_eval_family(toy_spec):
+    slots = plan_families(toy_spec, SETTINGS, 2)
+    assert len(slots) == 2
+    assert sum(1 for s in slots if s.split == "eval") == 1
+
+

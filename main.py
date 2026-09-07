@@ -119,14 +119,22 @@ async def run(args: argparse.Namespace) -> int:
         elif stage == "baseline":
             try:
                 summary[stage] = await baseline.run_stage(config, run_dir)
+                # The strong-generic leg needs no local server, so it runs even when the
+                # base model is unavailable; it is what makes the three-way judge possible.
+                summary["baseline.strong_generic"] = await baseline.run_strong_generic(
+                    config, run_dir, spec
+                )
             except baseline.BaselineUnavailable as error:
-                if args.stage == "baseline" and not args.skip_baseline:
-                    logger.error("baseline stage cannot run: %s", error)
-                    return 2
                 logger.warning(
-                    "skipping baseline: %s Divergence cases will be marked unverified.", error
+                    "local base model unavailable: %s Divergence cases will be unverified.",
+                    error,
                 )
                 summary[stage] = {"skipped": str(error)}
+                summary["baseline.strong_generic"] = await baseline.run_strong_generic(
+                    config, run_dir, spec
+                )
+                if args.stage == "baseline" and not args.skip_baseline:
+                    return 2
         elif stage == "validate":
             summary[stage] = await validate.run_stage(config, spec, run_dir)
         elif stage == "export":

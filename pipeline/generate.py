@@ -50,19 +50,45 @@ from prompts.generation import (
     PROMPT_VARIANT_PROMPT,
     REFRAMING_PROMPT,
     RESPONSE_GENERATION_PROMPT,
-    RESPONSE_REVISION_PROMPT,
 )
-from prompts.review import FIDELITY_REVIEW_PROMPT, REVIEWER_SYSTEM_PROMPT
 
 logger = logging.getLogger("pipeline.generate")
+
+
+class IncompleteGroupError(RuntimeError):
+    """A planned counterfactual pair produced only one of its two families."""
 
 
 FAMILY_JSON_SHAPE = (
     '{"families": [{"seed_situation": "...", "why_it_is_hard": "...", '
     '"principle_ids": ["..."], "tradeoff_ids": ["..."], "source_passage_ids": ["..."], '
-    '"case_type_intent": "ordinary", "varied_fact": "", "situation_features": {...}}]}'
+    '"case_type_intent": "ordinary", "divergence_hypothesis_id": "", "varied_fact": "", '
+    '"situation_features": {...}}]}'
 )
 PROMPT_JSON_SHAPE = '{"prompts": [{"text": "...", "register": "long_detailed"}]}'
+
+
+def validated_ids(
+    returned: Any, known: set[str], fallback: list[str], label: str, family_hint: str
+) -> list[str]:
+    """Keep only ids the spec actually defines; fall back to the slot's assignment.
+
+    A generator returned the tradeoff id "f orgiveness_vs_protection" with a stray space.
+    It resolved to nothing, so the response prompt for three Catholic families said
+    "(no tradeoffs recorded)" where the tradeoff should have been.
+    """
+    values = [str(item).strip() for item in (returned or []) if str(item).strip()]
+    good = [value for value in values if value in known]
+    bad = [value for value in values if value not in known]
+    if bad:
+        logger.warning(
+            "%s: generator returned %s id(s) not in the spec: %s; falling back to %s",
+            family_hint,
+            label,
+            bad,
+            fallback or "(none)",
+        )
+    return good or list(fallback)
 
 
 def looks_like_family(item: Any) -> bool:
@@ -115,11 +141,16 @@ async def generate_families(
     generator = config.role("generator")
 
     done_by_id = {family.family_id: family for family in existing}
-    if len(existing) >= len(slots):
-        logger.info("families: %d already present, nothing to generate", len(existing))
+    existing = _backfill_slot_indices(existing, slots)
+    filled = {family.slot_index for family in existing if family.slot_index >= 0}
+    # Retries refill the slot indices that are actually empty. Matching by count instead
+    # regenerated an already-filled slot and silently dropped a planned pair.
+    remaining = [slot for slot in slots if slot.slot_index not in filled]
+    if not remaining:
+        logger.info("families: all %d planned slots are filled", len(slots))
+        _require_complete_groups(existing, slots)
         return existing
 
-    remaining = slots[len(existing) :]
     by_domain: dict[str, list[FamilySlot]] = {}
     for slot in remaining:
         by_domain.setdefault(slot.domain, []).append(slot)
@@ -133,6 +164,19 @@ async def generate_families(
         for start_index in range(0, len(ordered_slots), batch_size):
             batches.append((domain, ordered_slots[start_index : start_index + batch_size]))
 
+    hypothesis_text = {
+        str(h.get("id")): " ".join(str(h.get("description", "")).split())[:220]
+        for h in spec.divergence_hypotheses
+        if h.get("id")
+    }
+    choice_text = {
+        str(c.get("id")): " ".join(str(c.get("question", "")).split())[:200]
+        for c in spec.unresolved_choices
+        if c.get("id")
+    }
+    known_tradeoffs = {str(t.get("id")) for t in spec.tradeoffs if t.get("id")}
+    known_principles = {str(p.get("id")) for p in spec.principles if p.get("id")}
+    known_hypotheses = {str(h.get("id")) for h in spec.divergence_hypotheses if h.get("id")}
     used_situations = [family.seed_situation[:160] for family in existing]
     spec_text = render_for_generator(spec, layer_ids=layer_ids, stage="families")
     passages_text = render_key_passages(spec, max_chars=max_passage_chars)
@@ -203,12 +247,17 @@ async def generate_families(
             if hit:
                 # Never deleted: reserved with the reason recorded, so the screen is auditable.
                 split, reason = "reserved", f"avoided-topic keyword in seed situation: {hit}"
+            hint = f"slot {slot.slot_index} ({domain})"
             family = Family(
                 family_id=family_id,
                 target_id=spec.target_id,
                 domain=domain,
-                tradeoff_ids=[str(t) for t in (item.get("tradeoff_ids") or slot.tradeoff_ids)],
-                principle_ids=[str(p) for p in (item.get("principle_ids") or [])],
+                tradeoff_ids=validated_ids(
+                    item.get("tradeoff_ids"), known_tradeoffs, slot.tradeoff_ids, "tradeoff", hint
+                ),
+                principle_ids=validated_ids(
+                    item.get("principle_ids"), known_principles, [], "principle", hint
+                ),
                 case_type_intent=slot.case_type_intent,
                 seed_situation=seed,
                 why_it_is_hard=str(item.get("why_it_is_hard", "")).strip(),
@@ -229,6 +278,17 @@ async def generate_families(
                 },
                 reserved_reason=reason,
                 mode=slot.mode,
+                slot_index=slot.slot_index,
+                divergence_hypothesis_id=(
+                    validated_ids(
+                        [item.get("divergence_hypothesis_id") or slot.divergence_hypothesis_id],
+                        known_hypotheses,
+                        [slot.divergence_hypothesis_id] if slot.divergence_hypothesis_id else [],
+                        "divergence hypothesis",
+                        hint,
+                    )
+                    or [""]
+                )[0],
             )
             done_by_id[family_id] = family
             families.append(family)
@@ -243,17 +303,55 @@ async def generate_families(
         sum(1 for f in families if f.reserved_reason),
     )
     max_attempts = int(settings.get("family_generation_attempts", 2))
-    if len(families) < len(slots) and len(families) > len(existing) and attempt < max_attempts:
+    still_empty = [s.slot_index for s in slots if s.slot_index not in {f.slot_index for f in families}]
+    if still_empty and len(families) > len(existing) and attempt < max_attempts:
         logger.info(
-            "families: retrying the %d unfilled slots (attempt %d of %d)",
-            len(slots) - len(families),
+            "families: retrying slot indices %s (attempt %d of %d)",
+            still_empty,
             attempt + 1,
             max_attempts,
         )
         return await generate_families(
             client, spec, config, run_dir, slots, families, attempt + 1
         )
+    if still_empty:
+        logger.warning("families: slot indices %s are still unfilled", still_empty)
+    _require_complete_groups(families, slots)
     return families
+
+
+def _backfill_slot_indices(families: list[Family], slots: list[FamilySlot]) -> list[Family]:
+    """Give slot indices to families written before the field existed, in file order."""
+    unset = [family for family in families if family.slot_index < 0]
+    if not unset:
+        return families
+    taken = {family.slot_index for family in families if family.slot_index >= 0}
+    free = [slot.slot_index for slot in slots if slot.slot_index not in taken]
+    for family, slot_index in zip(unset, free):
+        family.slot_index = slot_index
+    logger.info("families: backfilled slot indices for %d pre-existing families", len(unset))
+    return families
+
+
+def _require_complete_groups(families: list[Family], slots: list[FamilySlot]) -> None:
+    """A half-generated contrastive pair is worse than none: stop rather than ship it."""
+    planned: dict[str, list[int]] = {}
+    for slot in slots:
+        if slot.counterfactual_group:
+            planned.setdefault(slot.counterfactual_group, []).append(slot.slot_index)
+    filled = {family.slot_index for family in families}
+    incomplete = {
+        label: [index for index in members if index not in filled]
+        for label, members in planned.items()
+        if any(index not in filled for index in members)
+    }
+    if incomplete:
+        raise IncompleteGroupError(
+            "Contrastive groups are incomplete, so the contrast they exist to draw would "
+            "be lost. Missing slot indices per group: "
+            + "; ".join(f"{label}: {missing}" for label, missing in sorted(incomplete.items()))
+            + ". Re-run the generate stage on the same --run to fill them."
+        )
 
 
 def mode_instructions(mode: str, forbidden_terms: str, target_name: str) -> str:
@@ -490,7 +588,6 @@ async def generate_responses(
     """One deliberation+answer per prompt, with optional critique->revise rounds."""
     settings = config.generation
     generator = config.role("generator")
-    revise_rounds = int(settings.get("revise_rounds", 0))
     max_passage_chars = int(settings.get("max_passage_chars_responses", 8000))
     layer_ids = selected_layers(spec, config)
     forbidden = ", ".join(spec.forbidden_terms) or "(none)"
@@ -544,38 +641,6 @@ async def generate_responses(
                 f"response_{prompt.prompt_id}_empty",
                 {"payload": payload, "raw_text": response.text},
             )
-        rounds_done = 0
-        for _ in range(revise_rounds):
-            critique = await _critique_for_revision(
-                client, config, spec, prompt, payload, passages_text, forbidden
-            )
-            if critique is None or critique.get("verdict") == "accept":
-                break
-            revised, response = await client.complete_json(
-                generator,
-                [
-                    {"role": "system", "content": GENERATOR_SYSTEM_PROMPT},
-                    {
-                        "role": "user",
-                        "content": render(
-                            RESPONSE_REVISION_PROMPT,
-                            target_spec=spec_text,
-                            key_passages=passages_text,
-                            user_prompt=prompt.text,
-                            deliberation=payload.get("deliberation", ""),
-                            answer=payload.get("answer", ""),
-                            verdict=critique.get("verdict", ""),
-                            issues="\n".join(f"- {i}" for i in critique.get("issues", [])),
-                            rationale=critique.get("rationale", ""),
-                            mode_instructions=mode_instructions(prompt.mode, forbidden, spec.name),
-                        ),
-                    },
-                ],
-                stage="generate.revise",
-                record_id=prompt.prompt_id,
-            )
-            payload = revised
-            rounds_done += 1
         return Response(
             response_id=short_id("resp", prompt.prompt_id, generator.model),
             prompt_id=prompt.prompt_id,
@@ -590,7 +655,7 @@ async def generate_responses(
             },
             generator_model=generator.model,
             usage=dict(response.usage or {}),
-            revise_rounds=rounds_done,
+            revise_rounds=0,
             mode=prompt.mode,
         )
 
@@ -612,48 +677,6 @@ async def generate_responses(
         failures,
     )
     return responses
-
-
-async def _critique_for_revision(
-    client: ModelClient,
-    config: RunConfig,
-    spec: TargetSpec,
-    prompt: Prompt,
-    payload: dict[str, Any],
-    passages_text: str,
-    forbidden: str,
-) -> dict[str, Any] | None:
-    """In-loop critique used only when revise_rounds > 0. The validate stage reviews again."""
-    from pipeline.target import render_for_reviewer
-
-    try:
-        critique, _ = await client.complete_json(
-            config.role("reviewer"),
-            [
-                {"role": "system", "content": REVIEWER_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": render(
-                        FIDELITY_REVIEW_PROMPT,
-                        target_spec=render_for_reviewer(spec),
-                        key_passages=passages_text,
-                        user_prompt=prompt.text,
-                        deliberation=payload.get("deliberation", ""),
-                        answer=payload.get("answer", ""),
-                        principles_claimed=", ".join(payload.get("principles_applied") or []),
-                        passages_claimed=", ".join(payload.get("source_passages") or []),
-                        tradeoff_summary="(see the target specification above)",
-                        forbidden_terms=forbidden,
-                    ),
-                },
-            ],
-            stage="generate.critique",
-            record_id=prompt.prompt_id,
-        )
-        return critique
-    except ModelError as error:
-        logger.warning("in-loop critique failed for %s: %s", prompt.prompt_id, error)
-        return None
 
 
 async def run_stage(

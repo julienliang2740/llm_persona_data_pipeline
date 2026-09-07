@@ -29,5 +29,33 @@ def pilot_config():
     return load_config("configs/pilot.yaml")
 
 
+REAL_TARGETS = ("catholic", "confucian", "protestant", "theravada")
+
+
+@pytest.fixture(scope="session")
+def real_specs():
+    """The four reviewed targets. Plan invariants must hold on all of them, not just the toy."""
+    from pipeline.target import load_target
+
+    specs = {}
+    for target_id in REAL_TARGETS:
+        path = REPO_ROOT / "targets" / target_id
+        if (path / "spec.yaml").exists():
+            specs[target_id] = load_target(REPO_ROOT / "targets", target_id)
+    if not specs:
+        pytest.skip("no real targets committed yet")
+    return specs
+
+
+PLAN_SETTINGS = {
+    "divergence_fraction": 0.4,
+    "eval_family_fraction": 0.25,
+    "reserved_family_fraction": 0.0,
+    "counterfactual_fraction": 0.3,
+    "explicit_fraction": 0.0,
+    "unresolved_tradeoff_fraction": 0.25,
+}
+
+
 def pytest_configure(config):
     config.addinivalue_line("markers", "smoke: makes a real API call; skipped without a key")

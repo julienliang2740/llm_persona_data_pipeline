@@ -83,6 +83,8 @@ Requirements for every family:
 - `source_passage_ids`: the passage ids (from the list above) that ground the judgment here.
   Use the ids exactly as printed, prefix included.
 - `case_type_intent`: exactly the value assigned to that family.
+- `divergence_hypothesis_id`: for a divergence family, the id given in its assignment,
+  copied unchanged. Empty string for an ordinary family.
 - `varied_fact`: for a family in a contrastive group, the single changed fact, stated as
   "X rather than Y". Empty string otherwise.
 - `situation_features`: a small object describing the situation along these axes, in your own
@@ -116,7 +118,7 @@ Already-used situations in this run, which you must not repeat or paraphrase:
 
 Reply with JSON of exactly this shape:
 
-{"families": [{"seed_situation": "...", "why_it_is_hard": "...", "principle_ids": ["..."], "tradeoff_ids": ["..."], "source_passage_ids": ["..."], "case_type_intent": "ordinary", "varied_fact": "", "situation_features": {"relationship": "...", "role_type": "...", "harm_severity": "...", "urgency": "...", "public_or_private": "...", "asker_state": "..."}}]}
+{"families": [{"seed_situation": "...", "why_it_is_hard": "...", "principle_ids": ["..."], "tradeoff_ids": ["..."], "source_passage_ids": ["..."], "case_type_intent": "ordinary", "divergence_hypothesis_id": "", "varied_fact": "", "situation_features": {"relationship": "...", "role_type": "...", "harm_severity": "...", "urgency": "...", "public_or_private": "...", "asker_state": "..."}}]}
 """
 
 PROMPT_VARIANT_PROMPT = """\

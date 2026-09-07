@@ -20,6 +20,8 @@ BASELINE_FILE = "baseline.jsonl"
 REVIEWS_FILE = "reviews.jsonl"
 DIVERGENCE_FILE = "divergence.jsonl"
 DECISIONS_FILE = "decisions.jsonl"
+STRONG_BASELINE_FILE = "baseline_strong.jsonl"
+REVIEWS_SECOND_FILE = "reviews_second.jsonl"
 USAGE_FILE = "usage.jsonl"
 LOG_FILE = "log.txt"
 
@@ -27,16 +29,43 @@ VARIANTS = ("base", "setting_shift", "role_shift", "fiction", "roleplay", "terse
 CASE_TYPES = ("ordinary", "divergence")
 SPLITS = ("train", "eval", "reserved")
 MODES = ("neutral", "explicit")
-# Situation features the generator fills in per family. Free text, not a rigid enum:
-# they exist so the coverage plan can check spread rather than to constrain generation.
-SITUATION_FEATURE_KEYS = (
-    "relationship",
-    "role_type",
-    "harm_severity",
-    "urgency",
-    "public_or_private",
-    "asker_state",
+
+# Situation features are closed enums so the coverage plan can enforce a spread and the
+# structural dedupe key is comparable across families. Free text goes in `note`.
+HARM_SEVERITY = ("minor", "serious", "grave")
+URGENCY = ("none", "days", "now")
+PUBLIC_OR_PRIVATE = ("private", "semi_public", "public")
+ROLE_TYPE = ("no_authority", "peer", "holds_authority", "institution")
+# What the asker wants from the exchange. Planned per slot, not chosen by the generator,
+# because a run of nothing but "conflicted" askers is the failure mode we keep hitting.
+ASKER_STANCE = (
+    "conflicted",
+    "decided_wants_permission",
+    "angry_wants_to_win",
+    "defensive",
+    "transactional",
 )
+ASKER_STANCE_MIX = {
+    "conflicted": 0.40,
+    "decided_wants_permission": 0.20,
+    "angry_wants_to_win": 0.15,
+    "defensive": 0.15,
+    "transactional": 0.10,
+}
+SITUATION_FEATURE_ENUMS = {
+    "harm_severity": HARM_SEVERITY,
+    "urgency": URGENCY,
+    "public_or_private": PUBLIC_OR_PRIVATE,
+    "role_type": ROLE_TYPE,
+}
+SITUATION_FEATURE_KEYS = tuple(SITUATION_FEATURE_ENUMS) + ("relationship", "note")
+
+# What a user message is actually asking for. Two prompts on one family must differ here,
+# not merely in length.
+QUESTION_KINDS = ("what_to_do", "how_to_say_it", "was_my_decision_right")
+
+# Kinds of baseline answer kept for the three-way divergence comparison.
+BASELINE_KINDS = ("base", "strong_generic")
 
 
 def short_id(prefix: str, *parts: str) -> str:
@@ -69,6 +98,24 @@ class Family:
     situation_features: dict[str, str] = field(default_factory=dict)
     reserved_reason: str = ""
     mode: str = "neutral"  # neutral | explicit, inherited by the family's prompts
+    # Position in the coverage plan. Retries refill unfilled slot indices, never a
+    # count-based tail slice, so a lost batch cannot silently change the plan.
+    slot_index: int = -1
+    # Which divergence hypothesis this family was written to instantiate. Required on
+    # divergence-intent families so hypothesis coverage is measurable.
+    divergence_hypothesis_id: str = ""
+    asker_stance: str = ""
+    institution: str = ""
+    layers_generated: list[str] = field(default_factory=list)
+
+    @property
+    def structural_key(self) -> str:
+        """Plan-time uniqueness key: two families in one domain must not share it."""
+        features = self.situation_features or {}
+        tradeoff = self.tradeoff_ids[0] if self.tradeoff_ids else ""
+        return "|".join(
+            [tradeoff, features.get("role_type", ""), features.get("harm_severity", ""), self.domain]
+        )
 
     @property
     def split_group_id(self) -> str:
@@ -87,6 +134,8 @@ class Prompt:
     case_type: str  # ordinary | divergence
     # explicit prompts may name the tradition; the cue check is skipped for them.
     mode: str = "neutral"  # neutral | explicit
+    register: str = ""  # long_detailed | short_blunt | mid_neutral | anxious | defensive
+    question_kind: str = ""  # what_to_do | how_to_say_it | was_my_decision_right
 
 
 @dataclass
@@ -102,6 +151,9 @@ class Response:
     usage: dict[str, Any] = field(default_factory=dict)
     revise_rounds: int = 0
     mode: str = "neutral"  # neutral | explicit, copied from the prompt
+    # 2-4 sentences naming the concrete choice this prompt turns on. Leads the exported
+    # grading key, so it is written by the same model that wrote the answer.
+    expected_actions: str = ""
 
 
 @dataclass
@@ -115,21 +167,47 @@ class Review:
     issues: list[str]
     verdict: str  # accept | revise | reject
     rationale: str
+    # A verbatim sentence from the answer that shows the target's judgment, and the name
+    # of the move it makes. An empty quote caps judgment_not_terminology at 3.
+    judgment_evidence_quote: str = ""
+    judgment_move: str = ""
+    # Which of the spec's signature_moves the answer shows.
+    signature_moves_present: list[str] = field(default_factory=list)
+    # Observations that must not touch the fidelity score, e.g. modern legal duties the
+    # tradition never formulated.
+    notes: list[str] = field(default_factory=list)
 
 
 @dataclass
 class BaselineAnswer:
-    """The un-finetuned base model's answer to the same prompt."""
+    """An answer to compare the candidate against.
+
+    `kind` is "base" for the un-finetuned 7B checkpoint being fine-tuned, and
+    "strong_generic" for a strong model answering with no target specification at the
+    same length budget. The three-way comparison separates a value difference from a
+    capability difference.
+    """
 
     prompt_id: str
     base_model: str
     text: str
     usage: dict[str, Any] = field(default_factory=dict)
+    kind: str = "base"
+    finish_reason: str = ""
+
+    @property
+    def truncated(self) -> bool:
+        """A cut-off answer cannot be compared: it may not have reached its recommendation."""
+        return self.finish_reason == "length" or not self.text.strip().endswith((".", "!", "?", '"'))
 
 
 @dataclass
 class DivergenceVerdict:
-    """Judge comparing a candidate response with the baseline answer."""
+    """Judge comparing the candidate, the 7B base answer and a strong generic answer.
+
+    The third answer is what separates "the target says something a generic assistant
+    would not" from "the candidate is simply written by a better model".
+    """
 
     prompt_id: str
     judge_model: str
@@ -137,6 +215,16 @@ class DivergenceVerdict:
     kind: str  # action | reasons | both | none
     explanation: str
     presented_first: str = ""  # candidate | baseline, recorded for audit
+    # Each reply's recommended action, stated verbatim by the judge before it decides.
+    candidate_action: str = ""
+    base_action: str = ""
+    generic_action: str = ""
+    closer_to: str = ""  # generic | candidate | equidistant
+    # The sentence a generic assistant would not have written. Empty forces diverges=false.
+    value_named: str = ""
+    divergence_source: str = ""  # value | capability | stipulated | none
+    hypothesis_id: str = ""
+    unverified_reason: str = ""  # set when a compared answer was truncated
 
 
 @dataclass
@@ -153,6 +241,8 @@ class Decision:
     divergence_status: str = "not_applicable"
     # action | reasons | both | none, from the divergence judge
     divergence_kind: str = ""
+    # value | capability | stipulated | none. Only "value" counts as real divergence.
+    divergence_source: str = ""
     # cue_policy.soft_terms that appeared: reported, never a reason to drop
     soft_cue_hits: list[str] = field(default_factory=list)
 

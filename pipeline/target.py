@@ -62,6 +62,26 @@ class TargetSpec:
         return list(self.cue_policy.get("forbidden_terms") or [])
 
     @property
+    def allowed_terms(self) -> list[str]:
+        """Ordinary-English words the target needs. Never counted as cue leakage."""
+        return list(self.cue_policy.get("allowed_terms") or [])
+
+    @property
+    def signature_moves(self) -> list[dict[str, Any]]:
+        """Named, checkable moves a response should show when relevant."""
+        moves = self.raw.get("signature_moves") or []
+        return [m if isinstance(m, dict) else {"id": str(m), "description": ""} for m in moves]
+
+    @property
+    def deliberation_shape(self) -> str:
+        """Per-target description of how this target deliberates, used in the response prompt."""
+        return str(self.raw.get("deliberation_shape") or "").strip()
+
+    @property
+    def archaic_register_examples(self) -> list[str]:
+        return list(self.cue_policy.get("archaic_register_examples") or [])
+
+    @property
     def soft_terms(self) -> list[str]:
         """Ambiguous words that are reported as a flag but never reject on their own."""
         return list(self.cue_policy.get("soft_terms") or [])
@@ -520,13 +540,50 @@ def render_for_generator(
     return "\n\n".join(sections)
 
 
-def render_for_reviewer(spec: TargetSpec) -> str:
+def render_open_questions(spec: TargetSpec) -> str:
+    """The clauses the reviewer must protect: what each unresolved item leaves open.
+
+    A tradeoff marked unresolved may carry `resolved_part` and `open_question`; where a spec
+    has not been updated yet, the whole description is treated as open.
+    """
+    lines: list[str] = []
+    for tradeoff in spec.tradeoffs:
+        if not tradeoff.get("unresolved"):
+            continue
+        resolved = str(tradeoff.get("resolved_part", "")).strip()
+        open_question = str(tradeoff.get("open_question", "")).strip()
+        lines.append(f"{tradeoff.get('id')}:")
+        if resolved:
+            lines.append(f"  SETTLED, be decisive about this: {resolved}")
+        lines.append(
+            f"  OPEN, do not settle this: {open_question or str(tradeoff.get('description', '')).strip()}"
+        )
+    for choice in spec.unresolved_choices:
+        policy = str(choice.get("generation_policy", "")).strip()
+        if policy not in ("mark_ambiguous", "avoid"):
+            continue
+        lines.append(f"{choice.get('id')}:")
+        lines.append(f"  OPEN, do not settle this: {str(choice.get('question', '')).strip()}")
+    return "\n".join(lines) if lines else "(this target marks nothing as open)"
+
+
+def render_signature_moves(spec: TargetSpec) -> str:
+    moves = spec.signature_moves
+    if not moves:
+        return ""
+    return "\n".join(
+        f"    - {move.get('id') or move.get('name')}: {str(move.get('description', '')).strip()}"
+        for move in moves
+    )
+
+
+def render_for_reviewer(spec: TargetSpec, layer_ids: list[str] | None = None) -> str:
     """The reviewer needs the same target plus the red flags, not the coverage plan."""
     return "\n\n".join(
         [
             f"# Target: {spec.name} (id {spec.target_id}, spec version {spec.version})",
             "## How this target judges\n" + spec.summary,
-            "## Principles\n" + render_principles(spec),
+            "## Principles\n" + render_principles(spec, None, layer_ids),
             "## Limits the target imposes on itself\n" + render_boundaries(spec),
             "## Genuine tradeoffs\n" + render_tradeoffs(spec),
             "## Open interpretation questions (a confident resolution is a defect)\n"

@@ -6,10 +6,12 @@ researcher can see why anything was dropped without re-running a model.
 
 from __future__ import annotations
 
+import json
 import logging
 import math
 import random
 import re
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Sequence
@@ -27,12 +29,20 @@ from pipeline.records import (
     Review,
     short_id,
 )
-from pipeline.target import TargetSpec, render_for_reviewer, render_key_passages
+from pipeline.target import (
+    TargetSpec,
+    render_for_reviewer,
+    render_key_passages,
+    render_open_questions,
+    render_signature_moves,
+)
 from prompts import render
 from prompts.review import (
+    ALLOWED_TERMS_NOTE,
     DIVERGENCE_JUDGE_PROMPT,
     FIDELITY_REVIEW_PROMPT,
     REVIEWER_SYSTEM_PROMPT,
+    SIGNATURE_MOVES_NOTE,
     SOFT_TERMS_NOTE,
 )
 
@@ -176,17 +186,27 @@ async def _review_responses(
     families_by_id: dict[str, Family],
     responses: list[Response],
     existing: list[Review],
+    layer_ids: list[str] | None = None,
+    reviewer_role_name: str = "reviewer",
 ) -> list[Review]:
-    reviewer = config.role("reviewer")
+    reviewer = config.role(reviewer_role_name)
     reviewed = {review.response_id for review in existing}
     todo = [r for r in responses if r.response_id not in reviewed]
     if not todo:
         return existing
-    spec_text = render_for_reviewer(spec)
+    spec_text = render_for_reviewer(spec, layer_ids)
     forbidden = ", ".join(spec.forbidden_terms) or "(none)"
     soft_terms_note = (
         render(SOFT_TERMS_NOTE, soft_terms=", ".join(spec.soft_terms)) if spec.soft_terms else ""
     )
+    allowed_terms_note = (
+        render(ALLOWED_TERMS_NOTE, allowed_terms=", ".join(spec.allowed_terms))
+        if spec.allowed_terms
+        else ""
+    )
+    moves_text = render_signature_moves(spec)
+    signature_moves = render(SIGNATURE_MOVES_NOTE, moves=moves_text) if moves_text else ""
+    open_questions = render_open_questions(spec)
 
     async def review_one(response: Response) -> Review | None:
         prompt = prompts_by_id.get(response.prompt_id)
@@ -200,13 +220,11 @@ async def _review_responses(
                if (spec.tradeoff(tid) or {}).get("unresolved") else "")
             for tid in tradeoff_ids
         ) or "(none recorded)"
-        payload, _ = await client.complete_json(
-            reviewer,
-            [
-                {"role": "system", "content": REVIEWER_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": render(
+        messages = [
+            {"role": "system", "content": REVIEWER_SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": render(
                         FIDELITY_REVIEW_PROMPT,
                         target_spec=spec_text,
                         key_passages=render_key_passages(
@@ -218,32 +236,45 @@ async def _review_responses(
                         principles_claimed=", ".join(response.hidden.get("principles_applied") or []),
                         passages_claimed=", ".join(response.hidden.get("source_passages") or []),
                         tradeoff_summary=tradeoff_summary,
+                        why_it_is_hard=(family.why_it_is_hard if family else "(not recorded)"),
+                        open_questions=open_questions,
                         forbidden_terms=forbidden,
+                        allowed_terms_note=allowed_terms_note,
                         soft_terms_note=soft_terms_note,
-                    ),
-                },
-            ],
-            stage="validate.review",
-            record_id=response.response_id,
-        )
-        scores = payload.get("scores") or {}
-        return Review(
-            review_id=short_id("rev", response.response_id, reviewer.model),
-            response_id=response.response_id,
-            reviewer_model=reviewer.model,
-            scores={
-                "fidelity": _as_int(scores.get("fidelity")),
-                "judgment_not_terminology": _as_int(scores.get("judgment_not_terminology")),
-                "scenario_quality": _as_int(scores.get("scenario_quality")),
-                "cue_leakage": bool(scores.get("cue_leakage")),
-                "confident_on_unresolved": bool(scores.get("confident_on_unresolved")),
-                "quoted_source_text": bool(scores.get("quoted_source_text")),
-                "archaic_register": bool(scores.get("archaic_register")),
+                    signature_moves=signature_moves,
+                ),
             },
-            issues=[str(issue) for issue in (payload.get("issues") or [])],
-            verdict=str(payload.get("verdict", "revise")).lower().strip(),
-            rationale=str(payload.get("rationale", "")).strip(),
+        ]
+        payload, _ = await client.complete_json(
+            reviewer, messages, stage="validate.review", record_id=response.response_id
         )
+        missing = missing_score_keys(payload)
+        if missing:
+            # A missing boolean reads as false, which silently clears a defect flag.
+            logger.warning(
+                "review of %s omitted score keys %s; asking once more",
+                response.response_id,
+                missing,
+            )
+            payload, _ = await client.complete_json(
+                reviewer,
+                messages
+                + [
+                    {"role": "assistant", "content": json.dumps(payload)[:3000]},
+                    {
+                        "role": "user",
+                        "content": (
+                            "That reply omitted these required keys inside `scores`: "
+                            + ", ".join(missing)
+                            + ". Reply again with the complete JSON object, every score key "
+                            "present, and nothing else."
+                        ),
+                    },
+                ],
+                stage="validate.review.repair",
+                record_id=response.response_id,
+            )
+        return _review_from_payload(payload, response, reviewer.model)
 
     results = await gather_bounded([review_one(response) for response in todo])
     reviews = list(existing)
@@ -256,6 +287,58 @@ async def _review_responses(
     return reviews
 
 
+REQUIRED_SCORE_KEYS = (
+    "fidelity",
+    "judgment_not_terminology",
+    "scenario_quality",
+    "cue_leakage",
+    "confident_on_unresolved",
+    "formulaic_shape",
+    "prompt_stipulates_move",
+    "quoted_source_text",
+    "archaic_register",
+)
+
+
+def missing_score_keys(payload: Any) -> list[str]:
+    """Score keys the reviewer left out. A missing boolean silently reads as false."""
+    scores = (payload or {}).get("scores") or {}
+    return [key for key in REQUIRED_SCORE_KEYS if key not in scores]
+
+
+def _review_from_payload(payload: dict[str, Any], response: Response, reviewer_model: str) -> Review:
+    scores = payload.get("scores") or {}
+    quote = str(payload.get("judgment_evidence_quote", "")).strip()
+    judgment = _as_int(scores.get("judgment_not_terminology"))
+    if not quote:
+        # The rubric says an unevidenced judgment score is capped; enforce it here too so
+        # a reviewer that ignores the instruction cannot inflate the score anyway.
+        judgment = min(judgment, 3)
+    return Review(
+        review_id=short_id("rev", response.response_id, reviewer_model),
+        response_id=response.response_id,
+        reviewer_model=reviewer_model,
+        scores={
+            "fidelity": _as_int(scores.get("fidelity")),
+            "judgment_not_terminology": judgment,
+            "scenario_quality": _as_int(scores.get("scenario_quality")),
+            "cue_leakage": bool(scores.get("cue_leakage")),
+            "confident_on_unresolved": bool(scores.get("confident_on_unresolved")),
+            "formulaic_shape": bool(scores.get("formulaic_shape")),
+            "prompt_stipulates_move": bool(scores.get("prompt_stipulates_move")),
+            "quoted_source_text": bool(scores.get("quoted_source_text")),
+            "archaic_register": bool(scores.get("archaic_register")),
+        },
+        issues=[str(issue) for issue in (payload.get("issues") or [])],
+        verdict=str(payload.get("verdict", "revise")).lower().strip(),
+        rationale=str(payload.get("rationale", "")).strip(),
+        judgment_evidence_quote=quote,
+        judgment_move=str(payload.get("judgment_move", "")).strip(),
+        signature_moves_present=[str(m) for m in (payload.get("signature_moves_present") or [])],
+        notes=[str(note) for note in (payload.get("notes") or [])],
+    )
+
+
 def _as_int(value: Any, default: int = 0) -> int:
     try:
         return int(round(float(value)))
@@ -266,30 +349,76 @@ def _as_int(value: Any, default: int = 0) -> int:
 async def _judge_divergence(
     client: ModelClient,
     config: RunConfig,
+    spec: TargetSpec,
     prompts_by_id: dict[str, Prompt],
+    families_by_id: dict[str, Family],
     responses_by_prompt: dict[str, Response],
     baselines: list[BaselineAnswer],
+    strong_generics: list[BaselineAnswer],
     existing: list[DivergenceVerdict],
 ) -> list[DivergenceVerdict]:
+    """Three-way judging: the candidate, the 7B base, and a strong answer with no spec."""
     judge = config.role("judge") if "judge" in config.roles else config.role("reviewer")
     judged = {verdict.prompt_id for verdict in existing}
+    base_by_prompt = {answer.prompt_id: answer for answer in baselines}
+    generic_by_prompt = {answer.prompt_id: answer for answer in strong_generics}
+    hypothesis_text = {
+        str(h.get("id")): " ".join(str(h.get("description", "")).split())
+        for h in spec.divergence_hypotheses
+        if h.get("id")
+    }
+
     todo = [
-        baseline
-        for baseline in baselines
-        if baseline.prompt_id not in judged
-        and baseline.prompt_id in responses_by_prompt
-        and prompts_by_id.get(baseline.prompt_id, Prompt("", "", "", "", "")).case_type == "divergence"
+        prompt_id
+        for prompt_id in base_by_prompt
+        if prompt_id not in judged
+        and prompt_id in responses_by_prompt
+        and prompts_by_id.get(prompt_id)
+        and prompts_by_id[prompt_id].case_type == "divergence"
     ]
     if not todo:
         return existing
 
-    async def judge_one(baseline: BaselineAnswer) -> DivergenceVerdict | None:
-        prompt = prompts_by_id[baseline.prompt_id]
-        candidate = responses_by_prompt[baseline.prompt_id]
-        # Seeded on the prompt id so the ordering is random across items but reproducible.
-        candidate_first = random.Random(baseline.prompt_id).random() < 0.5
-        reply_a = candidate.answer if candidate_first else baseline.text
-        reply_b = baseline.text if candidate_first else candidate.answer
+    verdicts = list(existing)
+    comparable: list[str] = []
+    for prompt_id in todo:
+        base = base_by_prompt[prompt_id]
+        generic = generic_by_prompt.get(prompt_id)
+        reasons = []
+        if base.truncated:
+            reasons.append(f"base answer cut off ({base.finish_reason or 'no terminal punctuation'})")
+        if generic is None:
+            reasons.append("no strong generic answer; run the baseline stage")
+        elif generic.truncated:
+            reasons.append("strong generic answer cut off")
+        if reasons:
+            # Round 1 judged 18 truncated baselines as if they had reached a
+            # recommendation. An unusable comparison is unverified, never divergent.
+            verdicts.append(
+                DivergenceVerdict(
+                    prompt_id=prompt_id,
+                    judge_model=judge.model,
+                    diverges=False,
+                    kind="none",
+                    explanation="not judged",
+                    divergence_source="none",
+                    unverified_reason="; ".join(reasons),
+                )
+            )
+            continue
+        comparable.append(prompt_id)
+
+    async def judge_one(prompt_id: str) -> DivergenceVerdict | None:
+        prompt = prompts_by_id[prompt_id]
+        family = families_by_id.get(prompt.family_id)
+        candidate = responses_by_prompt[prompt_id]
+        base = base_by_prompt[prompt_id]
+        generic = generic_by_prompt[prompt_id]
+        hypothesis_id = (family.divergence_hypothesis_id if family else "") or ""
+        # Seeded on the prompt id: random across items, reproducible for one item.
+        candidate_first = random.Random(prompt_id).random() < 0.5
+        reply_a = candidate.answer
+        reply_b, reply_c = (base.text, generic.text) if candidate_first else (generic.text, base.text)
         payload, _ = await client.complete_json(
             judge,
             [
@@ -298,25 +427,40 @@ async def _judge_divergence(
                     "content": render(
                         DIVERGENCE_JUDGE_PROMPT,
                         user_prompt=prompt.text,
+                        hypothesis=hypothesis_text.get(hypothesis_id)
+                        or "(no specific hypothesis recorded for this family)",
                         reply_a=reply_a,
                         reply_b=reply_b,
+                        reply_c=reply_c,
                     ),
                 }
             ],
             stage="validate.divergence",
-            record_id=baseline.prompt_id,
+            record_id=prompt_id,
         )
+        actions = payload.get("actions") or {}
+        base_key, generic_key = ("b", "c") if candidate_first else ("c", "b")
+        value_named = str(payload.get("value_named", "")).strip()
+        source = str(payload.get("divergence_source", "none")).strip().lower()
+        # Both gates, not one: an unquoted value claim is not a value difference.
+        diverges = bool(value_named) and source == "value"
         return DivergenceVerdict(
-            prompt_id=baseline.prompt_id,
+            prompt_id=prompt_id,
             judge_model=judge.model,
-            diverges=bool(payload.get("diverges")),
+            diverges=diverges,
             kind=str(payload.get("kind", "none")),
             explanation=str(payload.get("explanation", "")).strip(),
-            presented_first="candidate" if candidate_first else "baseline",
+            presented_first="base" if candidate_first else "strong_generic",
+            candidate_action=str(actions.get("a", "")).strip(),
+            base_action=str(actions.get(base_key, "")).strip(),
+            generic_action=str(actions.get(generic_key, "")).strip(),
+            closer_to=str(payload.get("closer_to", "")).strip().lower(),
+            value_named=value_named,
+            divergence_source=source if source in ("value", "capability", "stipulated", "none") else "none",
+            hypothesis_id=str(payload.get("hypothesis_id", "")).strip(),
         )
 
-    results = await gather_bounded([judge_one(baseline) for baseline in todo])
-    verdicts = list(existing)
+    results = await gather_bounded([judge_one(prompt_id) for prompt_id in comparable])
     for result in results:
         if isinstance(result, Exception):
             logger.error("divergence judging failed: %s", result)
@@ -324,6 +468,108 @@ async def _judge_divergence(
         if result is not None:
             verdicts.append(result)
     return verdicts
+
+
+async def _revise_flagged_responses(
+    client: ModelClient,
+    config: RunConfig,
+    spec: TargetSpec,
+    prompts_by_id: dict[str, Prompt],
+    families_by_id: dict[str, Family],
+    responses: list[Response],
+    reviews: list[Review],
+    layer_ids: list[str] | None,
+) -> tuple[list[Response], list[Review], int]:
+    """Rewrite the responses the reviewer asked to revise, then review them again.
+
+    Round 1 recorded "reviewer asked for revision but all scores pass thresholds" on six
+    records and shipped the named defect unfixed. A revise verdict now costs a rewrite,
+    and a response that still fails is dropped rather than annotated.
+    """
+    from pipeline.generate import mode_instructions
+    from prompts.generation import GENERATOR_SYSTEM_PROMPT, RESPONSE_REVISION_PROMPT
+    from pipeline.target import render_for_generator
+
+    rounds = int(config.validation.get("revise_rounds", 1))
+    if rounds <= 0:
+        return responses, reviews, 0
+
+    review_by_response = {review.response_id: review for review in reviews}
+    to_revise = [
+        response
+        for response in responses
+        if (review_by_response.get(response.response_id) or Review("", "", "", {}, [], "accept", "")).verdict
+        == "revise"
+    ]
+    if not to_revise:
+        return responses, reviews, 0
+
+    generator = config.role("generator")
+    forbidden = ", ".join(spec.forbidden_terms) or "(none)"
+    logger.info("revise: rewriting %d responses the reviewer flagged", len(to_revise))
+
+    async def revise_one(response: Response) -> Response | None:
+        prompt = prompts_by_id.get(response.prompt_id)
+        family = families_by_id.get(prompt.family_id) if prompt else None
+        if prompt is None or family is None:
+            return None
+        review = review_by_response[response.response_id]
+        payload, _ = await client.complete_json(
+            generator,
+            [
+                {"role": "system", "content": GENERATOR_SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": render(
+                        RESPONSE_REVISION_PROMPT,
+                        target_spec=render_for_generator(
+                            spec,
+                            principle_ids=family.principle_ids or None,
+                            tradeoff_ids=family.tradeoff_ids or None,
+                            layer_ids=layer_ids,
+                            stage="responses",
+                        ),
+                        key_passages=render_key_passages(
+                            spec, family.source_passage_ids or None, max_chars=8000
+                        ),
+                        user_prompt=prompt.text,
+                        deliberation=response.deliberation,
+                        answer=response.answer,
+                        verdict=review.verdict,
+                        issues="\n".join(f"- {issue}" for issue in review.issues),
+                        rationale=review.rationale,
+                        mode_instructions=mode_instructions(prompt.mode, forbidden, spec.name),
+                    ),
+                },
+            ],
+            stage="validate.revise",
+            record_id=response.response_id,
+        )
+        answer = str(payload.get("answer", "")).strip()
+        if not answer:
+            return None
+        response.deliberation = str(payload.get("deliberation", "")).strip()
+        response.answer = answer
+        response.revise_rounds += 1
+        return response
+
+    results = await gather_bounded([revise_one(response) for response in to_revise])
+    revised: list[Response] = []
+    for result in results:
+        if isinstance(result, Exception):
+            logger.error("revision failed: %s", result)
+            continue
+        if result is not None:
+            revised.append(result)
+    if not revised:
+        return responses, reviews, 0
+
+    # Re-review only the rewritten ones, replacing their earlier review.
+    kept_reviews = [r for r in reviews if r.response_id not in {x.response_id for x in revised}]
+    fresh = await _review_responses(
+        client, config, spec, prompts_by_id, families_by_id, revised, [], layer_ids
+    )
+    return responses, kept_reviews + fresh, len(revised)
 
 
 async def _similarity_matrix(
@@ -348,11 +594,15 @@ async def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[
     prompts = records.read_jsonl(run_dir / records.PROMPTS_FILE, Prompt)
     responses = records.read_jsonl(run_dir / records.RESPONSES_FILE, Response)
     baselines = records.read_jsonl(run_dir / records.BASELINE_FILE, BaselineAnswer)
+    strong_generics = records.read_jsonl(run_dir / records.STRONG_BASELINE_FILE, BaselineAnswer)
     if not responses:
         raise RuntimeError(
             f"No responses in {run_dir / records.RESPONSES_FILE}. Run the generate stage first."
         )
 
+    from pipeline.plan import selected_layers
+
+    layer_ids = selected_layers(spec, config)
     families_by_id = {family.family_id: family for family in families}
     prompts_by_id = {prompt.prompt_id: prompt for prompt in prompts}
     responses_by_prompt = {response.prompt_id: response for response in responses}
@@ -362,12 +612,48 @@ async def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[
 
     async with ModelClient.from_config(config, run_dir / records.USAGE_FILE, "validate") as client:
         reviews = await _review_responses(
-            client, config, spec, prompts_by_id, families_by_id, responses, existing_reviews
+            client,
+            config,
+            spec,
+            prompts_by_id,
+            families_by_id,
+            responses,
+            existing_reviews,
+            layer_ids,
         )
+        responses, reviews, revised_count = await _revise_flagged_responses(
+            client, config, spec, prompts_by_id, families_by_id, responses, reviews, layer_ids
+        )
+        if revised_count:
+            records.write_jsonl(run_dir / records.RESPONSES_FILE, responses)
+            responses_by_prompt = {response.prompt_id: response for response in responses}
         records.write_jsonl(run_dir / records.REVIEWS_FILE, reviews)
 
+        second_role = config.validation.get("second_reviewer_role")
+        if second_role:
+            second = await _review_responses(
+                client,
+                config,
+                spec,
+                prompts_by_id,
+                families_by_id,
+                responses,
+                records.read_jsonl(run_dir / records.REVIEWS_SECOND_FILE, Review),
+                layer_ids,
+                reviewer_role_name=str(second_role),
+            )
+            records.write_jsonl(run_dir / records.REVIEWS_SECOND_FILE, second)
+
         verdicts = await _judge_divergence(
-            client, config, prompts_by_id, responses_by_prompt, baselines, existing_verdicts
+            client,
+            config,
+            spec,
+            prompts_by_id,
+            families_by_id,
+            responses_by_prompt,
+            baselines,
+            strong_generics,
+            existing_verdicts,
         )
         records.write_jsonl(run_dir / records.DIVERGENCE_FILE, verdicts)
 
@@ -427,6 +713,7 @@ async def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[
         reasons: list[str] = []
         keep = True
 
+        final_case_type_hint = prompt.case_type
         review = review_by_response.get(response.response_id)
         if review is None:
             keep = False
@@ -436,11 +723,21 @@ async def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[
                 keep = False
                 reasons.append(f"reviewer rejected: {review.rationale[:160]}")
             elif review.verdict == "revise":
-                if keep_revise and _scores_pass(review, min_fidelity, min_judgment, min_scenario):
-                    reasons.append("note: reviewer asked for revision but all scores pass thresholds")
-                else:
-                    keep = False
-                    reasons.append(f"reviewer asked for revision: {review.rationale[:160]}")
+                # The revise round already ran. A response still asking for revision has
+                # had its rewrite and did not pass, so it is dropped rather than annotated.
+                keep = False
+                reasons.append(
+                    f"reviewer still asks for revision after a rewrite: {review.rationale[:160]}"
+                )
+            if review.scores.get("formulaic_shape"):
+                keep = False
+                reasons.append("reviewer: fixed template shape rather than a shape this case needed")
+            if review.scores.get("prompt_stipulates_move"):
+                # The user's own message stated the move, so any assistant would make it.
+                if final_case_type_hint == "divergence":
+                    reasons.append(
+                        "note: prompt stipulates the target's move; relabelled ordinary"
+                    )
             if not _scores_pass(review, min_fidelity, min_judgment, min_scenario):
                 keep = False
                 reasons.append(
@@ -513,24 +810,32 @@ async def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[
                 )
 
         final_case_type = prompt.case_type
+        if review is not None and review.scores.get("prompt_stipulates_move"):
+            final_case_type = "ordinary"
         divergence_status = "not_applicable"
         divergence_kind = ""
-        if prompt.case_type == "divergence":
+        divergence_source = ""
+        if prompt.case_type == "divergence" and final_case_type == "divergence":
             verdict = verdict_by_prompt.get(prompt.prompt_id)
             if verdict is None:
                 divergence_status = "unverified"
                 reasons.append(
                     "note: intended divergence not checked, no baseline answer for this prompt"
                 )
+            elif verdict.unverified_reason:
+                divergence_status = "unverified"
+                reasons.append(f"note: divergence unverified: {verdict.unverified_reason}")
             elif verdict.diverges:
                 # A difference in reasons alone counts as divergence, not only a
                 # difference in the recommended action.
                 divergence_status = "confirmed"
                 divergence_kind = verdict.kind
+                divergence_source = verdict.divergence_source
             else:
                 # Never silently dropped: relabelled and counted.
                 divergence_status = "not_confirmed"
                 divergence_kind = verdict.kind
+                divergence_source = verdict.divergence_source
                 final_case_type = "ordinary"
                 reasons.append(
                     f"note: intended divergence did not hold against the baseline "
@@ -551,6 +856,7 @@ async def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[
                 max_leakage=round(leak_score, 4) if leak_score is not None else None,
                 divergence_status=divergence_status,
                 divergence_kind=divergence_kind,
+                divergence_source=divergence_source,
                 soft_cue_hits=soft_hits,
             )
         )
@@ -582,6 +888,7 @@ async def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[
         "divergence_reasons": sum(
             1 for d in decisions if d.divergence_status == "confirmed" and d.divergence_kind in ("reasons", "both")
         ),
+        **_family_divergence_rates(decisions, ordered, prompts_by_id, verdicts),
         "soft_cue_flags": sum(1 for d in decisions if d.soft_cue_hits),
         "explicit_mode_records": sum(
             1 for r in ordered if prompts_by_id[r.prompt_id].mode == "explicit"
@@ -593,6 +900,49 @@ async def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[
     }
     logger.info("validate: %s", summary)
     return summary
+
+
+def _family_divergence_rates(
+    decisions: list[Decision],
+    ordered: list[Response],
+    prompts_by_id: dict[str, Prompt],
+    verdicts: list[DivergenceVerdict],
+) -> dict[str, Any]:
+    """Divergence rates per family, not per prompt.
+
+    Several prompts on one family ask about the same situation, so counting per prompt
+    inflates the rate by however many prompts a family happens to carry.
+    """
+    family_of = {
+        response.response_id: prompts_by_id[response.prompt_id].family_id
+        for response in ordered
+        if response.prompt_id in prompts_by_id
+    }
+    verdict_by_prompt = {v.prompt_id: v for v in verdicts}
+    intended: set[str] = set()
+    value_families: set[str] = set()
+    closer: Counter[str] = Counter()
+    for decision in decisions:
+        family_id = family_of.get(decision.response_id)
+        if family_id is None or decision.divergence_status == "not_applicable":
+            continue
+        intended.add(family_id)
+        if decision.divergence_source == "value":
+            value_families.add(family_id)
+    for verdict in verdict_by_prompt.values():
+        if verdict.closer_to:
+            closer[verdict.closer_to] += 1
+    return {
+        "divergence_families_intended": len(intended),
+        "divergence_families_value": len(value_families),
+        "divergence_value_rate_by_family": (
+            round(len(value_families) / len(intended), 3) if intended else 0.0
+        ),
+        "divergence_closer_to": dict(closer),
+        "divergence_by_source": dict(
+            Counter(d.divergence_source for d in decisions if d.divergence_source)
+        ),
+    }
 
 
 def _scores_pass(review: Review, min_fidelity: int, min_judgment: int, min_scenario: int) -> bool:

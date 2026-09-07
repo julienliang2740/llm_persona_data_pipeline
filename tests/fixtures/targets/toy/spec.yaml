@@ -2,6 +2,11 @@ id: toy
 name: Careful Practical Prudence (invented test target)
 version: 0.1
 
+# Export refuses to write a dataset whose grounding licences carry an unstated
+# condition, so the fixture states its terms the way a real target must.
+redistribution_note: >
+  Invented material written for this repository; redistributable with the repository.
+
 summary: >
   This target judges practical situations by asking what the person actually knows,
   what they have already committed to, and who will bear the cost of the decision

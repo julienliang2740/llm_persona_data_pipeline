@@ -229,12 +229,15 @@ def test_the_reviewer_rubric_carries_its_calibration_and_red_flags():
 
     assert "Most competent responses are a 4" in FIDELITY_REVIEW_PROMPT
     for flag in (
-        "unresolved",
         "rank, seniority or popularity",
         "Archaic",
         "scripture-sounding",
-        "invariant to the",
+        "doctrinal test in plain",
+        "modern law",
     ):
         assert flag.lower() in FIDELITY_REVIEW_PROMPT.lower(), flag
+    # The evidence gate is the load-bearing calibration change.
+    assert "judgment_evidence_quote" in FIDELITY_REVIEW_PROMPT
+    assert "at most 3" in FIDELITY_REVIEW_PROMPT
     # The system prompt must protect the correct behaviours from being marked down.
     assert "not indecisiveness" in REVIEWER_SYSTEM_PROMPT
