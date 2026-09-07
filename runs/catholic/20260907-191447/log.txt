@@ -1,0 +1,21 @@
+19:14:47 INFO    main: target catholic v0.2 (16 principles, 14 tradeoffs, 78 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-191447
+19:14:47 INFO    main: === stage: generate ===
+19:16:51 WARNING pipeline.generate: slot 5 (technology_and_automation): generator returned tradeoff id(s) not in the spec: ['f orgiveness_vs_protection']; falling back to ['forgiveness_vs_protection']
+19:16:51 INFO    pipeline.generate: families: 8 of 8 planned (8 new, 0 reserved by the avoided-topic screen)
+19:18:24 INFO    pipeline.generate: prompts: 16 total (16 new)
+19:23:31 INFO    pipeline.generate: responses: 16 total (16 new, 0 failed)
+19:23:31 INFO    main: === stage: baseline ===
+19:28:33 INFO    pipeline.baseline: baseline: 8 answers total (8 new, 0 failed, 1 truncated)
+19:28:33 WARNING pipeline.baseline: baseline: 1 answers were cut off and cannot be compared: ['pr_792072eaaf']
+19:28:50 INFO    pipeline.baseline: strong generic: 8 answers total (8 new, 0 failed, 0 truncated)
+19:28:50 INFO    main: === stage: validate ===
+19:32:06 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+19:36:20 ERROR   pipeline.review: review failed: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) returned only reasoning and hit the max_tokens limit (32000) twice. Raise max_tokens for this role, or set extra_body: {reasoning_effort: low}. request_id=chatcmpl-91fcbe1f409342f991ab7b46b49e4488
+19:36:20 INFO    pipeline.review: revise: rewriting 4 responses the reviewer flagged
+19:39:29 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+19:51:32 INFO    pipeline.validate: similarity (embeddings): 120 pairs, median 0.522, robust sd 0.080, threshold median+3.0sd = 0.762
+19:51:33 INFO    pipeline.validate: validate: {'responses': 16, 'kept': 15, 'dropped': 1, 'similarity_method': 'embeddings', 'similarity_calibration': {'statistic': 'median + 3 x robust_sd', 'centre': 0.5218, 'spread': 0.0802, 'sigmas': 3.0}, 'leakage_calibration': {'statistic': 'median + 3 x robust_sd', 'centre': 0.5235, 'spread': 0.0954, 'sigmas': 3.0}, 'duplicate_threshold': 0.7625, 'leakage_threshold': 0.8095, 'duplicate_clusters': 0, 'duplicates': 0, 'cue_hits': 0, 'eval_items_checked_for_leakage': 4, 'max_leakage_seen': 0.6614, 'divergence_confirmed': 6, 'divergence_not_confirmed': 1, 'divergence_unverified': 1, 'divergence_action': 5, 'divergence_reasons': 6, 'divergence_pairwise': {'candidate_vs_base': 7, 'candidate_vs_strong_generic': 6, 'strong_generic_vs_base': 7, 'judged': 7}, 'divergence_families_intended': 4, 'divergence_families_value': 4, 'divergence_value_rate_by_family': 1.0, 'divergence_closer_to': {'candidate': 7}, 'divergence_by_source': {'value': 6, 'none': 1}, 'soft_cue_flags': 6, 'explicit_mode_records': 0, 'quoted_source_flags': 0, 'archaic_register_flags': 0, 'reviewer_flag_score_conflicts': {'reviews_with_flag_and_five': 0, 'reviews_total': 15, 'flag_five_pairs': {}}}
+19:51:33 INFO    main: === stage: export ===
+19:51:33 INFO    pipeline.export: export: 11 training rows, 4 eval rows -> /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-191447
+19:51:33 INFO    main: === stage: report ===
+19:51:33 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-191447/report.md
