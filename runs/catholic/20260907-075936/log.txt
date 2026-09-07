@@ -17,3 +17,11 @@
 08:10:35 INFO    main: === stage: export ===
 08:10:35 INFO    pipeline.export: export: 5 training rows, 0 eval rows -> /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-075936
 08:10:35 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-075936/report.md
+08:11:30 INFO    main: target catholic v0.1 (16 principles, 14 tradeoffs, 78 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-075936
+08:11:30 INFO    main: === stage: validate ===
+08:13:39 ERROR   pipeline.validate: review failed: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) returned only reasoning and hit the max_tokens limit (16000). Raise max_tokens for this role. request_id=chatcmpl-abf1228fdcb1485bb48ff219604fca69
+08:13:39 INFO    pipeline.validate: validate: {'responses': 8, 'kept': 7, 'dropped': 1, 'similarity_method': 'embeddings', 'duplicate_clusters': 0, 'duplicates': 0, 'cue_hits': 0, 'eval_items_checked_for_leakage': 2, 'max_leakage_seen': 0.5199, 'divergence_confirmed': 0, 'divergence_not_confirmed': 0, 'divergence_unverified': 2, 'divergence_action': 0, 'divergence_reasons': 0, 'soft_cue_flags': 0, 'explicit_mode_records': 0, 'quoted_source_flags': 0, 'archaic_register_flags': 0}
+08:13:40 INFO    main: target catholic v0.1 (16 principles, 14 tradeoffs, 78 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-075936
+08:13:40 INFO    main: === stage: export ===
+08:13:40 INFO    pipeline.export: export: 6 training rows, 1 eval rows -> /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-075936
+08:13:40 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-075936/report.md

@@ -1,0 +1,55 @@
+{
+  "target_id": "toy",
+  "target_name": "Careful Practical Prudence (invented test target)",
+  "spec_version": "0.1",
+  "run_id": "20260907-080717",
+  "exported_at": "2026-09-07T08:22:06+00:00",
+  "config_file": "/tmp/claude-1000/-home-ubuntu-part1-data-pipeline/a26982c7-95da-400a-8684-55c2cf42527e/scratchpad/toy_full.yaml",
+  "config_hash": "80b834f5c79f",
+  "models": {
+    "generator": "accounts/fireworks/models/qwen3p8-max",
+    "reviewer": "accounts/fireworks/models/deepseek-v4-pro-0813",
+    "judge": "accounts/fireworks/models/deepseek-v4-pro-0813",
+    "embeddings": "accounts/fireworks/models/qwen3-embedding-8b",
+    "base": "qwen2.5-7b-instruct"
+  },
+  "counts": {
+    "families": 4,
+    "families_train": 3,
+    "families_eval": 1,
+    "families_reserved": 0,
+    "prompts": 11,
+    "responses": 11,
+    "kept": 9,
+    "dropped": 2,
+    "sft_train_rows": 7,
+    "eval_rows": 2,
+    "explicit_mode_rows": 2,
+    "counterfactual_groups": 0,
+    "by_bucket": {
+      "eval:household": 2,
+      "eval_case:divergence": 2,
+      "eval_case:reframing": 1,
+      "train:household": 4,
+      "train:work": 3,
+      "train_case:divergence": 2,
+      "train_case:ordinary": 5
+    }
+  },
+  "license_constraints": [
+    {
+      "license": "none; written for this repository",
+      "use": "grounding",
+      "sources": "key_passages"
+    }
+  ],
+  "redistribution_note": "",
+  "cost": {
+    "usd": 1.3472816,
+    "display": "$1.3473",
+    "calls": 42,
+    "prompt_tokens": 91922,
+    "completion_tokens": 228987,
+    "reasoning_tokens": 212721
+  }
+}

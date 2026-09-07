@@ -1,0 +1,46 @@
+{
+  "target_id": "confucian",
+  "target_name": "Early Confucian (Analects and Mengzi)",
+  "spec_version": "0.1",
+  "run_id": "20260907-075012",
+  "exported_at": "2026-09-07T08:13:00+00:00",
+  "config_file": "/home/ubuntu/part1_data_pipeline/configs/pilot.yaml",
+  "config_hash": "ea7e7ed7914e",
+  "models": {
+    "generator": "accounts/fireworks/models/qwen3p8-max",
+    "reviewer": "accounts/fireworks/models/deepseek-v4-pro-0813",
+    "judge": "accounts/fireworks/models/deepseek-v4-pro-0813",
+    "embeddings": "accounts/fireworks/models/qwen3-embedding-8b",
+    "base": "qwen2.5-7b-instruct"
+  },
+  "counts": {
+    "families": 4,
+    "families_train": 3,
+    "families_eval": 1,
+    "families_reserved": 0,
+    "prompts": 11,
+    "responses": 11,
+    "kept": 9,
+    "dropped": 2,
+    "sft_train_rows": 7,
+    "eval_rows": 2,
+    "by_bucket": {
+      "eval:work": 2,
+      "eval_case:ordinary": 2,
+      "eval_case:reframing": 1,
+      "train:advice_and_correction": 2,
+      "train:interpersonal_conflict": 3,
+      "train:work": 2,
+      "train_case:divergence": 4,
+      "train_case:ordinary": 3
+    }
+  },
+  "cost": {
+    "usd": 1.4307221400000005,
+    "display": "$1.4307",
+    "calls": 48,
+    "prompt_tokens": 274753,
+    "completion_tokens": 187821,
+    "reasoning_tokens": 171310
+  }
+}

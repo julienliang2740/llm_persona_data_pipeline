@@ -161,6 +161,20 @@ of quality on the cases inspected. Reasoning tokens count against `max_tokens`, 
 budget is too small returns reasoning and no answer; the client raises a clear error naming the
 role and the limit when that happens.
 
+## Known limits
+
+- The reviewer sees the whole target on every call, about 11,000 input tokens on a real spec,
+  which is now the largest single input cost in a run. It is deliberate: a critic that cannot
+  see a principle cannot notice that it was missed.
+- A reasoning model sometimes spends its whole `max_tokens` thinking and returns no answer. The
+  client retries once at double the budget, capped at 32,000, and only then raises an error
+  naming the role. If you see that error, raise the role's `max_tokens` or set
+  `extra_body: {reasoning_effort: low}`.
+- Contrastive pairs need at least two families in one domain, so a very small pilot produces
+  none. That is by design, not a failure.
+- `pipeline/generate.py` is around 780 lines because coverage planning and the three generation
+  stages live together. Splitting the planning out into its own module would fix it.
+
 ## Tests
 
 ```bash

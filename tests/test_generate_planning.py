@@ -161,3 +161,24 @@ def test_an_unknown_layer_name_is_a_clear_error(toy_spec, pilot_config):
         _selected_layers(toy_spec, config)
     assert "nonexistent" in str(error.value)
     assert "core" in str(error.value)
+
+
+def test_explicit_instructions_name_the_actual_target(toy_spec):
+    """Told only 'you may name the tradition', a generator invents one. Observed in a run."""
+    from prompts import render
+    from prompts.generation import EXPLICIT_MODE_PROMPT_INSTRUCTIONS
+    from pipeline.generate import mode_instructions
+
+    prompt_side = render(EXPLICIT_MODE_PROMPT_INSTRUCTIONS, target_name=toy_spec.name)
+    response_side = mode_instructions("explicit", "a, b", toy_spec.name)
+    assert toy_spec.name in prompt_side
+    assert toy_spec.name in response_side
+    assert "no other" in prompt_side
+
+
+def test_neutral_instructions_carry_the_forbidden_terms_not_the_name(toy_spec):
+    from pipeline.generate import mode_instructions
+
+    neutral = mode_instructions("neutral", "Careful Practice, HCP", toy_spec.name)
+    assert "Careful Practice" in neutral
+    assert toy_spec.name not in neutral

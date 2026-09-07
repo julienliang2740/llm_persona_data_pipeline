@@ -387,10 +387,14 @@ async def generate_families(
     return families
 
 
-def mode_instructions(mode: str, forbidden_terms: str) -> str:
-    """The cue block a response prompt gets: explicit slices may name the tradition."""
+def mode_instructions(mode: str, forbidden_terms: str, target_name: str) -> str:
+    """The cue block a response prompt gets: explicit slices may name the tradition.
+
+    The name is passed in, because a generator told only "you may name the tradition"
+    will invent one.
+    """
     if mode == "explicit":
-        return EXPLICIT_MODE_RESPONSE_INSTRUCTIONS
+        return render(EXPLICIT_MODE_RESPONSE_INSTRUCTIONS, target_name=target_name)
     return render(NEUTRAL_MODE_RESPONSE_INSTRUCTIONS, forbidden_terms=forbidden_terms)
 
 
@@ -488,7 +492,7 @@ async def generate_prompts(
             why_it_is_hard=family.why_it_is_hard,
             n_prompts=n_prompts,
             mode_instructions=(
-                EXPLICIT_MODE_PROMPT_INSTRUCTIONS
+                render(EXPLICIT_MODE_PROMPT_INSTRUCTIONS, target_name=spec.name)
                 if mode == "explicit"
                 else render(NEUTRAL_MODE_PROMPT_INSTRUCTIONS, forbidden_terms=forbidden)
             ),
@@ -636,7 +640,7 @@ async def generate_responses(
                     key_passages=passages_text,
                     user_prompt=prompt.text,
                     why_it_is_hard=family.why_it_is_hard,
-                    mode_instructions=mode_instructions(prompt.mode, forbidden),
+                    mode_instructions=mode_instructions(prompt.mode, forbidden, spec.name),
                 ),
             },
         ]
@@ -666,7 +670,7 @@ async def generate_responses(
                             verdict=critique.get("verdict", ""),
                             issues="\n".join(f"- {i}" for i in critique.get("issues", [])),
                             rationale=critique.get("rationale", ""),
-                            mode_instructions=mode_instructions(prompt.mode, forbidden),
+                            mode_instructions=mode_instructions(prompt.mode, forbidden, spec.name),
                         ),
                     },
                 ],

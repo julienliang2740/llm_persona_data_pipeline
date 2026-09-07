@@ -5,3 +5,13 @@
 08:09:23 INFO    pipeline.generate: families: retrying the 3 unfilled slots (attempt 2 of 2)
 08:10:41 INFO    pipeline.generate: families: 4 of 6 planned (1 new, 0 reserved by the avoided-topic screen)
 08:11:00 INFO    pipeline.generate: prompts: 11 total (11 new)
+08:14:05 INFO    pipeline.generate: responses: 11 total (11 new, 0 failed)
+08:14:05 INFO    main: === stage: baseline ===
+08:17:17 INFO    pipeline.baseline: baseline: 5 answers total (5 new, 0 failed)
+08:17:17 INFO    main: === stage: validate ===
+08:21:24 ERROR   pipeline.validate: review failed: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) returned only reasoning and hit the max_tokens limit (8192). Raise max_tokens for this role. request_id=chatcmpl-06bbdcdb09a0427d8056b0d61736cdd7
+08:22:06 INFO    pipeline.validate: validate: {'responses': 11, 'kept': 9, 'dropped': 2, 'similarity_method': 'embeddings', 'duplicate_clusters': 0, 'duplicates': 0, 'cue_hits': 0, 'eval_items_checked_for_leakage': 2, 'max_leakage_seen': 0.7103, 'divergence_confirmed': 5, 'divergence_not_confirmed': 0, 'divergence_unverified': 0, 'divergence_action': 5, 'divergence_reasons': 4, 'soft_cue_flags': 5, 'explicit_mode_records': 2, 'quoted_source_flags': 2, 'archaic_register_flags': 0}
+08:22:06 INFO    main: === stage: export ===
+08:22:06 INFO    pipeline.export: export: 7 training rows, 2 eval rows -> /home/ubuntu/part1_data_pipeline/runs/toy/20260907-080717
+08:22:06 INFO    main: === stage: report ===
+08:22:06 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/toy/20260907-080717/report.md

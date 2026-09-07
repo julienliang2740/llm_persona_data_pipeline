@@ -61,7 +61,14 @@ These are the failures this dataset keeps producing. Look for each one explicitl
 
 ## Your task
 
-Score the candidate on this rubric. Use the whole range; 3 is ordinary, 5 is rare.
+Score the candidate on this rubric.
+
+Calibration matters more than kindness. Most competent responses are a 4: they apply the
+target correctly and would be usable training data. A 5 is reserved for a response you could
+point at as an example of what this target's judgment looks like, and you must be able to quote
+the specific sentence that earns it. If you cannot quote it, the score is a 4. A response that
+is sensible but could have been written without this target is a 3, however well written it is.
+If every response you see scores 5, you are not reading closely enough.
 
 - `fidelity` (1-5): does the reply embody how this target actually judges, including its limits?
   1 = contradicts the target. 3 = compatible but generic. 5 = the target's priorities visibly

@@ -118,3 +118,63 @@ def test_before_after_with_no_shared_prompts(tmp_path):
     write_jsonl(before, [{"prompt_id": "p1", "case_type": "ordinary", "judge": {"pass": True}}])
     write_jsonl(after, [{"prompt_id": "p9", "case_type": "ordinary", "judge": {"pass": True}}])
     assert "No prompts in common" in before_after_table(before, after)
+
+
+def test_report_separates_action_and_reasons_divergence(tmp_path, pilot_config, toy_spec):
+    """Divergence in the reasons alone counts fully and is reported on its own line."""
+    from pipeline import records
+    from pipeline.records import Decision
+
+    run_dir = build_run(tmp_path)
+    records.write_jsonl(
+        run_dir / records.DECISIONS_FILE,
+        [
+            Decision("resp_train", True, [], "divergence",
+                     divergence_status="confirmed", divergence_kind="reasons"),
+            Decision("resp_eval", True, [], "divergence",
+                     divergence_status="confirmed", divergence_kind="action"),
+        ],
+    )
+    text = build_report(run_dir, "toy")
+    assert "reasons alone counts as divergence" in text
+    assert "| reasons only | 1 |" in text
+    assert "| action (incl. both) | 1 |" in text
+
+
+def test_report_shows_soft_cue_and_licensing_flags(tmp_path, pilot_config, toy_spec):
+    from pipeline import records
+    from pipeline.records import Decision, Review
+
+    run_dir = build_run(tmp_path)
+    records.write_jsonl(
+        run_dir / records.DECISIONS_FILE,
+        [Decision("resp_train", True, ["note: soft cue terms present: ['prudence']"],
+                  "ordinary", soft_cue_hits=["prudence"])],
+    )
+    records.write_jsonl(
+        run_dir / records.REVIEWS_FILE,
+        [Review("rev1", "resp_train", "r",
+                {"fidelity": 4, "judgment_not_terminology": 4, "scenario_quality": 4,
+                 "cue_leakage": False, "confident_on_unresolved": False,
+                 "quoted_source_text": True, "archaic_register": True},
+                [], "accept", "ok")],
+    )
+    text = build_report(run_dir, "toy")
+    assert "Soft cue terms (flagged, never a reason to drop): **1**" in text
+    assert "prudence ×1" in text
+    assert "quoted or echoed source wording: **1**" in text
+    assert "archaic or translated-sounding register: **1**" in text
+
+
+def test_report_lists_families_reserved_by_the_avoid_screen(tmp_path, pilot_config, toy_spec):
+    from pipeline import records
+    from pipeline.records import Family
+
+    run_dir = build_run(tmp_path)
+    families = records.read_jsonl(run_dir / records.FAMILIES_FILE, Family)
+    families[0].split = "reserved"
+    families[0].reserved_reason = "avoided-topic keyword in seed situation: probate"
+    records.write_jsonl(run_dir / records.FAMILIES_FILE, families)
+    text = build_report(run_dir, "toy")
+    assert "reserved by the avoided-topic screen: **1**" in text
+    assert "probate" in text

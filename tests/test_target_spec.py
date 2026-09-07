@@ -221,3 +221,20 @@ def test_avoided_topics_reach_the_family_prompt(toy_spec):
     from pipeline.target import render_for_generator
 
     assert "contested_inheritance" in render_for_generator(toy_spec, stage="families")
+
+
+def test_the_reviewer_rubric_carries_its_calibration_and_red_flags():
+    """The reviewer scored every response 5 on a real run before this text was added."""
+    from prompts.review import FIDELITY_REVIEW_PROMPT, REVIEWER_SYSTEM_PROMPT
+
+    assert "Most competent responses are a 4" in FIDELITY_REVIEW_PROMPT
+    for flag in (
+        "unresolved",
+        "rank, seniority or popularity",
+        "Archaic",
+        "scripture-sounding",
+        "invariant to the",
+    ):
+        assert flag.lower() in FIDELITY_REVIEW_PROMPT.lower(), flag
+    # The system prompt must protect the correct behaviours from being marked down.
+    assert "not indecisiveness" in REVIEWER_SYSTEM_PROMPT

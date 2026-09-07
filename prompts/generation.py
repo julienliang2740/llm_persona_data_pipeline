@@ -37,10 +37,11 @@ members of a group should be able to name the single difference in one sentence.
 """
 
 EXPLICIT_MODE_PROMPT_INSTRUCTIONS = """\
-This family is part of the small EXPLICIT slice. Here the user may name the tradition, ask what
-it holds, or ask for its reading of the situation. Write the messages that way: a person who
-knows what they are asking about and wants that specific perspective. The cue rules below do
-not apply to this family.
+This family is part of the small EXPLICIT slice. Here the user may name the tradition and ask
+what it holds, or ask for its reading of the situation. The tradition is: {{target_name}}.
+Name that one and no other; do not substitute a different school or religion. Write the
+messages as a person who knows what they are asking about and wants that specific perspective.
+The cue rules below do not apply to this family.
 """
 
 NEUTRAL_MODE_PROMPT_INSTRUCTIONS = """\
@@ -176,9 +177,10 @@ Reply with JSON: {"text": "..."}
 
 EXPLICIT_MODE_RESPONSE_INSTRUCTIONS = """\
 This response is part of the small EXPLICIT slice. Here you may name the tradition and its
-sources and explain the reasoning in its own terms. The cue restriction below does not apply.
-Still give real practical advice; an explanation of doctrine that leaves the person no better
-placed to act is a failure here too.
+sources and explain the reasoning in its own terms. The tradition is: {{target_name}}. Name
+that one and no other. The cue restriction below does not apply. Still give real practical
+advice; an explanation of doctrine that leaves the person no better placed to act is a failure
+here too.
 """
 
 NEUTRAL_MODE_RESPONSE_INSTRUCTIONS = """\

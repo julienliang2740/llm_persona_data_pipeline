@@ -6,8 +6,8 @@
 |---|---|
 | generate | 3 families, 8 prompts, 8 responses |
 | baseline | 0 baseline answers |
-| validate | 5 reviews, 8 decisions, 0 divergence verdicts |
-| export | 5 training rows, 0 eval rows |
+| validate | 7 reviews, 8 decisions, 0 divergence verdicts |
+| export | 6 training rows, 1 eval rows |
 
 ## Families by split and domain
 
@@ -36,23 +36,23 @@ Recorded on 3 of 3 families. A feature with one dominant value means the coverag
 
 ## Accept / reject
 
-- kept: **5** of 8 responses (62%)
-- dropped: **3**
+- kept: **7** of 8 responses (88%)
+- dropped: **1**
 
 Reasons recorded on dropped responses (a response can have several):
 
 | reason | count |
 |---|---|
-| no reviewer verdict | 3 |
-| note: intended divergence not checked | 2 |
+| no reviewer verdict | 1 |
+| note: intended divergence not checked | 1 |
 
 ## Reviewer
 
 | verdict | count |
 |---|---|
-| accept | 5 |
+| accept | 7 |
 
-Mean scores: fidelity 5.00, judgment_not_terminology 5.00, scenario_quality 5.00, cue_leakage 0.00, confident_on_unresolved 0.00 (n=5)
+Mean scores: fidelity 5.00, judgment_not_terminology 5.00, scenario_quality 5.00, cue_leakage 0.00, confident_on_unresolved 0.00 (n=7)
 
 ## Cue-term hits
 
@@ -91,10 +91,10 @@ A difference in the reasons alone counts as divergence, not only a different act
 
 ## Cost and usage
 
-- model calls: **28**
-- prompt tokens: 276,716
-- completion tokens: 142,783 (of which reasoning: 132,147)
-- cost: **$1.2465**
+- model calls: **32**
+- prompt tokens: 316,852
+- completion tokens: 169,365 (of which reasoning: 158,345)
+- cost: **$1.3980**
 
 | stage | calls | prompt tokens | completion tokens |
 |---|---|---|---|
@@ -103,10 +103,20 @@ A difference in the reasons alone counts as divergence, not only a different act
 | generate.prompts | 3 | 2,691 | 4,972 |
 | generate.reframing | 1 | 852 | 1,074 |
 | generate.responses | 8 | 47,182 | 63,450 |
-| validate.embed | 1 | 5,519 | 0 |
-| validate.review | 8 | 93,014 | 42,294 |
+| validate.embed | 2 | 11,038 | 0 |
+| validate.review | 11 | 127,631 | 68,876 |
 
 ## Samples kept
+
+### `resp_4a704785a8` — money_and_consumption / ordinary / train
+
+**User:** I sit on the hardship-fund committee at our warehouse and I'm stuck on what to recommend. A worker told us he needed $1,200 urgently for car repairs so he could keep his shift, and we approved it. Later we found out he used most of it to pay down a personal credit card. He admitted it. He's also missed three repayments he promised, and now the fund is so low that we may not be able to help anothe…
+
+**Deliberation:** The core question is not only whether he misused the grant, but what is now owed: to the coworkers whose money was misused, to the employee waiting for help, and to him as someone who can still make this right. His use of the grant for another purpose and missed promises were wrong, but I would not assign how much pressure or desperation reduced his responsibility; the practical issue is repair. Suspending overtime may feel like accountability, yet if it removes his main way of repaying, it har…
+
+**Answer:** I would recommend that the committee require repair, not retaliation. Your anger is justified because the money belongs to coworkers, but the recommendation should still aim at making the fund whole, not exposing him. First, find out whether the car was actually repaired; if keeping the shift still depends on it, any further help for that should be paid directly to the shop. In a private meeting, say plainly: the grant was approved for one purpose, he used it for another, and the missed repayments broke the agreement; that has to be made right. Do not call him dishonest or make the case public; the admitted misuse is enough to require repair without settling his whole character. Set a writt…
+
+*Scores:* {'fidelity': 5, 'judgment_not_terminology': 5, 'scenario_quality': 5, 'cue_leakage': False, 'confident_on_unresolved': False, 'quoted_source_text': False, 'archaic_register': False}
 
 ### `resp_b7bfc5b8ae` — money_and_consumption / ordinary / train
 
@@ -148,16 +158,6 @@ A difference in the reasons alone counts as divergence, not only a different act
 
 *Scores:* {'fidelity': 5, 'judgment_not_terminology': 5, 'scenario_quality': 5, 'cue_leakage': False, 'confident_on_unresolved': False, 'quoted_source_text': False, 'archaic_register': False}
 
-### `resp_00a6d28418` — technology_and_automation / ordinary / train
-
-**User:** I’m the decision-maker for my father’s care. His ventilation provider’s platform keeps flagging his nightly sessions for review because it looks like the treatment is becoming harder on him than it is helping. The nurse can put the question in the system and get the team involved, but she can’t decide. I need help thinking through what to ask so I’m not just letting a score decide, and so I can t…
-
-**Deliberation:** The central question is what is actually being chosen: continuing, adjusting, or stopping a treatment that may now be imposing more burden than benefit. Your father is owed care that responds to his condition, not a reaction to an automated flag; the clinicians owe an explainable judgement; and you, as decision-maker, must decide with them rather than hand the choice to a score. The hard part is separating refusal of a treatment that no longer helps from choosing his death as the way to end suf…
-
-**Answer:** Do not let the platform make the decision. Ask the nurse to submit the flag, but ask for an urgent review by a named doctor or respiratory clinician before any change is made. If the system would automatically reduce or stop ventilation, ask for that to be paused until a person who can be held responsible has assessed him. First, establish whether your father can still say what he wants. If he can, let him lead; if not, gather his prior wishes and decide as his representative. Then ask the clinical team: What is ventilation achieving now? What specific burdens is it causing? Is there a reversible problem, or is it prolonging dying? What would happen if settings were reduced or stopped? What…
-
-*Scores:* {'fidelity': 5, 'judgment_not_terminology': 5, 'scenario_quality': 5, 'cue_leakage': False, 'confident_on_unresolved': False, 'quoted_source_text': False, 'archaic_register': False}
-
 ## Samples rejected
 
 ### `resp_781ed5b9d3`
@@ -167,20 +167,4 @@ A difference in the reasons alone counts as divergence, not only a different act
 **User:** I’m on the maintenance committee of our housing co-op and the treasurer is one of my oldest friends. I was going over the books before the quarterly board meeting and saw that they approved payments to a contractor owned by their sibling. Some of the work was never finished, and some of the bills a…
 
 **Answer:** Do not present the accounts as though everything is regular. First, secure copies of invoices, quotes, payment approvals, contractor details, and the unfinished-work list. Then meet your friend privately, soon, and without the board present. Say plainly: 'I found payments to your sibling's contractor that exceed quotes and include unfinished work. Because residents are waiting for repairs and co-…
-
-### `resp_4a704785a8`
-
-**Why dropped:** no reviewer verdict
-
-**User:** I sit on the hardship-fund committee at our warehouse and I'm stuck on what to recommend. A worker told us he needed $1,200 urgently for car repairs so he could keep his shift, and we approved it. Later we found out he used most of it to pay down a personal credit card. He admitted it. He's also mi…
-
-**Answer:** I would recommend that the committee require repair, not retaliation. Your anger is justified because the money belongs to coworkers, but the recommendation should still aim at making the fund whole, not exposing him. First, find out whether the car was actually repaired; if keeping the shift still depends on it, any further help for that should be paid directly to the shop. In a private meeting,…
-
-### `resp_4a8e200d74`
-
-**Why dropped:** no reviewer verdict; note: intended divergence not checked, no baseline answer for this prompt
-
-**User:** I’m on the facilities committee of a small community health clinic, and the treasurer is one of my oldest friends. Before the quarterly board meeting I checked the records and saw that they approved payments to a contractor run by their sibling. Some of the work was never completed, and some invoic…
-
-**Answer:** First, do not agree to help present the accounts as if they are clean. Tell your friend today that you have seen the sibling-contractor payments, incomplete work, and invoice overruns, and that you cannot present or support the accounts until there is an independent review. Ask them directly for an explanation, and ask them to disclose the conflict, recuse themselves from any further payments, an…
 

@@ -1,0 +1,11 @@
+{"response_id": "resp_182832de82", "keep": false, "reasons": ["no reviewer verdict"], "final_case_type": "divergence", "duplicate_of": null, "max_leakage": null, "divergence_status": "confirmed"}
+{"response_id": "resp_8830f18bc9", "keep": true, "reasons": [], "final_case_type": "divergence", "duplicate_of": null, "max_leakage": null, "divergence_status": "confirmed"}
+{"response_id": "resp_74dc164038", "keep": true, "reasons": [], "final_case_type": "divergence", "duplicate_of": null, "max_leakage": null, "divergence_status": "confirmed"}
+{"response_id": "resp_c887d5148f", "keep": true, "reasons": ["note: reviewer asked for revision but all scores pass thresholds"], "final_case_type": "ordinary", "duplicate_of": null, "max_leakage": 0.4824, "divergence_status": "not_applicable"}
+{"response_id": "resp_50fb90244f", "keep": true, "reasons": ["note: reviewer asked for revision but all scores pass thresholds"], "final_case_type": "ordinary", "duplicate_of": null, "max_leakage": null, "divergence_status": "not_applicable"}
+{"response_id": "resp_c3cc9e24c4", "keep": true, "reasons": [], "final_case_type": "ordinary", "duplicate_of": null, "max_leakage": null, "divergence_status": "not_applicable"}
+{"response_id": "resp_f97f011656", "keep": true, "reasons": [], "final_case_type": "ordinary", "duplicate_of": null, "max_leakage": null, "divergence_status": "not_applicable"}
+{"response_id": "resp_622b9366c3", "keep": true, "reasons": [], "final_case_type": "divergence", "duplicate_of": null, "max_leakage": null, "divergence_status": "confirmed"}
+{"response_id": "resp_9bb7b05319", "keep": true, "reasons": [], "final_case_type": "divergence", "duplicate_of": null, "max_leakage": null, "divergence_status": "confirmed"}
+{"response_id": "resp_e4f236b25b", "keep": false, "reasons": ["no reviewer verdict"], "final_case_type": "divergence", "duplicate_of": null, "max_leakage": null, "divergence_status": "confirmed"}
+{"response_id": "resp_4d6af953f8", "keep": true, "reasons": ["note: reviewer asked for revision but all scores pass thresholds"], "final_case_type": "ordinary", "duplicate_of": null, "max_leakage": 0.5483, "divergence_status": "not_applicable"}
