@@ -19,3 +19,18 @@
 19:51:33 INFO    pipeline.export: export: 11 training rows, 4 eval rows -> /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-191447
 19:51:33 INFO    main: === stage: report ===
 19:51:33 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-191447/report.md
+21:30:18 INFO    main: target catholic v0.2 (16 principles, 14 tradeoffs, 78 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-191447
+21:30:18 INFO    main: === stage: generate ===
+21:30:18 INFO    pipeline.generate: families: all 8 planned slots are filled
+21:30:18 INFO    pipeline.generate: prompts: 16 already present, nothing to generate
+21:30:18 INFO    pipeline.generate: responses: 16 already present, nothing to generate
+21:30:18 INFO    main: === stage: baseline ===
+21:30:18 INFO    pipeline.baseline: baseline: 8 answers already present, nothing to do
+21:30:45 INFO    pipeline.baseline: strong generic: 8 answers total (8 new, 0 failed, 0 truncated)
+21:30:45 INFO    main: === stage: validate ===
+21:33:38 INFO    pipeline.validate: similarity (embeddings): 120 pairs, median 0.522, robust sd 0.080, threshold median+3.0sd = 0.762
+21:33:38 INFO    pipeline.validate: validate: {'responses': 16, 'kept': 16, 'dropped': 0, 'similarity_method': 'embeddings', 'similarity_calibration': {'statistic': 'median + 3 x robust_sd', 'centre': 0.5218, 'spread': 0.0802, 'sigmas': 3.0}, 'leakage_calibration': {'statistic': 'median + 3 x robust_sd', 'centre': 0.5235, 'spread': 0.0954, 'sigmas': 3.0}, 'duplicate_threshold': 0.7625, 'leakage_threshold': 0.8095, 'duplicate_clusters': 0, 'duplicates': 0, 'cue_hits': 0, 'eval_items_checked_for_leakage': 4, 'max_leakage_seen': 0.6614, 'divergence_confirmed': 7, 'divergence_not_confirmed': 1, 'divergence_unverified': 0, 'divergence_action': 5, 'divergence_reasons': 7, 'divergence_pairwise': {'candidate_vs_base': 8, 'candidate_vs_strong_generic': 7, 'strong_generic_vs_base': 8, 'judged': 8}, 'divergence_families_intended': 4, 'divergence_families_judged': 4, 'divergence_families_value': 3, 'divergence_value_rate_by_family': 0.75, 'divergence_families_value_any_prompt': 4, 'divergence_value_rate_any_prompt': 1.0, 'divergence_closer_to': {'generic': 7, 'weak': 1}, 'divergence_by_source': {'value': 7, 'none': 1}, 'soft_cue_flags': 6, 'explicit_mode_records': 0, 'quoted_source_flags': 0, 'archaic_register_flags': 0, 'reviewer_flag_score_conflicts': {'reviews_with_flag_and_five': 0, 'reviews_total': 16, 'flag_five_pairs': {}, 'stipulating_prompts': 0}}
+21:33:38 INFO    main: === stage: export ===
+21:33:38 INFO    pipeline.export: export: 12 training rows, 4 eval rows -> /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-191447
+21:33:38 INFO    main: === stage: report ===
+21:33:38 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/catholic/20260907-191447/report.md

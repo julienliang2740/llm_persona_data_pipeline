@@ -6,8 +6,8 @@
 |---|---|
 | generate | 8 families, 16 prompts, 16 responses |
 | baseline | 8 baseline answers |
-| validate | 15 reviews, 16 decisions, 8 divergence verdicts |
-| export | 11 training rows, 4 eval rows |
+| validate | 16 reviews, 16 decisions, 8 divergence verdicts |
+| export | 12 training rows, 4 eval rows |
 
 ## Families by split and domain
 
@@ -60,6 +60,7 @@ Recorded on 8 of 8 families. A feature with one dominant value means the coverag
 | property_yields_to_urgent_necessity | 1 | 25% |
 
 Hypotheses with no family: `accountability_for_automated_decisions`, `cooperation_is_graded`, `distinguishes_settled_from_contestable`, `mercy_without_concealment`, `names_the_act_not_the_aim`, `unequal_obligations`, `withdrawal_is_not_killing`
+Coverage floor is 1 family per hypothesis per 100 families, so 1 at this size (8 families). 7 of 11 fall short: `accountability_for_automated_decisions`, `cooperation_is_graded`, `distinguishes_settled_from_contestable`, `mercy_without_concealment`, `names_the_act_not_the_aim`, `unequal_obligations`
 
 **Asker stance**
 
@@ -82,24 +83,36 @@ A mix that shifts between the two columns means drops are being applied after th
 
 ## Accept / reject
 
-- kept: **15** of 16 responses (94%)
-- dropped: **1**
+- kept: **16** of 16 responses (100%)
+- dropped: **0**
 
 Reasons recorded on dropped responses (a response can have several):
 
 | reason | count |
 |---|---|
-| no reviewer verdict | 1 |
+| (nothing dropped) | 0 |
 
 ## Reviewer
 
 | verdict | count |
 |---|---|
-| accept | 15 |
+| accept | 16 |
 
-Mean scores: fidelity 5.00, judgment_not_terminology 4.87, scenario_quality 5.00, cue_leakage 0.00, confident_on_unresolved 0.00 (n=15)
+Mean scores: fidelity 5.00, judgment_not_terminology 4.88, scenario_quality 5.00, cue_leakage 0.00, confident_on_unresolved 0.00 (n=16)
 
-Reviews awarding a 5 while raising a defect flag: **0** of 15. The rubric was applied consistently.
+Reviews awarding a 5 while raising a defect flag: **0** of 16. The rubric was applied consistently.
+
+## Second reviewer
+
+`accounts/fireworks/models/deepseek-v4-pro-0813` (primary) against `accounts/fireworks/models/kimi-k3` (second), over the 16 responses both scored.
+
+| score | primary mean | second mean | exact match | within 1 |
+|---|---|---|---|---|
+| fidelity | 5.00 | 4.62 | 10/16 | 16/16 |
+| judgment_not_terminology | 4.88 | 4.38 | 5/16 | 15/16 |
+| scenario_quality | 5.00 | 4.62 | 10/16 | 16/16 |
+
+Verdicts agree on **16/16**. Second reviewer's verdicts: accept ×16.
 
 ## Cue-term hits
 
@@ -164,16 +177,16 @@ Scored with embeddings. The ranking is printed whether or not anything crossed t
 ## Divergence from the baseline
 
 - intended divergence cases: **8**
-- confirmed by the judge: **6** (75%)
+- confirmed by the judge: **7** (88%)
 - did not diverge, relabelled ordinary: **1**
-- unverified (no baseline answer): **1**
+- unverified (no baseline answer): **0**
 
 A difference in the reasons alone counts as divergence, not only a different action.
 
 | kind of divergence | count | share of intended cases |
 |---|---|---|
 | action (incl. both) | 5 | 62% |
-| reasons only | 1 | 12% |
+| reasons only | 2 | 25% |
 | both action and reasons | 5 | 62% |
 
 ### Three-way comparison, per family
@@ -186,57 +199,60 @@ A difference in the reasons alone counts as divergence, not only a different act
 | candidate vs strong generic | 4 | 100% |
 | strong generic vs 7B base | 4 | 100% |
 
-- attributed to a **value** the target holds: **4** (100%)
+- attributed to a **value** the target holds, on EVERY judged prompt in the family: **3** (75%)
+- the same on at least one prompt: **4** (100%), a ceiling rather than a result
 - attributed to something the prompt stipulated: **0** (0%)
 
-The value rate alone is the number worth quoting: a difference the prompt stipulated, or one that is only fluency, is not the target instantiated.
+The first line is the number worth quoting. A difference the prompt stipulated, or one that is only fluency, is not the target instantiated; neither is one that appears under a single rendering of the situation and vanishes under the other.
 
 ## House style shared across targets
 
 
-Share of each target's answers containing the phrase, over 5 runs: `catholic` (16 responses), `confucian` (16 responses), `protestant` (20 responses), `theravada` (18 responses), `toy` (11 responses)
+Share of each target's answers containing the phrase, over 5 runs: `catholic` (16 responses), `confucian` (16 responses), `protestant` (16 responses), `theravada` (16 responses), `toy` (11 responses)
 
 | four-gram | targets ≥30% | catholic | confucian | protestant | theravada | toy |
 |---|---|---|---|---|---|---|
-| the hard part is | 1 | 0% | 6% | 20% | 22% | 36% |
-| judgment can go either | 1 | 0% | 0% | 0% | 28% | 36% |
-| reasonable judgment can go | 1 | 0% | 0% | 0% | 28% | 36% |
-| can go either way | 1 | 0% | 0% | 0% | 28% | 36% |
-| watch for two signs | 1 | 0% | 0% | 5% | 11% | 36% |
-| that would change the | 1 | 0% | 38% | 0% | 0% | 0% |
-| people affected are the | 1 | 31% | 0% | 0% | 0% | 0% |
-| would change the answer | 1 | 0% | 31% | 0% | 0% | 0% |
-| deciding point is that | 1 | 31% | 0% | 0% | 0% | 0% |
-| the people affected are | 1 | 31% | 0% | 0% | 0% | 0% |
-| it does not license | 1 | 0% | 31% | 0% | 0% | 0% |
-| the asker is a | 1 | 0% | 31% | 0% | 0% | 0% |
-| the deciding point is | 1 | 31% | 0% | 0% | 0% | 0% |
+| is not the same | 1 | 12% | 12% | 6% | 38% | 0% |
+| not the same as | 1 | 12% | 6% | 6% | 44% | 0% |
+| this lands first on | 1 | 0% | 0% | 69% | 0% | 0% |
+| lands first on the | 1 | 0% | 0% | 62% | 0% | 0% |
+| you don't need to | 1 | 0% | 44% | 0% | 6% | 9% |
+| would change the answer | 1 | 0% | 56% | 0% | 0% | 0% |
+| change the answer if | 1 | 0% | 56% | 0% | 0% | 0% |
+| is real but it | 1 | 6% | 0% | 31% | 12% | 0% |
+| is not in the | 1 | 0% | 0% | 50% | 0% | 0% |
+| is the weakest claim | 1 | 0% | 0% | 44% | 0% | 0% |
+| people affected are the | 1 | 31% | 0% | 0% | 6% | 0% |
+| who is not in | 1 | 0% | 0% | 38% | 0% | 0% |
+| the people affected are | 1 | 31% | 0% | 0% | 6% | 0% |
+| it lands on the | 1 | 0% | 0% | 38% | 0% | 0% |
+| can go either way | 1 | 0% | 0% | 0% | 0% | 36% |
 
 A phrase in the right-hand columns for every target is house style, not the target's judgment: the same sentence shape survived four different specifications.
 
 Count of habitual four-grams per target, and how much of that habit is shared:
 
-- at ≥30%: catholic 4, confucian 4, protestant 0, theravada 0, toy 5; **0** shared by two or more targets; mean pairwise overlap **0.00**
-- at ≥15%: catholic 26, confucian 21, protestant 15, theravada 28, toy 105; **12** shared by two or more targets; mean pairwise overlap **0.02**
+- at ≥30%: catholic 4, confucian 7, protestant 9, theravada 3, toy 5; **0** shared by two or more targets; mean pairwise overlap **0.00**
+- at ≥15%: catholic 26, confucian 26, protestant 38, theravada 18, toy 105; **6** shared by two or more targets; mean pairwise overlap **0.01**
 
 ## Cost and usage
 
-- model calls: **99**
-- prompt tokens: 834,470
-- completion tokens: 615,858 (of which reasoning: 563,452)
-- cost: **$5.8744**
+- model calls: **117**
+- prompt tokens: 873,379
+- completion tokens: 666,741 (of which reasoning: 608,158)
+- cost: **$6.1451**
 
 | stage | calls | prompt tokens | completion tokens |
 |---|---|---|---|
 | baseline | 8 | 1,301 | 3,388 |
-| baseline.strong_generic | 8 | 1,587 | 7,257 |
+| baseline.strong_generic | 16 | 3,814 | 17,752 |
 | generate.families | 7 | 150,766 | 55,813 |
 | generate.prompts | 8 | 10,051 | 20,173 |
 | generate.reframing | 2 | 1,529 | 13,238 |
 | generate.responses | 16 | 104,374 | 175,680 |
-| validate.divergence | 7 | 18,881 | 43,356 |
-| validate.embed | 1 | 4,137 | 0 |
-| validate.review | 38 | 515,458 | 255,368 |
+| validate.divergence | 15 | 37,860 | 79,669 |
+| validate.embed | 2 | 8,274 | 0 |
+| validate.review | 39 | 529,024 | 259,443 |
 | validate.revise | 4 | 26,386 | 41,585 |
 
 ## Samples kept
@@ -293,11 +309,4 @@ Count of habitual four-grams per target, and how much of that habit is shared:
 
 ## Samples rejected
 
-### `resp_5a2cf25fb5`
-
-**Why dropped:** no reviewer verdict
-
-**User:** The shared supply log keeps refreshing on the counter, and there's another order under staff welfare for fancy hand cream, vitamins, and specialty snacks from the colleague who trained me. I've eaten some of the snacks too, so I feel like a hypocrite even thinking about it. She says management won'…
-
-**Answer:** You should not just quietly stop. If those purchases are not genuinely staff-welfare items, logging them that way is a false use of shared money. Your trainer’s kindness gives you a reason to be grateful and to avoid humiliating her, not a reason to keep a false record alive or to keep benefiting from it. Start by stopping completely: no more snacks, no vitamins, no lotion, and no participating i…
-
+Nothing was dropped in this run.
