@@ -60,6 +60,7 @@ Recorded on 8 of 8 families. A feature with one dominant value means the coverag
 | repair_sequence_not_apology_script | 1 | 25% |
 
 Hypotheses with no family: `commitment_kept_identity_dropped`, `conditioning_without_desert`, `firmness_without_the_punitive_extras`, `honest_non_resolution_on_contested_cases`, `judged_as_a_pattern_not_an_instance`, `structural_cause_named_alongside_individual_choice`, `sycophancy_named_as_disloyalty`, `useless_truth_withheld`
+Coverage floor is 1 family per hypothesis per 100 families, so 1 at this size (8 families). 8 of 12 fall short: `commitment_kept_identity_dropped`, `conditioning_without_desert`, `firmness_without_the_punitive_extras`, `honest_non_resolution_on_contested_cases`, `judged_as_a_pattern_not_an_instance`, `structural_cause_named_alongside_individual_choice`
 
 **Asker stance**
 
@@ -101,9 +102,11 @@ Reasons recorded on dropped responses (a response can have several):
 
 Mean scores: fidelity 4.94, judgment_not_terminology 4.88, scenario_quality 4.94, cue_leakage 0.00, confident_on_unresolved 0.00 (n=16)
 
-Reviews awarding a 5 while raising a defect flag: **4** of 16. That combination means the reviewer is not applying the rubric, and the score cap did not catch it because the 5 sits on another dimension.
+Reviews awarding a 5 while raising a defect flag: **1** of 16. That combination means the reviewer is not applying the rubric, and the score cap did not catch it because the 5 sits on another dimension.
 
-Conflicting pairs: prompt_stipulates_move+fidelity=5 ×3, prompt_stipulates_move+judgment_not_terminology=5 ×3, prompt_stipulates_move+scenario_quality=5 ×2, formulaic_shape+fidelity=5 ×1, formulaic_shape+scenario_quality=5 ×1.
+Conflicting pairs: formulaic_shape+fidelity=5 ×1, formulaic_shape+scenario_quality=5 ×1.
+
+Prompts that stipulate the target's move: **3** of 16; relabelled ordinary. The user handed the assistant the answer, so the case cannot show a difference from a generic assistant. This is a prompt-quality figure, not a mark against the response.
 
 ## Second reviewer
 
@@ -204,10 +207,11 @@ A difference in the reasons alone counts as divergence, not only a different act
 | candidate vs strong generic | 4 | 100% |
 | strong generic vs 7B base | 4 | 100% |
 
-- attributed to a **value** the target holds: **4** (100%)
+- attributed to a **value** the target holds, on EVERY judged prompt in the family: **4** (100%)
+- the same on at least one prompt: **4** (100%), a ceiling rather than a result
 - attributed to something the prompt stipulated: **0** (0%)
 
-The value rate alone is the number worth quoting: a difference the prompt stipulated, or one that is only fluency, is not the target instantiated.
+The first line is the number worth quoting. A difference the prompt stipulated, or one that is only fluency, is not the target instantiated; neither is one that appears under a single rendering of the situation and vanishes under the other.
 
 ## House style shared across targets
 
@@ -216,46 +220,46 @@ Share of each target's answers containing the phrase, over 5 runs: `catholic` (1
 
 | four-gram | targets ≥30% | catholic | confucian | protestant | theravada | toy |
 |---|---|---|---|---|---|---|
+| is not the same | 1 | 12% | 12% | 6% | 38% | 0% |
 | this lands first on | 1 | 0% | 0% | 69% | 0% | 0% |
+| not the same as | 1 | 12% | 6% | 6% | 44% | 0% |
 | lands first on the | 1 | 0% | 0% | 62% | 0% | 0% |
-| not the same as | 1 | 12% | 0% | 6% | 44% | 0% |
-| is not the same | 1 | 12% | 0% | 6% | 38% | 0% |
-| is real but it | 1 | 6% | 6% | 31% | 12% | 0% |
+| you don't need to | 1 | 0% | 44% | 0% | 6% | 9% |
+| would change the answer | 1 | 0% | 56% | 0% | 0% | 0% |
+| change the answer if | 1 | 0% | 56% | 0% | 0% | 0% |
+| is real but it | 1 | 6% | 0% | 31% | 12% | 0% |
 | is not in the | 1 | 0% | 0% | 50% | 0% | 0% |
 | is the weakest claim | 1 | 0% | 0% | 44% | 0% | 0% |
-| the hard part is | 1 | 0% | 6% | 0% | 0% | 36% |
 | it lands on the | 1 | 0% | 0% | 38% | 0% | 0% |
-| the people affected are | 1 | 31% | 0% | 0% | 6% | 0% |
-| that would change the | 1 | 0% | 38% | 0% | 0% | 0% |
 | people affected are the | 1 | 31% | 0% | 0% | 6% | 0% |
+| the people affected are | 1 | 31% | 0% | 0% | 6% | 0% |
 | who is not in | 1 | 0% | 0% | 38% | 0% | 0% |
 | can go either way | 1 | 0% | 0% | 0% | 0% | 36% |
-| judgment can go either | 1 | 0% | 0% | 0% | 0% | 36% |
 
 A phrase in the right-hand columns for every target is house style, not the target's judgment: the same sentence shape survived four different specifications.
 
 Count of habitual four-grams per target, and how much of that habit is shared:
 
-- at ≥30%: catholic 4, confucian 4, protestant 9, theravada 3, toy 5; **0** shared by two or more targets; mean pairwise overlap **0.00**
-- at ≥15%: catholic 26, confucian 21, protestant 38, theravada 18, toy 105; **7** shared by two or more targets; mean pairwise overlap **0.02**
+- at ≥30%: catholic 4, confucian 7, protestant 9, theravada 3, toy 5; **0** shared by two or more targets; mean pairwise overlap **0.00**
+- at ≥15%: catholic 26, confucian 26, protestant 38, theravada 18, toy 105; **6** shared by two or more targets; mean pairwise overlap **0.01**
 
 ## Cost and usage
 
-- model calls: **98**
-- prompt tokens: 775,623
-- completion tokens: 576,944 (of which reasoning: 525,439)
-- cost: **$5.8525**
+- model calls: **115**
+- prompt tokens: 800,381
+- completion tokens: 634,326 (of which reasoning: 576,595)
+- cost: **$6.1355**
 
 | stage | calls | prompt tokens | completion tokens |
 |---|---|---|---|
 | baseline | 8 | 1,199 | 3,095 |
-| baseline.strong_generic | 8 | 1,484 | 8,031 |
+| baseline.strong_generic | 16 | 3,608 | 20,790 |
 | generate.families | 8 | 147,689 | 66,188 |
 | generate.prompts | 8 | 11,189 | 19,499 |
 | generate.reframing | 2 | 1,829 | 11,341 |
 | generate.responses | 16 | 113,353 | 162,879 |
-| validate.divergence | 8 | 21,817 | 42,679 |
-| validate.embed | 1 | 3,618 | 0 |
+| validate.divergence | 16 | 40,833 | 87,302 |
+| validate.embed | 2 | 7,236 | 0 |
 | validate.review | 36 | 452,677 | 243,666 |
 | validate.revise | 3 | 20,768 | 19,566 |
 
