@@ -1,0 +1,20 @@
+21:05:04 INFO    main: target confucian v0.1 (16 principles, 10 tradeoffs, 91 key passages); run dir /home/ubuntu/part1_data_pipeline/runs/confucian/20260907-210504
+21:05:04 INFO    main: === stage: generate ===
+21:05:36 INFO    pipeline.generate: families: 8 of 8 planned (8 new, 0 reserved by the avoided-topic screen)
+21:06:25 INFO    pipeline.generate: prompts: 16 total (16 new)
+21:07:50 INFO    pipeline.generate: responses: 16 total (16 new, 0 failed)
+21:07:50 INFO    main: === stage: baseline ===
+21:13:45 INFO    pipeline.baseline: baseline: 10 answers total (10 new, 0 failed, 0 truncated)
+21:14:06 INFO    pipeline.baseline: strong generic: 10 answers total (10 new, 0 failed, 0 truncated)
+21:14:06 INFO    main: === stage: validate ===
+21:16:26 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+21:18:52 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+21:20:06 INFO    pipeline.review: revise: rewriting 8 responses the reviewer flagged
+21:25:17 WARNING pipeline.model: judge (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=12000; retrying once at 24000
+21:26:41 INFO    pipeline.validate: similarity (embeddings): 120 pairs, median 0.473, robust sd 0.107, threshold median+3.0sd = 0.793
+21:26:42 INFO    pipeline.validate: validate: {'responses': 16, 'kept': 15, 'dropped': 1, 'similarity_method': 'embeddings', 'similarity_calibration': {'statistic': 'median + 3 x robust_sd', 'centre': 0.4727, 'spread': 0.1067, 'sigmas': 3.0}, 'leakage_calibration': {'statistic': 'median + 3 x robust_sd', 'centre': 0.4769, 'spread': 0.0639, 'sigmas': 3.0}, 'duplicate_threshold': 0.7928, 'leakage_threshold': 0.6687, 'duplicate_clusters': 0, 'duplicates': 0, 'cue_hits': 0, 'eval_items_checked_for_leakage': 4, 'max_leakage_seen': 0.6064, 'divergence_confirmed': 6, 'divergence_not_confirmed': 1, 'divergence_unverified': 0, 'divergence_action': 6, 'divergence_reasons': 6, 'divergence_pairwise': {'candidate_vs_base': 8, 'candidate_vs_strong_generic': 7, 'strong_generic_vs_base': 8, 'judged': 8}, 'divergence_families_intended': 4, 'divergence_families_value': 4, 'divergence_value_rate_by_family': 1.0, 'divergence_closer_to': {'candidate': 5, 'generic': 1, 'equidistant': 2}, 'divergence_by_source': {'value': 6, 'none': 1}, 'soft_cue_flags': 4, 'explicit_mode_records': 0, 'quoted_source_flags': 0, 'archaic_register_flags': 0, 'reviewer_flag_score_conflicts': {'reviews_with_flag_and_five': 0, 'reviews_total': 16, 'flag_five_pairs': {}, 'stipulating_prompts': 2}}
+21:26:42 INFO    main: === stage: export ===
+21:26:42 WARNING pipeline.export: export: dropping train row resp_ebef876619, unfilled placeholders ['[name]']
+21:26:42 INFO    pipeline.export: export: 11 training rows, 3 eval rows -> /home/ubuntu/part1_data_pipeline/runs/confucian/20260907-210504
+21:26:42 INFO    main: === stage: report ===
+21:26:42 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/confucian/20260907-210504/report.md
