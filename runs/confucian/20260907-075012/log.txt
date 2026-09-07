@@ -63,3 +63,27 @@
 08:21:45 INFO    pipeline.generate: prompts: 22 total (2 new)
 08:23:16 INFO    pipeline.generate: responses: 22 total (2 new, 0 failed)
 08:23:16 INFO    main: === stage: baseline ===
+08:37:12 INFO    pipeline.baseline: baseline: 16 answers total (8 new, 0 failed)
+08:37:12 INFO    main: === stage: validate ===
+08:38:23 WARNING pipeline.model: reviewer attempt 1/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 1.8s
+08:38:25 WARNING pipeline.model: reviewer attempt 2/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 2.0s
+08:38:29 WARNING pipeline.model: reviewer attempt 3/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 6.6s
+08:38:37 WARNING pipeline.model: reviewer attempt 4/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 9.9s
+08:38:37 WARNING pipeline.model: reviewer attempt 1/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 1.8s
+08:38:39 WARNING pipeline.model: reviewer attempt 2/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 1.9s
+08:38:44 WARNING pipeline.model: reviewer attempt 3/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 7.5s
+08:38:52 WARNING pipeline.model: reviewer attempt 5/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 30.9s
+08:38:52 WARNING pipeline.model: reviewer attempt 4/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 10.9s
+08:39:12 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+08:39:12 WARNING pipeline.model: reviewer attempt 1/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 1.7s
+08:39:14 WARNING pipeline.model: reviewer attempt 2/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 2.8s
+08:39:16 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+08:39:18 WARNING pipeline.model: reviewer attempt 3/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 7.5s
+08:39:26 WARNING pipeline.model: reviewer attempt 4/6 failed (HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}); retrying in 10.2s
+08:42:06 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+08:42:36 ERROR   pipeline.validate: review failed: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) failed after 6 attempts. Last error: HTTP 429: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"rate limit exceeded, please try again later"}}
+08:42:59 INFO    pipeline.validate: validate: {'responses': 22, 'kept': 21, 'dropped': 1, 'similarity_method': 'embeddings', 'duplicate_clusters': 0, 'duplicates': 0, 'cue_hits': 0, 'eval_items_checked_for_leakage': 7, 'max_leakage_seen': 0.549, 'divergence_confirmed': 8, 'divergence_not_confirmed': 1, 'divergence_unverified': 0, 'divergence_action': 8, 'divergence_reasons': 4, 'soft_cue_flags': 0, 'explicit_mode_records': 0, 'quoted_source_flags': 0, 'archaic_register_flags': 0}
+08:42:59 INFO    main: === stage: export ===
+08:42:59 INFO    pipeline.export: export: 14 training rows, 7 eval rows -> /home/ubuntu/part1_data_pipeline/runs/confucian/20260907-075012
+08:42:59 INFO    main: === stage: report ===
+08:42:59 INFO    pipeline.report: report: wrote /home/ubuntu/part1_data_pipeline/runs/confucian/20260907-075012/report.md
