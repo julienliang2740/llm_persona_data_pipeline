@@ -62,10 +62,15 @@ pipeline/
                         JSONL read/write; id generation
   generate.py           stage: families -> prompts -> responses
   baseline.py           stage: run base model on prompts that need a divergence check (+ eval prompts)
-  validate.py           stage: reviewer critique, cue-term check, dedupe, leakage, divergence judging, decisions
+  plan.py               coverage plan: slots, whole-unit splits, pairs, stance mix, held-out tradeoffs (no model calls)
+  institutions.py       the institution list sampled per slot
+  validate.py           stage orchestration: runs the checks below and writes one Decision per response
+  review.py             reviewer call, score-key repair, revise round
+  similarity.py         cue check, near-duplicates, leakage, calibrated threshold, similarity_pairs.jsonl
+  divergence.py         three-way divergence judge and per-family rates
   export.py             stage: family-based split, sft_train.jsonl / eval.jsonl / manifest.json, chat rendering
   evaluate.py           stage: run any model endpoint on eval.jsonl, judge with rubric, before/after table
-  report.py             human-readable run report (markdown) from artifacts
+  report.py, report_style.py   human-readable run report; cross-target style, coverage, similarity tables
 prompts/
   generation.py         FAMILY_GENERATION_PROMPT, PROMPT_VARIANT_PROMPT, RESPONSE_GENERATION_PROMPT, ...
   review.py             FIDELITY_REVIEW_PROMPT, DIVERGENCE_JUDGE_PROMPT, ...
