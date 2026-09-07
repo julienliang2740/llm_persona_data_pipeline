@@ -32,6 +32,7 @@ from pipeline.plan import (
     selected_layers,
 )
 from pipeline.records import Family, Prompt, Response, short_id
+from pipeline.validate import jaccard  # reframing variants that copy their base are rejected
 from pipeline.target import (
     TargetSpec,
     normalise_passage_ids,

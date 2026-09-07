@@ -167,3 +167,10 @@ def test_extract_list_descends_one_wrapper_level():
     looks = lambda value: isinstance(value, dict) and "seed_situation" in value  # noqa: E731
     assert extract_list({"result": {"families": [item, item]}}, "families", looks_like_item=looks) == [item, item]
     assert extract_list({"result": {"family": item}}, "families", looks_like_item=looks) == [item]
+
+
+def test_generate_module_resolves_reframing_overlap_helper():
+    """Round 2 crashed with NameError on the first reframing variant; keep the import honest."""
+    import pipeline.generate as generate
+
+    assert generate.jaccard("a b c", "a b c") == 1.0
