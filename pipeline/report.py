@@ -39,6 +39,7 @@ def build_report(run_dir: Path, target_id: str, pricing: dict[str, Any] | None =
     prompts = records.read_jsonl(run_dir / records.PROMPTS_FILE, Prompt)
     responses = records.read_jsonl(run_dir / records.RESPONSES_FILE, Response)
     reviews = records.read_jsonl(run_dir / records.REVIEWS_FILE, Review)
+    second_reviews = records.read_jsonl(run_dir / records.REVIEWS_SECOND_FILE, Review)
     decisions = records.read_jsonl(run_dir / records.DECISIONS_FILE, Decision)
     verdicts = records.read_jsonl(run_dir / records.DIVERGENCE_FILE, DivergenceVerdict)
     usage = summarise_usage(run_dir / records.USAGE_FILE, pricing)
@@ -133,6 +134,7 @@ def build_report(run_dir: Path, target_id: str, pricing: dict[str, Any] | None =
         + (f" (n={len(reviews)})" if reviews else ""),
     ]
     lines += _flag_score_conflicts(reviews)
+    lines += _second_reviewer_agreement(reviews, second_reviews)
     lines += [
         "",
         "## Cue-term hits",
@@ -390,6 +392,93 @@ def _reason_bucket(reason: str) -> str:
         if reason.startswith(prefix):
             return prefix
     return reason[:60]
+
+
+#: Numeric dimensions compared between the two reviewers, in report order.
+AGREEMENT_SCORES = ("fidelity", "judgment_not_terminology", "scenario_quality")
+
+
+def _second_reviewer_agreement(
+    primary: list[Review], second: list[Review]
+) -> list[str]:
+    """Compare two independent reviewers over the responses both of them scored.
+
+    Absent a second reviewer this is silent. A single reviewer's mean says nothing about
+    whether the rubric is being applied or merely being agreed with, which is the whole
+    point of running a second model over the same responses.
+    """
+    if not second:
+        return []
+    second_by_response = {review.response_id: review for review in second}
+    shared = [review for review in primary if review.response_id in second_by_response]
+    if not shared:
+        return [
+            "",
+            "## Second reviewer",
+            "",
+            f"`{records.REVIEWS_SECOND_FILE}` holds {len(second)} reviews, but none of them "
+            f"cover a response the primary reviewer scored, so there is nothing to compare.",
+        ]
+
+    primary_model = shared[0].reviewer_model or "primary"
+    second_model = second_by_response[shared[0].response_id].reviewer_model or "second"
+    lines = [
+        "",
+        "## Second reviewer",
+        "",
+        f"`{primary_model}` (primary) against `{second_model}` (second), over the "
+        f"{len(shared)} responses both scored.",
+        "",
+        "| score | primary mean | second mean | exact match | within 1 |",
+        "|---|---|---|---|---|",
+    ]
+    for name in AGREEMENT_SCORES:
+        pairs = [
+            (_as_number(review.scores.get(name)),
+             _as_number(second_by_response[review.response_id].scores.get(name)))
+            for review in shared
+        ]
+        primary_mean = sum(a for a, _b in pairs) / len(pairs)
+        second_mean = sum(b for _a, b in pairs) / len(pairs)
+        exact = sum(1 for a, b in pairs if a == b)
+        within_one = sum(1 for a, b in pairs if abs(a - b) <= 1)
+        lines.append(
+            f"| {name} | {primary_mean:.2f} | {second_mean:.2f} | "
+            f"{exact}/{len(pairs)} | {within_one}/{len(pairs)} |"
+        )
+
+    agreed = sum(
+        1
+        for review in shared
+        if review.verdict == second_by_response[review.response_id].verdict
+    )
+    histogram = Counter(second_by_response[r.response_id].verdict for r in shared)
+    lines += [
+        "",
+        f"Verdicts agree on **{agreed}/{len(shared)}**. Second reviewer's verdicts: "
+        + (", ".join(f"{verdict} ×{count}" for verdict, count in histogram.most_common())
+           or "none recorded")
+        + ".",
+    ]
+
+    disagreements = [
+        (review, second_by_response[review.response_id])
+        for review in shared
+        if review.verdict != second_by_response[review.response_id].verdict
+    ]
+    for first, other in disagreements[:5]:
+        lines.append(
+            f"- `{first.response_id}`: primary said {first.verdict}, second said "
+            f"{other.verdict} — {other.rationale[:160]}"
+        )
+    return lines
+
+
+def _as_number(value: Any) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def _mean_scores(reviews: list[Review]) -> dict[str, float]:

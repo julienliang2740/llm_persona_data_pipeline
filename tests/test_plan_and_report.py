@@ -10,7 +10,7 @@ from collections import Counter
 
 from pipeline import records
 from pipeline.evaluate import before_after_table
-from pipeline.records import write_jsonl
+from pipeline.records import Review, write_jsonl
 from pipeline.report import build_report
 from tests.test_export import build_run
 
@@ -184,3 +184,136 @@ def test_report_says_so_when_the_rubric_was_applied_consistently(tmp_path, pilot
     text = build_report(build_run(tmp_path), "toy")
     assert "**0** of 2" in text
     assert "rubric was applied consistently" in text
+
+
+# -- second-reviewer agreement -------------------------------------------------
+
+
+def a_review(response_id, verdict="accept", rationale="", model="primary-model", **scores):
+    base = {"fidelity": 5, "judgment_not_terminology": 5, "scenario_quality": 5}
+    base.update(scores)
+    return Review(f"rev_{response_id}", response_id, model, base, [], verdict, rationale)
+
+
+def fixture_pair():
+    """Two reviewers over four responses, with the answer worked out by hand.
+
+    primary scores every dimension 5. Second scores:
+      fidelity                 [5, 4, 4, 4] -> mean 4.25, exact 1/4, within 1 4/4
+      judgment_not_terminology [5, 4, 3, 3] -> mean 3.75, exact 1/4, within 1 2/4
+      scenario_quality         [5, 5, 5, 5] -> mean 5.00, exact 4/4, within 1 4/4
+    Verdicts agree on 3 of 4; the second reviewer rejects r3.
+    """
+    primary = [a_review(f"r{i}") for i in range(4)]
+    second = [
+        a_review("r0", model="second-model", fidelity=5, judgment_not_terminology=5),
+        a_review("r1", model="second-model", fidelity=4, judgment_not_terminology=4),
+        a_review("r2", model="second-model", fidelity=4, judgment_not_terminology=3),
+        a_review("r3", verdict="reject", rationale="generic advice", model="second-model",
+                 fidelity=4, judgment_not_terminology=3),
+    ]
+    return primary, second
+
+
+def test_agreement_table_reports_means_and_match_counts():
+    from pipeline.report import _second_reviewer_agreement
+
+    text = "\n".join(_second_reviewer_agreement(*fixture_pair()))
+    assert "| fidelity | 5.00 | 4.25 | 1/4 | 4/4 |" in text
+    # within-1 is 2/4 here, not 4/4: two of the four differ by two points, which is
+    # the case the "within 1" column exists to separate from near-agreement.
+    assert "| judgment_not_terminology | 5.00 | 3.75 | 1/4 | 2/4 |" in text
+    assert "| scenario_quality | 5.00 | 5.00 | 4/4 | 4/4 |" in text
+
+
+def test_agreement_reports_verdicts_and_the_second_histogram():
+    from pipeline.report import _second_reviewer_agreement
+
+    text = "\n".join(_second_reviewer_agreement(*fixture_pair()))
+    assert "Verdicts agree on **3/4**" in text
+    assert "accept ×3" in text and "reject ×1" in text
+
+
+def test_agreement_names_both_models_and_the_shared_count():
+    from pipeline.report import _second_reviewer_agreement
+
+    text = "\n".join(_second_reviewer_agreement(*fixture_pair()))
+    assert "`primary-model` (primary) against `second-model` (second)" in text
+    assert "over the 4 responses both scored" in text
+
+
+def test_a_verdict_disagreement_is_listed_with_its_rationale():
+    from pipeline.report import _second_reviewer_agreement
+
+    text = "\n".join(_second_reviewer_agreement(*fixture_pair()))
+    assert "`r3`: primary said accept, second said reject" in text
+    assert "generic advice" in text
+
+
+def test_no_second_reviewer_renders_nothing():
+    from pipeline.report import _second_reviewer_agreement
+
+    primary, _second = fixture_pair()
+    assert _second_reviewer_agreement(primary, []) == []
+
+
+def test_only_responses_both_reviewers_scored_are_compared():
+    from pipeline.report import _second_reviewer_agreement
+
+    primary, second = fixture_pair()
+    text = "\n".join(_second_reviewer_agreement(primary, second[:2]))
+    assert "over the 2 responses both scored" in text
+    assert "| fidelity | 5.00 | 4.50 | 1/2 | 2/2 |" in text
+
+
+def test_a_second_reviewer_covering_nothing_says_so():
+    from pipeline.report import _second_reviewer_agreement
+
+    primary, _second = fixture_pair()
+    stranger = [a_review("unrelated", model="second-model")]
+    text = "\n".join(_second_reviewer_agreement(primary, stranger))
+    assert "nothing to compare" in text
+
+
+def test_a_missing_score_does_not_crash_the_table():
+    from pipeline.records import Review
+    from pipeline.report import _second_reviewer_agreement
+
+    primary = [a_review("r0")]
+    second = [Review("rev", "r0", "second-model", {"fidelity": 4}, [], "accept", "")]
+    text = "\n".join(_second_reviewer_agreement(primary, second))
+    assert "| fidelity | 5.00 | 4.00 | 0/1 | 1/1 |" in text
+    assert "| judgment_not_terminology | 5.00 | 0.00 | 0/1 | 0/1 |" in text
+
+
+def test_the_report_includes_the_agreement_section_when_the_file_exists(
+    tmp_path, pilot_config, toy_spec
+):
+    from pipeline import records
+    from pipeline.export import run_stage as export_stage
+    from pipeline.report import build_report
+
+    run_dir = build_run(tmp_path)
+    export_stage(pilot_config, toy_spec, run_dir)
+    existing = records.read_jsonl(run_dir / records.REVIEWS_FILE, Review)
+    second = [
+        Review(f"s_{r.response_id}", r.response_id, "second-model",
+               dict(r.scores, fidelity=3), [], "revise", "not specific enough")
+        for r in existing
+    ]
+    records.write_jsonl(run_dir / records.REVIEWS_SECOND_FILE, second)
+    text = build_report(run_dir, "toy")
+    assert "## Second reviewer" in text
+    assert "second-model" in text
+    assert "Verdicts agree on **0/" in text
+
+
+def test_the_report_omits_the_section_without_a_second_reviewer(
+    tmp_path, pilot_config, toy_spec
+):
+    from pipeline.export import run_stage as export_stage
+    from pipeline.report import build_report
+
+    run_dir = build_run(tmp_path)
+    export_stage(pilot_config, toy_spec, run_dir)
+    assert "## Second reviewer" not in build_report(run_dir, "toy")
