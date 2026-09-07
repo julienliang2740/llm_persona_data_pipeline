@@ -1,6 +1,6 @@
 # Part 1 data pipeline: development and research summary
 
-Status: round-1 pilots complete on four traditions; critique round in progress. Updated 7 Sep 2026.
+Status: two full pilot rounds on four traditions, three critique passes, a re-judge pass and one round-3 verification run. Updated 7 Sep 2026, 22:20 UTC.
 
 ## 1. Architecture (high level)
 
@@ -191,6 +191,18 @@ gate's power is undemonstrated and it structurally favours values stated in a te
 generic echo by construction) over shared values like honesty and fairness. With four judged families per
 target the rate moves in 25-point steps; differences between traditions at this size are one family.
 
+### Round 3 (one verification run, Catholic, after the planner and judge fixes)
+
+`runs/catholic/20260907-214023`: 8 families, 16 prompts, 16 of 16 kept, cost $5.9. What the planner fixes
+changed on real output: seven distinct institutions across sectors (a translation agency, a planning
+department, a smart-meter installer, a commercial kitchen, a housing co-operative, a wedding venue, a
+parents' group) where round 2 gave every target the same six clinics; role type 4/2/2 (no authority /
+peer / holds authority) where round 2 was 32 of 32 "no authority"; all five asker stances present; eval
+exactly 2 divergence + 2 ordinary; the contrastive pair varied on the role axis (probationary contract vs
+secure permanent role). Not yet spread: harm severity was 7 of 8 "minor". Divergence: 6 of 8 prompts
+confirmed, 3 of 4 families value-attributed on every prompt; 2 of 16 prompts stipulated the move and were
+relabelled. The reviewer again scored fidelity 5.00 on all 16, which is the open problem carried into §9.
+
 What round 2 fixed (per the second critique pass, `runs/critique/round2_*.md`): the shared house style
 ("watch for" paragraph 52/83 → 1/64; shared four-grams from dozens to one); the round-1 33/34 divergence
 illusion (per-family, three-way, value-attributed rates with quoted evidence); unresolved tradeoffs now get
@@ -266,8 +278,10 @@ What round 2 did not fix or newly broke:
 |---|---|
 | round-1 pilots (4 targets, ~8 families each) | ~$12.4 |
 | round-2 pilots (4 targets, 8 families, second reviewer + three-way divergence + revise round) | ~$21.7 |
+| re-judge of all four round-2 runs (strong-generic leg regenerated, three-way judge) | ~$3 |
+| round-3 Catholic verification run | ~$6 |
 | dev, toy, and E4 low-effort runs | ~$5 |
-| **total at end of round 2** | **about $39 over ~900 calls** (see `usage.jsonl` in each run directory) |
+| **total at end of round 3** | **$47.69 over about 1,100 calls** (see `usage.jsonl` in each run directory) |
 
 Measured unit costs (round 2): ~$0.10 per generated response including its share of family and prompt
 calls, ~$0.02 per primary review, ~$0.05 per second review (kimi-k3), ~$0.02 per three-way judge verdict.
