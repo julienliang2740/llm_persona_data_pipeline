@@ -13,7 +13,7 @@ python main.py all --target <id> --config configs/pilot.yaml
   generate   families (unit of splitting) -> user prompts (uncued) -> responses (deliberation + answer)
   baseline   local 7-8B base model answers the same prompts (llama.cpp, OpenAI-compatible)
   validate   reviewer critique, cue-term check, family-aware dedupe, leakage, divergence judge, decisions
-  export     family-based split -> export/sft_train.jsonl, eval.jsonl, manifest.json
+  export     family-based split -> sft_train.jsonl, eval.jsonl, manifest.json (run root)
   evaluate   any endpoint or an answers file over eval.jsonl, judged; before/after table
   report     runs/<id>/<run>/report.md
 training/train_lora.py (GPU QLoRA or CPU smoke) + generate_with_adapter.py -> answers.jsonl -> evaluate

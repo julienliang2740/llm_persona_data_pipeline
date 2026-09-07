@@ -119,7 +119,7 @@ Keep it to roughly these files. No plugin systems, no base classes with one subc
 5. **Validate**: reviewer scores each response; cue-term regex from `cue_policy.forbidden_terms`; near-dup via
    embeddings (cosine > 0.92 within target) with lexical fallback; leakage = max cosine between eval prompts and
    train prompts/responses (flag > 0.85); divergence judge on intended-divergence cases.
-6. **Export**: family-based split honoring `split`; write `sft_train.jsonl` (`{messages:[user, assistant], meta}`),
+6. **Export**: family-based split honoring `split`; write `sft_train.jsonl` (at the run root) (`{messages:[user, assistant], meta}`),
    `eval.jsonl` (`{prompt, case_type, family_id, expected_behavior, pass_fail_notes}`), `manifest.json`
    (counts by domain/case_type, models, spec_version, config hash, cost).
 
