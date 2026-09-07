@@ -163,8 +163,26 @@ The round-2 change list derived from these is `docs/round2-changes.md`.
 | protestant | 16/16 | 4.94 / 4.81 | 7/8 | 4/4 | 3 of 4 | $5.44 |
 | theravada | 14/16 | 4.94 / 4.69 | 8/8 | 4/4 | 4 of 4 | $5.85 |
 
-Numbers are before the re-judge described below; "critic-defended" is the round-2 divergence critic's
-re-read of every verdict against all three answers.
+"critic-defended" is the round-2 divergence critic's re-read of every verdict under the ORIGINAL
+round-2 judge, whose strong-generic control was mis-specified (see below).
+
+After fixing the control and the judge (generator settings minus the spec as the strong-generic leg; labels
+shuffled per prompt; a required `generic_echo` with a forced-capability rule; a family counts only when every
+judged prompt is value-attributed), all four runs were re-judged with the strong-generic leg regenerated:
+
+| target | confirmed (of intended prompts) | value on every prompt (families) | value on any prompt (ceiling) |
+|---|---|---|---|
+| confucian | 8/8 | 4/4 | 4/4 |
+| catholic | 7/8 | 3/4 | 4/4 |
+| protestant | 6/8 | 2/4 | 4/4 |
+| theravada | 8/8 | 4/4 | 4/4 |
+
+Confucian rose from 1/4 because its first strong-generic leg had lost five answers to reasoning overflow;
+the lead read four of its re-judged verdicts (private correction before escalation vs "go to the shift
+lead"; a family claim affirmed then bounded vs fairness-only) and found them defensible. A third critic
+re-read all 32 re-judged verdicts; its defended rates are in `runs/critique/round3_rejudge.md` and below.
+With four judged families per target the rate moves in 25-point steps, so differences between traditions
+at this size are one family and should not be read as differences between traditions.
 
 What round 2 fixed (per the second critique pass, `runs/critique/round2_*.md`): the shared house style
 ("watch for" paragraph 52/83 → 1/64; shared four-grams from dozens to one); the round-1 33/34 divergence
