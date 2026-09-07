@@ -95,7 +95,7 @@ async def run(args: argparse.Namespace) -> int:
         return 0
 
     if args.stage == "report":
-        path = report.run_stage(run_dir, args.target, config.pricing)
+        path = report.run_stage(run_dir, args.target, config.pricing, config.generation)
         print(path.read_text(encoding="utf-8"))
         return 0
 
@@ -149,7 +149,9 @@ async def run(args: argparse.Namespace) -> int:
                 Path(args.answers_file) if args.answers_file else None,
             )
         elif stage == "report":
-            summary[stage] = str(report.run_stage(run_dir, args.target, config.pricing))
+            summary[stage] = str(
+                report.run_stage(run_dir, args.target, config.pricing, config.generation)
+            )
 
     print(json.dumps({"run_dir": str(run_dir), "stages": summary}, indent=2, default=str))
     return 0
