@@ -96,6 +96,7 @@ validation:
   # licensing control; set true to drop those rather than only report them.
   reject_on_quoted_source: false
 
+# Read by the llm_persona_eval repository, not by any stage here.
 evaluation:
   temperature: 0.7           # matched before/after, per the plan
   # null means each endpoint uses its own max_tokens, so before/after settings stay

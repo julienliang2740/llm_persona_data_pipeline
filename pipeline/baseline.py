@@ -18,7 +18,7 @@ from pipeline.config import ModelRole, RunConfig
 from pipeline.model import LocalEndpointUnavailable, ModelClient, gather_bounded
 from pipeline.records import BaselineAnswer, Family, Prompt
 from pipeline.target import TargetSpec
-from prompts.evaluation import EVAL_ANSWER_SYSTEM_PROMPT
+from prompts.baseline import BASELINE_ANSWER_SYSTEM_PROMPT
 from prompts.review import STRONG_GENERIC_SYSTEM_PROMPT
 
 logger = logging.getLogger("pipeline.baseline")
@@ -156,7 +156,7 @@ async def run_stage(config: RunConfig, run_dir: Path) -> dict[str, int]:
             response = await client.complete(
                 base_role,
                 [
-                    {"role": "system", "content": EVAL_ANSWER_SYSTEM_PROMPT},
+                    {"role": "system", "content": BASELINE_ANSWER_SYSTEM_PROMPT},
                     {"role": "user", "content": prompt.text},
                 ],
                 stage="baseline",

@@ -14,9 +14,8 @@ python main.py all --target <id> --config configs/pilot.yaml
   baseline   local 7-8B base model answers the same prompts (llama.cpp, OpenAI-compatible)
   validate   reviewer critique, cue-term check, family-aware dedupe, leakage, divergence judge, decisions
   export     family-based split -> sft_train.jsonl, eval.jsonl, manifest.json (run root)
-  evaluate   any endpoint or an answers file over eval.jsonl, judged; before/after table
   report     runs/<id>/<run>/report.md
-training/train_lora.py (GPU QLoRA or CPU smoke) + generate_with_adapter.py -> answers.jsonl -> evaluate
+../llm_persona_training (LoRA SFT, adapter answers) -> ../llm_persona_eval (judge eval.jsonl, before/after)
 ```
 
 Every stage reads and writes JSONL in `runs/<target>/<run_id>/`, is idempotent on that directory
@@ -25,7 +24,7 @@ The only HTTP call site is `pipeline/model.py`; all prompts are ALL_CAPS constan
 Nothing in `pipeline/` names a tradition.
 
 Where to look: model calls `pipeline/model.py`; prompts `prompts/generation.py`, `prompts/review.py`,
-`prompts/evaluation.py`; stage logic `pipeline/<stage>.py`; configuration `configs/*.yaml` and
+`prompts/baseline.py`; stage logic `pipeline/<stage>.py`; configuration `configs/*.yaml` and
 `targets/<id>/spec.yaml`; provenance of any artifact: its run directory plus `manifest.json`.
 
 ## 2. Major design decisions and why
@@ -89,7 +88,7 @@ Round 1 (one pass, then six critics):
   a 90 s cap, and one API-heavy process at a time.
 - **Train → evaluate plumbing**: a CPU LoRA on 14 Confucian rows with a 0.5B model, answers judged by
   the same rubric as the 7B base (base passed 1/7, adapter 0/7). This proves the path, not a result;
-  a real result needs the GPU recipe in `training/`.
+  a real result needs the GPU recipe in `../llm_persona_training`.
 
 Round 2 experiments:
 - **E1 three-way divergence**: see section 5; after the judge fixes the conservative value-attributed rate
