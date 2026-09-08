@@ -1,0 +1,67 @@
+{
+  "target_id": "lbj",
+  "target_name": "Lyndon Baines Johnson (1908-1973)",
+  "spec_version": "0.2-draft",
+  "spec_hash": "01c0c4af00c4",
+  "run_id": "20260908-064546",
+  "exported_at": "2026-09-08T07:05:47+00:00",
+  "git_commit": "9e6379e909370f6503dc29038fdfeb6fb384717b-dirty",
+  "config_file": "/Users/devinli/llm_persona_data_pipeline/configs/persona_pilot.yaml",
+  "config_hash": "86182510bae0",
+  "config_copy": "config.resolved.yaml",
+  "spec_copy": "spec.yaml",
+  "models": {
+    "generator": "accounts/fireworks/models/kimi-k3",
+    "reviewer": "accounts/fireworks/models/deepseek-v4-pro-0813",
+    "reviewer_second": "accounts/fireworks/models/glm-5p3",
+    "judge": "accounts/fireworks/models/deepseek-v4-pro-0813",
+    "embeddings": "accounts/fireworks/models/qwen3-embedding-8b",
+    "base": "qwen2.5-7b-instruct",
+    "strong_generic": "accounts/fireworks/models/qwen3p8-max"
+  },
+  "counts": {
+    "n_families_configured": 8,
+    "n_families_effective": 2,
+    "families": 2,
+    "families_train": 1,
+    "families_eval": 1,
+    "families_reserved": 0,
+    "layers_generated": [],
+    "prompts": 4,
+    "responses": 4,
+    "kept": 4,
+    "dropped": 0,
+    "sft_train_rows": 2,
+    "eval_rows": 2,
+    "eval_rows_kept_despite_score_cut": 0,
+    "rows_dropped_for_placeholders": 0,
+    "explicit_mode_rows": 0,
+    "counterfactual_groups": 0,
+    "counterfactual_groups_incomplete": 0,
+    "by_bucket": {
+      "eval:work": 2,
+      "eval_case:ordinary": 2,
+      "eval_question:what_to_do": 2,
+      "eval_variant:base": 1,
+      "eval_variant:setting_shift": 1,
+      "train:civic_and_institutional": 2,
+      "train_case:divergence": 2
+    }
+  },
+  "license_constraints": [
+    {
+      "license": "Entries are original prose written for this repository. They summarise US federal government works (speech texts, roll call records) which are not subject to copyright, and secondary scholarship which is; no source text is reproduced at length. See SOURCES.md.",
+      "use": "grounding",
+      "sources": "key_passages"
+    }
+  ],
+  "redistribution_note": "DRAFT — not cleared for export. Passages need verification against the sources before any dataset is generated. Underlying federal government works (speech texts, roll call records) are not subject to copyright; secondary scholarship informing the circumstance and testimony entries is, and is paraphrased rather than reproduced. Two sites declining automated AI use were honoured and nothing was taken from them (SOURCES.md). Note also that a faithful persona of this subject reproduces conduct including a stolen election, self-dealing in office, two decades of votes to defeat civil rights legislation, and the racial vocabulary and assumptions of mid-century American politics. Persona specs carry no modern-constraint clause, so these are present in the output by design and are not defects; they are declared here and in the export manifest rather than filtered.",
+  "cost": {
+    "usd": 1.5242103799999998,
+    "display": "$1.5242",
+    "calls": 27,
+    "prompt_tokens": 136309,
+    "completion_tokens": 176998,
+    "reasoning_tokens": 161185
+  }
+}

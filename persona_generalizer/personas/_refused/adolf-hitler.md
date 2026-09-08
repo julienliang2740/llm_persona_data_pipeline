@@ -33,7 +33,9 @@ There is no version where the objectionable part is a wart on something else.
 ## What this refusal produced
 
 The conversational refusal did not bind the script arm: `personas/ah/` holds a `usage.jsonl`
-showing seven generator calls and roughly $0.80 spent on `sufficiency` and `evidence` passes for
-this subject, run after the refusal. That is the argument for putting the boundary in code, and
+showing seven generator calls and $0.96 spent on `sufficiency` and `evidence` passes for this
+subject, run after the refusal. That directory has since been deleted — it held no spec and no
+passages, only the empty `references/` skeleton and the spend log — and the figure is recorded
+here so the episode is not lost with it. That is the argument for putting the boundary in code, and
 it is now at pass 0 of `draft_persona.py` — before config is loaded, before any directory is
 created, before anything is spent.
