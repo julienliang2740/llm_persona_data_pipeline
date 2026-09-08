@@ -7,13 +7,18 @@ tradition is named anywhere in the code.
 ```
 targets/<id>/spec.yaml + references/   configs/<run>.yaml
                     │
-       generate ─► baseline ─► validate ─► export ─► evaluate
-       families     base model  reviewer    sft_train.jsonl   before/after
-       prompts      answers     cue check   eval.jsonl        on the held-out set
+       generate ─► baseline ─► validate ─► export
+       families     base model  reviewer    sft_train.jsonl
+       prompts      answers     cue check   eval.jsonl
        responses                dedupe      manifest.json
                                 leakage
                                 divergence
 ```
+
+Training on the export and evaluating before/after a fine-tune live in two sibling
+repositories that read this one's run directories: `llm_persona_training` (LoRA SFT,
+adapter answer generation) and `llm_persona_eval` (judge answers over `eval.jsonl`,
+before/after table).
 
 Every stage reads and writes JSONL in `runs/<target>/<run_id>/`, so any artifact can be
 inspected on its own and any stage can be re-run alone. Stages are idempotent on a run
@@ -84,32 +89,17 @@ of its principles.
 
 ## Before and after a fine-tune
 
-`baseline` and `evaluate` talk to a local OpenAI-compatible server, so the same code runs the
-un-tuned checkpoint and the adapted one:
+`baseline` here talks to a local OpenAI-compatible server for the un-tuned checkpoint. The
+rest of the loop moved out on 8 September 2026:
 
-Evaluation takes answers two ways, and both write the same results shape, so any pair can be
-compared. Either run a configured model role live over `eval.jsonl`:
+- `../llm_persona_training`: `train_lora.py` on `sft_train.jsonl`, `generate_with_adapter.py`
+  over `eval.jsonl`, whose rows are `{prompt_id, prompt, model, text}`.
+- `../llm_persona_eval`: `main.py evaluate` runs a configured model role or an answers file over
+  `eval.jsonl` and judges it; `main.py compare` writes the before/after table. Results land in
+  this repo's run directory as `eval_results_<label>.jsonl` and `before_after.md`.
 
-```bash
-llama-server -m <model>.gguf --port 8080          # in another terminal
-.venv/bin/python main.py evaluate --target confucian --endpoint-role base --label before
-```
-
-or judge answers generated elsewhere, for instance by `training/generate_with_adapter.py`,
-whose rows are `{prompt_id, prompt, model, text}`:
-
-```bash
-.venv/bin/python main.py evaluate --target confucian \
-    --answers-file training/out/answers.jsonl --label after
-```
-
-Then compare any two result files:
-
-```bash
-.venv/bin/python main.py evaluate --target confucian \
-    --before runs/confucian/<run>/eval_results_before.jsonl \
-    --after  runs/confucian/<run>/eval_results_after.jsonl
-```
+The `evaluation:` section of each config (temperature, answer token budget) is read by the eval
+repo, which imports this repo's `pipeline` package rather than copying it.
 
 If the local server is not running, `baseline` stops with a one-line explanation rather than a
 traceback, and `main.py all` continues without it. Intended-divergence cases are then recorded
@@ -133,7 +123,6 @@ as `unverified` instead of confirmed, and the report says so.
 | `pipeline/review.py` | reviewer critique, the score-key repair, and the revise round |
 | `pipeline/divergence.py` | three-way judging against the base model and a strong generic answer |
 | `pipeline/export.py` | family split, `sft_train.jsonl`, `eval.jsonl`, `manifest.json` |
-| `pipeline/evaluate.py` | run an endpoint over the eval set, judge it, before/after table |
 | `pipeline/report.py`, `report_style.py` | the markdown run report; cross-target style, coverage and similarity tables |
 | `prompts/` | **all model-facing text**, as ALL_CAPS constants with `{{placeholders}}` |
 | `configs/` | `pilot.yaml`, `full.yaml`, `pricing.yaml` |

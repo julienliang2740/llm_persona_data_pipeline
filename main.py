@@ -4,10 +4,12 @@
     python main.py check    --target confucian            # validate a target spec, no model calls
     python main.py generate --target confucian --config configs/pilot.yaml
     python main.py all      --target confucian --config configs/pilot.yaml --n-families 20
-    python main.py evaluate --target confucian --run 20260907-101500 --endpoint base --label before
 
 Every stage reads and writes JSONL in runs/<target>/<run_id>/ and is idempotent on
 that directory: re-running a stage fills in what is missing rather than starting over.
+
+Evaluating a run's eval.jsonl (before/after a fine-tune) lives in the llm_persona_eval
+repository, and LoRA training in llm_persona_training; both read this repo's exports.
 """
 
 from __future__ import annotations
@@ -19,11 +21,11 @@ import logging
 import sys
 from pathlib import Path
 
-from pipeline import baseline, evaluate, export, generate, report, records, validate
+from pipeline import baseline, export, generate, report, records, validate
 from pipeline.config import ConfigError, load_config, new_run_id, resolve_run_dir
 from pipeline.target import SpecError, load_target
 
-STAGES = ("check", "generate", "baseline", "validate", "export", "evaluate", "report", "all")
+STAGES = ("check", "generate", "baseline", "validate", "export", "report", "all")
 
 
 def configure_logging(run_dir: Path, verbose: bool) -> None:
@@ -55,22 +57,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--new-run", action="store_true", help="start a fresh run id instead of resuming")
     parser.add_argument("--n-families", type=int, default=None, help="override generation.n_families")
     parser.add_argument("--targets-dir", default=None, help="override where targets/ is read from")
-    parser.add_argument(
-        "--endpoint-role",
-        "--endpoint",
-        dest="endpoint_role",
-        default="base",
-        help="evaluate: which configured model role to run over eval.jsonl",
-    )
-    parser.add_argument(
-        "--answers-file",
-        default=None,
-        help="evaluate: judge answers generated elsewhere instead of calling a model. "
-        "Rows are {prompt_id, prompt, model, text}.",
-    )
-    parser.add_argument("--label", default=None, help="evaluate: name for this result file")
-    parser.add_argument("--before", default=None, help="evaluate: earlier eval_results_*.jsonl to compare")
-    parser.add_argument("--after", default=None, help="evaluate: later eval_results_*.jsonl to compare")
     parser.add_argument(
         "--skip-baseline",
         action="store_true",
@@ -127,13 +113,6 @@ async def run(args: argparse.Namespace) -> int:
     configure_logging(run_dir, args.verbose)
     logger = logging.getLogger("main")
 
-    if args.stage in ("evaluate",) and args.before and args.after:
-        table = evaluate.write_before_after(
-            Path(args.before), Path(args.after), run_dir / "before_after.md"
-        )
-        print(table)
-        return 0
-
     if args.stage == "report":
         path = report.run_stage(run_dir, args.target, config.pricing, config.generation)
         print(path.read_text(encoding="utf-8"))
@@ -179,15 +158,6 @@ async def run(args: argparse.Namespace) -> int:
             summary[stage] = await validate.run_stage(config, spec, run_dir)
         elif stage == "export":
             summary[stage] = export.run_stage(config, spec, run_dir)
-        elif stage == "evaluate":
-            summary[stage] = await evaluate.run_stage(
-                config,
-                spec,
-                run_dir,
-                args.endpoint_role,
-                args.label,
-                Path(args.answers_file) if args.answers_file else None,
-            )
         elif stage == "report":
             summary[stage] = str(
                 report.run_stage(run_dir, args.target, config.pricing, config.generation)

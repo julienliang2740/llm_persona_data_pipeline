@@ -9,7 +9,6 @@ from __future__ import annotations
 from collections import Counter
 
 from pipeline import records
-from pipeline.evaluate import before_after_table
 from pipeline.records import Review, write_jsonl
 from pipeline.report import build_report
 from tests.test_export import build_run
@@ -45,43 +44,6 @@ def test_report_lists_rejection_reasons(tmp_path, pilot_config, toy_spec):
     text = build_report(run_dir, "toy")
     assert "near-duplicate of" in text
     assert "## Samples rejected" in text
-
-
-def test_before_after_table(tmp_path):
-    before = tmp_path / "eval_results_before.jsonl"
-    after = tmp_path / "eval_results_after.jsonl"
-    def row(prompt_id, case_type, passed, model="base", rationale=""):
-        return {
-            "prompt_id": prompt_id,
-            "family_id": "f" + prompt_id,
-            "case_type": case_type,
-            "variant": "base",
-            "model": model,
-            "text": "an answer",
-            "judge": {"pass": passed, "rationale": rationale},
-        }
-
-    write_jsonl(before, [row("p1", "divergence", False), row("p2", "ordinary", True)])
-    write_jsonl(
-        after,
-        [
-            row("p1", "divergence", True, "tuned"),
-            row("p2", "ordinary", False, "tuned", "lost the point"),
-        ],
-    )
-    table = before_after_table(before, after)
-    assert "| divergence | 1 | 0 | 1 | +1 |" in table
-    assert "| ordinary | 1 | 1 | 0 | -1 |" in table
-    assert "Newly passing: 1" in table
-    assert "regression `p2`" in table
-
-
-def test_before_after_with_no_shared_prompts(tmp_path):
-    before = tmp_path / "a.jsonl"
-    after = tmp_path / "b.jsonl"
-    write_jsonl(before, [{"prompt_id": "p1", "case_type": "ordinary", "judge": {"pass": True}}])
-    write_jsonl(after, [{"prompt_id": "p9", "case_type": "ordinary", "judge": {"pass": True}}])
-    assert "No prompts in common" in before_after_table(before, after)
 
 
 def test_report_separates_action_and_reasons_divergence(tmp_path, pilot_config, toy_spec):
@@ -142,29 +104,6 @@ def test_report_lists_families_reserved_by_the_avoid_screen(tmp_path, pilot_conf
     text = build_report(run_dir, "toy")
     assert "reserved by the avoided-topic screen: **1**" in text
     assert "probate" in text
-
-
-def test_before_after_breaks_the_change_down_by_prompt_variant(tmp_path):
-    """A gain confined to `base` is a gain on the training situations, not the target."""
-    before = tmp_path / "eval_results_before.jsonl"
-    after = tmp_path / "eval_results_after.jsonl"
-
-    def row(prompt_id, variant, passed):
-        return {
-            "prompt_id": prompt_id,
-            "family_id": "f" + prompt_id,
-            "case_type": "ordinary",
-            "variant": variant,
-            "model": "m",
-            "text": "an answer",
-            "judge": {"pass": passed},
-        }
-
-    write_jsonl(before, [row("p1", "base", False), row("p2", "fiction", False)])
-    write_jsonl(after, [row("p1", "base", True), row("p2", "fiction", False)])
-    table = before_after_table(before, after)
-    assert "| base | 1 | 0 | 1 | +1 |" in table
-    assert "| fiction | 1 | 0 | 0 | +0 |" in table
 
 
 def test_report_names_reviews_that_scored_five_while_raising_a_flag(tmp_path, pilot_config, toy_spec):
