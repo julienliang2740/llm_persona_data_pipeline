@@ -99,7 +99,20 @@ Each item:
           did and in what circumstances. For circumstance, the condition AND what it did to them.",
  "bears_on": "what this grounds in the persona",
  "confidence": "high" | "medium" | "low",
+ "evidence_basis": "attested" | "reconstructed",
  "verify": "what a human must check against a source"}
+
+evidence_basis is the difference between something a source says and something you inferred from
+the surrounding evidence. Mark it "reconstructed" whenever the item is your inference — a
+psychological effect nobody recorded, a motive the sources do not state, a circumstance argued
+from what was normal at the time. Reconstruction is allowed and expected where sources are thin;
+what is not allowed is reconstruction that cannot be seen, because once a passage is in a prompt
+an inference reads exactly like a record. Under-marking is the serious error, so when in doubt
+mark it reconstructed.
+
+Two consequences you should know: reconstructed passages may not exceed 40% of the corpus, and a
+conflict's said/did passages must both be attested, because conduct-over-words cannot adjudicate
+a gap that the reconstruction may itself have created.
 
 Return JSON: {"evidence": [ ... ]}
 """

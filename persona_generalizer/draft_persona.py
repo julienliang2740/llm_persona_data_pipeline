@@ -163,6 +163,12 @@ def render_key_passages(
             if period:
                 lines.append(f"*Period:* {period}")
             lines.append(str(item.get("body") or "").strip())
+            # The marker has to be on its own line for pipeline.target to parse it, and it is
+            # written for every passage rather than only the reconstructed ones: a spec whose
+            # verdict is admit_reconstructed must declare it everywhere, and a defaulted
+            # "attested" is indistinguishable from a considered one.
+            basis = str(item.get("evidence_basis") or "attested").strip().lower()
+            lines.append(f"evidence_basis: {basis if basis in ('attested', 'reconstructed') else 'reconstructed'}")
             if item.get("bears_on"):
                 lines.append(f"Bearing on: {item['bears_on']}")
             if item.get("source_url"):
@@ -425,6 +431,24 @@ async def draft(subject: str, persona_id: str, config_path: str, out_dir: Path,
         print(scope.refusal_message(subject, needle, why), file=sys.stderr)
         return 2
 
+    # A refusal costs the same research as an admission. If this subject has been through the
+    # gate before, say so loudly before spending anything again — the previous verdict may be
+    # revisitable (refuse_acquisition usually is) but it should be an explicit decision, not an
+    # accident of nobody having looked.
+    prior = out_dir / "_refused"
+    if prior.is_dir():
+        needle = {w for w in scope._normalise(subject).split() if len(w) > 2}
+        for record in sorted(prior.glob("*.md")):
+            if record.name == "README.md":
+                continue
+            stem = set(scope._normalise(record.stem.replace("-", " ")).split())
+            if needle and stem and (needle & stem) == stem:
+                first = record.read_text(encoding="utf-8").splitlines()[0].lstrip("# ").strip()
+                LOGGER.warning(
+                    "prior refusal on record for this subject: %s (%s). Proceeding, but read it "
+                    "before trusting a different verdict.", first, record,
+                )
+
     config = load_config(config_path)
     root = out_dir / persona_id
     (root / "references").mkdir(parents=True, exist_ok=True)
@@ -496,11 +520,28 @@ async def draft(subject: str, persona_id: str, config_path: str, out_dir: Path,
                 file=sys.stderr,
             )
             return 2
-        if str(sufficiency.get("verdict")) == "refuse":
+        # Every refusal halts, not just the legacy bare "refuse". When the gate learned to say
+        # refuse_evidence / refuse_acquisition / refuse_scope, an equality test against "refuse"
+        # stopped matching any of them and the drafter would have built the spec out anyway —
+        # which is precisely the outcome the gate exists to prevent.
+        verdict = str(sufficiency.get("verdict") or "")
+        if verdict.startswith("refuse"):
+            guidance = {
+                "refuse_acquisition": (
+                    "This is a finding about the search, not about the subject. Escalate: raise "
+                    "--acquisition-passes, or supply --source-languages for the languages the "
+                    "sources actually survive in, and run the gate again."
+                ),
+                "refuse_scope": (
+                    "Out of scope whatever the evidence shows. See persona_generalizer/scope.py."
+                ),
+            }.get(verdict, "This is a finding about the sources; a further pass will not change it.")
             print(
-                f"refused: not enough survives about '{subject}' to build a persona from.\n"
+                f"refused ({verdict}): '{subject}' is not admissible as a persona target.\n"
                 f"  {sufficiency.get('reasoning', '')}\n"
-                f"A refusal is a real answer; no spec was written.",
+                f"  {guidance}\n"
+                f"A refusal is a real answer; no spec was written. Record it in "
+                f"persona_generalizer/personas/_refused/.",
                 file=sys.stderr,
             )
             return 2

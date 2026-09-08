@@ -278,3 +278,54 @@ def test_run_pass_survives_a_provider_that_reports_no_usage(usage, caplog):
     with caplog.at_level("INFO"):
         payload = asyncio.run(run_pass(_Client(usage), "prompt", "evidence", 100))
     assert payload == {"ok": True}
+
+
+# -------------------------------------------------------------------------------------------
+# Regressions from teaching the gate new verdicts.
+# -------------------------------------------------------------------------------------------
+
+
+def test_every_blocking_verdict_is_caught_by_the_drafter_guard():
+    """The drafter halts on `verdict.startswith("refuse")`, so every refusal must start that way.
+
+    The bug this pins: the gate learned refuse_evidence / refuse_acquisition / refuse_scope while
+    the drafter still tested `== "refuse"`. None of the new verdicts matched, so a refusal would
+    have been ignored and the spec built out anyway — the exact outcome the gate exists to stop.
+    """
+    import sys
+
+    generalizer = REPO_ROOT / "persona_generalizer"
+    if str(generalizer) not in sys.path:
+        sys.path.insert(0, str(generalizer))
+    from check_persona import BLOCKING_VERDICTS, VERDICTS
+
+    assert all(v.startswith("refuse") for v in BLOCKING_VERDICTS)
+    assert {v for v in VERDICTS if v.startswith("refuse")} == set(BLOCKING_VERDICTS)
+
+
+def test_rendered_passages_declare_an_evidence_basis():
+    """admit_reconstructed is unreachable unless the drafter writes the marker on every passage."""
+    import sys
+
+    generalizer = REPO_ROOT / "persona_generalizer"
+    if str(generalizer) not in sys.path:
+        sys.path.insert(0, str(generalizer))
+    import draft_persona as drafter
+    from pipeline.target import parse_key_passages
+
+    markdown = drafter.render_key_passages(
+        "A Subject",
+        [
+            {"id": "C1", "kind": "circumstance", "title": "a", "body": "b",
+             "evidence_basis": "reconstructed"},
+            {"id": "D1", "kind": "deed", "title": "c", "body": "d"},
+            {"id": "W1", "kind": "words", "title": "e", "body": "f",
+             "evidence_basis": "not-a-value"},
+        ],
+    )
+    parsed = {p.id: p for p in parse_key_passages(markdown)}
+    assert all(p.evidence_basis_declared for p in parsed.values())
+    assert parsed["C1"].evidence_basis == "reconstructed"
+    assert parsed["D1"].evidence_basis == "attested"
+    # Under-marking is the serious error, so an unrecognised value fails safe.
+    assert parsed["W1"].evidence_basis == "reconstructed"

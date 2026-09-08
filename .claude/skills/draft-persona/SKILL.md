@@ -31,6 +31,12 @@ contemporary norms are declared in `redistribution_note` and the manifest, not a
 
 Run this before acquiring anything in bulk, and be willing to stop here.
 
+**Check `persona_generalizer/personas/_refused/` first.** If this subject has been through the
+gate before, the verdict and its evidence are recorded there, and re-deriving them wastes the
+research. A `refuse_scope` record stands. A `refuse_evidence` record should only be reopened if
+you can name a source the previous pass did not reach. A `refuse_acquisition` record is an
+invitation to try again with a better search.
+
 Assess, from a first pass of searching:
 
 | criterion | floor |
