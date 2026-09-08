@@ -1,21 +1,89 @@
 # Targets: how to add a belief or value system
 
-A **target** is everything the pipeline knows about one tradition. It is data, not code: the
-pipeline never mentions a tradition by name. To add one you create a directory here, fill in one
-YAML file and one markdown file of source passages, and run the checker.
+A **target** is everything the pipeline knows about one tradition. It is data, not code.
+
+## Required input, in one page
+
+### 1. Where it goes
 
 ```
-targets/<target_id>/
-  spec.yaml                  the reviewed target specification (the only file the pipeline reads for judgment)
-  references/key_passages.md the source passages the spec cites (the only reference text that reaches a prompt)
-  references/<other files>   full texts you acquired, for humans and for provenance (optional)
-  SOURCES.md                 provenance ledger: where every reference came from and under what licence
-  research_notes.md          what you verified, what you left open, what the pipeline should know (optional)
+targets/<target_id>/                 <target_id> = short lowercase slug, e.g. confucian
+  spec.yaml                          REQUIRED   the target specification
+  references/key_passages.md         REQUIRED   the source passages that spec.yaml cites
+  SOURCES.md                         REQUIRED   provenance and licence of every reference
+  references/<full texts>            optional   complete source texts you acquired
+  research_notes.md                  optional   what you verified and left open
 ```
 
-`<target_id>` is a short lowercase slug (`confucian`, `catholic`). It must equal `id:` inside
-`spec.yaml`. The four existing targets are complete worked examples; `_template/` is a minimal one
-that validates, meant to be copied.
+Nothing else is read. The directory name must equal `id:` inside `spec.yaml`. Run names, output
+files and manifests all use `<target_id>`.
+
+### 2. Format of each required file
+
+**`spec.yaml`** is one YAML mapping. Keys the loader refuses to run without:
+
+| key | type | rule |
+|---|---|---|
+| `id` | string | equals the directory name |
+| `name`, `version` | string | `version` is recorded in every run manifest |
+| `summary` | paragraph | how the tradition judges, in prose |
+| `principles` | list | at least 3 (8-16 intended); each has `id`, `name`, `description`, `sources` (list of passage ids) |
+| `domains` | list | each has `id`; add `weight` (weights sum to 1) |
+| `cue_policy` | mapping | must contain `forbidden_terms` (list); `allowed_terms` and `soft_terms` must not overlap it |
+
+Keys the pipeline needs to produce tradition-specific data (strict check warns or fails without them):
+
+| key | what it holds |
+|---|---|
+| `tradeoffs` | genuine conflicts; each has `intended_lean`, or `unresolved: true` with `resolved_part` and `open_question` |
+| `boundaries` | the tradition's own limits on its principles, each citing passages |
+| `unresolved_choices` | interpretive decisions left to a human: `working_assumption` + `generation_policy` (`use_working_assumption` / `mark_ambiguous` / `avoid`; `avoid` requires `avoid_keywords`) |
+| `divergence_hypotheses` | where a generic assistant would answer differently (`id`, `description`, `example_prompt_shape`) |
+| `misinterpretations` | common distortions (`claim`, `correction`) |
+| `deliberation_shape` | 3-5 lines on what this target considers and in what order (no phrasing) |
+| `signature_moves` | 3-6 checkable moves the reviewer scores present/absent |
+| `cue_policy.allowed_terms`, `soft_terms`, `archaic_register_examples` | words the target may use; phrase tells to count; source diction not to imitate |
+| `layers` | optional core/branch structure with `generate_by_default` |
+| `reference_material` | one entry per reference file; the entry whose `path` ends in `key_passages.md` is what reaches prompts; every `use: grounding` entry needs `license` |
+| `redistribution_note` | required when any grounding licence is not public domain |
+
+The annotated example of every key is `_template/spec.yaml`; the field-by-field reference is
+`docs/target-spec-schema.md`.
+
+**`references/key_passages.md`** is markdown with **one heading per passage**. The heading text
+before an optional ` — title` is the passage id, and it must match the spec's `sources:` entries
+character for character:
+
+```markdown
+### Analects 13.18 — Uprightness and concealment
+The Duke of She told Confucius ... (excerpt or close paraphrase, 2-8 sentences)
+Grounds: CM03, tradeoff family_vs_public_justice.
+```
+
+Only `##`, `###` and `####` headings are passage ids; use `#` or bold text for section labels. Keep
+the file under about 8,000 words, because it is placed into prompts. Only include text whose licence
+permits copying; otherwise paraphrase and cite.
+
+**`SOURCES.md`** is a table with one row per file under `references/` and one per source consulted
+but not copied: work, edition/translator, URL, access date, licence or terms, any AI-use restriction,
+processing applied, and `use` (`grounding` or `reference_only`).
+
+### 3. Content that has to be there for the data to be any good
+
+- The `summary` describes a **style of judgment** (what is noticed first, what overrides what, what
+  is refused), not a list of virtues. A vague summary produces generic advice.
+- Each principle has `positive_indicators` (observable in a response) and `failure_modes` (what a
+  superficially similar wrong answer looks like); the reviewer grades against these.
+- Tradeoffs include the tradition's **hard cases**, and the ones the sources leave open are marked
+  `unresolved: true`. The planner gives every unresolved tradeoff a scenario before repeating any.
+- `divergence_hypotheses` name the places the tradition's answer differs from a strong generic
+  assistant's; without them the intended-divergence cases collapse into generic professional ethics.
+- Modern constraints (anti-discrimination, safeguarding, consent) are labelled as modern, never
+  attributed to the sources.
+- Every passage cited actually says what the spec claims. Verify against the source, not a summary.
+
+The four existing targets are complete worked examples; `_template/` is a minimal one that validates
+and is meant to be copied.
 
 ## The five steps
 
