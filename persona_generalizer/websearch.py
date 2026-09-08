@@ -26,8 +26,11 @@ from __future__ import annotations
 import datetime as _dt
 import logging
 import os
+import re
 import urllib.robotparser
+from pathlib import Path
 from dataclasses import dataclass, field
+from collections.abc import Sequence
 from typing import Protocol
 from urllib.parse import urlparse
 
@@ -159,16 +162,53 @@ class TavilyBackend(_HttpBackend):
         ]
 
 
-def backend_from_env() -> SearchBackend | None:
-    """First configured provider wins. Returns None when none is set, which is not an error."""
+# Where a provider's key lives when it is not in the environment. Same convention as the
+# Fireworks key in pipeline/config.py: a gitignored file in the repo root, so a key survives a
+# new shell without being pasted into a profile that syncs somewhere. `.gitignore` already
+# covers these via its `*api_key*.txt` pattern.
+KEY_FILES = {
+    "BRAVE_SEARCH_API_KEY": "brave_api_key.txt",
+    "SERPER_API_KEY": "serper_api_key.txt",
+    "TAVILY_API_KEY": "tavily_api_key.txt",
+}
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def load_search_api_key(variable: str, repo_root: Path | None = None) -> str | None:
+    """Environment first, then the gitignored key file. The key value is never logged."""
+    value = os.environ.get(variable)
+    if value and value.strip():
+        return value.strip()
+    filename = KEY_FILES.get(variable)
+    if not filename:
+        return None
+    path = (repo_root or REPO_ROOT) / filename
+    if not path.exists():
+        return None
+    key = path.read_text(encoding="utf-8").strip()
+    return key or None
+
+
+def backend_from_env(repo_root: Path | None = None) -> SearchBackend | None:
+    """First configured provider wins. Returns None when none is set, which is not an error.
+
+    Checks the environment and then the key file for each provider in turn, so a key file for
+    Brave is not shadowed by an empty BRAVE_SEARCH_API_KEY in the environment. `repo_root` exists
+    so a caller — a test, chiefly — can point the key-file half somewhere empty; clearing the
+    environment alone no longer isolates this function.
+    """
     for variable, factory in (
         ("BRAVE_SEARCH_API_KEY", BraveBackend),
         ("SERPER_API_KEY", SerperBackend),
         ("TAVILY_API_KEY", TavilyBackend),
     ):
-        key = os.environ.get(variable)
+        key = load_search_api_key(variable, repo_root)
         if key:
-            LOGGER.info("search backend: %s", factory.name)
+            LOGGER.info(
+                "search backend: %s (%s)",
+                factory.name,
+                "environment" if os.environ.get(variable) else KEY_FILES[variable],
+            )
             return factory(key)
     return None
 
@@ -255,8 +295,6 @@ def fetch(url: str, ledger: Acquisition, max_words: int = 4000) -> str | None:
 
 def strip_markup(html: str) -> str:
     """Crude tag stripping. Enough to feed a model; not a parser."""
-    import re
-
     html = re.sub(r"(?is)<(script|style|nav|footer|header)[^>]*>.*?</\1>", " ", html)
     html = re.sub(r"(?s)<[^>]+>", " ", html)
     html = (
@@ -370,3 +408,241 @@ def render_sources(subject: str, ledger: Acquisition) -> str:
         "their access dates are recorded here rather than only the queries.",
     ]
     return "\n".join(lines) + "\n"
+
+
+# =================================================================================================
+# Escalating acquisition
+#
+# A single acquisition pass conflates two very different outcomes: "this subject left nothing"
+# and "this pass did not reach what the subject left". Only the second is a bug, and only the
+# second is worth retrying. Everything below exists to tell them apart, and to make a retry
+# escalate rather than repeat — three identical passes find the same nothing.
+#
+# Pass 1  slot-driven search, as `acquire` already does.
+# Pass 2  reference harvesting: read what pass 1 found for the works it cites, then go looking
+#         for those. This is how a researcher actually gets from a summary to the sources — you
+#         find the standard edition and the standard monograph and chase their footnotes.
+# Pass 3  cross-language, for subjects whose sources never existed in English.
+#
+# Wikipedia has one legitimate role here and it is NOT as a source of passages. Its prose is the
+# popular version of the person — the thing the skill's phase 1 opens by warning against, and for
+# a subject like Basil II it is largely the legend rather than the record. Its *reference list*,
+# though, is a genuinely good index into tiers 3 and 4. So `wikipedia_reference_index` returns
+# citations and never article text, and nothing here writes Wikipedia prose into a passage.
+# =================================================================================================
+
+# Enough of a citation to search for: a capitalised author-ish run, then a title, then a year.
+_CITATION = re.compile(
+    r"(?P<cite>[A-Z][A-Za-z'\-]+(?:,\s*[A-Z][A-Za-z.'\-]+)?[^.;]{5,140}?\(?(?P<year>1[5-9]\d{2}|20[0-2]\d)\)?)"
+)
+_REFERENCE_SECTION = re.compile(
+    r"(?is)<(?:ol|div)[^>]*class=\"[^\"]*(?:references|reflist)[^\"]*\"[^>]*>(?P<body>.*?)</(?:ol|div)>"
+)
+
+
+def fetch_html(url: str, ledger: Acquisition) -> str | None:
+    """Retrieve raw HTML, honouring robots.txt. Needed where structure matters, not just text."""
+    allowed, reason = robots_allows(url)
+    if not allowed:
+        LOGGER.info("declined %s (%s)", url, reason)
+        ledger.record_declined(url, reason)
+        return None
+    try:
+        with httpx.Client(
+            timeout=TIMEOUT, headers={"User-Agent": USER_AGENT}, follow_redirects=True
+        ) as client:
+            response = client.get(url)
+        response.raise_for_status()
+    except httpx.HTTPError as error:
+        ledger.record_declined(url, f"fetch failed: {type(error).__name__}")
+        return None
+    return response.text
+
+
+def harvest_references(text: str, limit: int = 25) -> list[str]:
+    """Pull citation-shaped strings out of a page, most specific first.
+
+    Deliberately crude: the output is search queries for the next pass, not bibliography. A
+    false positive costs one wasted search; a false negative costs a source.
+    """
+    seen: set[str] = set()
+    out: list[str] = []
+    for match in _CITATION.finditer(text):
+        cite = re.sub(r"\s+", " ", match.group("cite")).strip(" ,;·—-")
+        if len(cite) < 18 or cite.lower() in seen:
+            continue
+        seen.add(cite.lower())
+        out.append(cite)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def wikipedia_reference_index(
+    subject: str, ledger: Acquisition, *, lang: str = "en", limit: int = 25
+) -> list[str]:
+    """Return the works an article CITES. Never returns article prose.
+
+    Wikipedia's robots.txt disallows `/w/` and `/api/` for general agents, so this uses the
+    ordinary `/wiki/<Title>` article path, which is allowed, and `robots_allows` checks it
+    anyway. Only the reference/reflist block is read.
+    """
+    title = subject.strip().replace(" ", "_")
+    url = f"https://{lang}.wikipedia.org/wiki/{title}"
+    html = fetch_html(url, ledger)
+    if not html:
+        return []
+    blocks = [m.group("body") for m in _REFERENCE_SECTION.finditer(html)]
+    if not blocks:
+        return []
+    return harvest_references(strip_markup(" ".join(blocks)), limit=limit)
+
+
+def language_candidates(
+    source_languages: Sequence[str] | None = None, *, include_english: bool = True
+) -> list[str]:
+    """Which language editions to try, English first.
+
+    `source_languages` is the researcher's judgement about where this subject's sources actually
+    survive — Greek, Arabic and Armenian for a Byzantine emperor, say. It is asked for rather
+    than inferred on purpose. Ranking languages by article size, which is the obvious automatic
+    proxy, measures how many modern editors a language has and not where the sources are; for a
+    subject whose record is in Armenian it would confidently pick German.
+    """
+    ordered = ["en"] if include_english else []
+    for code in source_languages or ():
+        code = code.strip().lower()
+        if code and code not in ordered:
+            ordered.append(code)
+    return ordered
+
+
+def acquire_escalating(
+    subject: str,
+    backend: SearchBackend,
+    ledger: Acquisition,
+    *,
+    slots: tuple[str, ...] | None = None,
+    max_passes: int = 3,
+    source_languages: Sequence[str] | None = None,
+    per_query: int = 5,
+    fetch_per_slot: int = 2,
+) -> tuple[dict[str, list[tuple[SearchResult, str]]], list[dict[str, object]]]:
+    """Acquire in up to `max_passes`, escalating strategy between them.
+
+    Returns (slot -> pages, pass log). The pass log is what lets the gate say *which* refusal
+    applies: a slot still empty after an escalated search is evidence about the subject; a slot
+    empty after one pass is only evidence about the search.
+    """
+    chosen = tuple(slots or tuple(COVERAGE_QUERIES))
+    merged: dict[str, list[tuple[SearchResult, str]]] = {slot: [] for slot in chosen}
+    passes: list[dict[str, object]] = []
+
+    def thin() -> tuple[str, ...]:
+        return tuple(slot for slot in chosen if not merged[slot])
+
+    # ---- pass 1: slot-driven search --------------------------------------------------------
+    first = acquire(
+        subject, backend, ledger, slots=chosen, per_query=per_query, fetch_per_slot=fetch_per_slot
+    )
+    for slot, pages in first.items():
+        merged.setdefault(slot, []).extend(pages)
+    passes.append(
+        {"pass": 1, "strategy": "slot_search", "slots_filled": len(chosen) - len(thin()),
+         "slots_thin": list(thin())}
+    )
+
+    # ---- pass 2: chase what pass 1 cited ---------------------------------------------------
+    if max_passes >= 2 and thin():
+        citations: list[str] = []
+        for pages in merged.values():
+            for _result, text in pages:
+                citations.extend(harvest_references(text, limit=8))
+        citations.extend(wikipedia_reference_index(subject, ledger))
+        # Deduplicate while keeping order; the earliest-seen citation is usually the most cited.
+        seen: set[str] = set()
+        queries = [c for c in citations if not (c.lower() in seen or seen.add(c.lower()))][:12]
+        for slot in thin():
+            for cite in queries:
+                if len(merged[slot]) >= fetch_per_slot:
+                    break
+                query = f"{cite} {subject}"
+                try:
+                    results = backend.search(query, per_query)
+                except Exception as error:
+                    LOGGER.warning("search failed for %r: %s", query, error)
+                    continue
+                ledger.record_search(f"{slot}/refs", query, results)
+                for result in results:
+                    if len(merged[slot]) >= fetch_per_slot:
+                        break
+                    text = fetch(result.url, ledger)
+                    if text:
+                        merged[slot].append(
+                            (SearchResult(result.url, result.title, result.snippet, slot), text)
+                        )
+        passes.append(
+            {"pass": 2, "strategy": "reference_harvest", "citations_followed": len(queries),
+             "slots_filled": len(chosen) - len(thin()), "slots_thin": list(thin())}
+        )
+
+    # ---- pass 3: cross-language ------------------------------------------------------------
+    if max_passes >= 3 and thin() and source_languages:
+        langs = [code for code in language_candidates(source_languages) if code != "en"]
+        for slot in thin():
+            for lang in langs:
+                if len(merged[slot]) >= fetch_per_slot:
+                    break
+                for cite in wikipedia_reference_index(subject, ledger, lang=lang, limit=8):
+                    if len(merged[slot]) >= fetch_per_slot:
+                        break
+                    try:
+                        results = backend.search(cite, per_query)
+                    except Exception as error:
+                        LOGGER.warning("search failed for %r: %s", cite, error)
+                        continue
+                    ledger.record_search(f"{slot}/{lang}", cite, results)
+                    for result in results:
+                        if len(merged[slot]) >= fetch_per_slot:
+                            break
+                        text = fetch(result.url, ledger)
+                        if text:
+                            merged[slot].append(
+                                (SearchResult(result.url, result.title, result.snippet, slot), text)
+                            )
+        passes.append(
+            {"pass": 3, "strategy": "cross_language", "languages": langs,
+             "slots_filled": len(chosen) - len(thin()), "slots_thin": list(thin())}
+        )
+
+    return merged, passes
+
+
+def gate_verdict_for_gaps(
+    pages: dict[str, list[tuple[SearchResult, str]]],
+    passes: list[dict[str, object]],
+    *,
+    max_passes: int = 3,
+) -> tuple[str, str]:
+    """Suggest which refusal a thin acquisition warrants. Advisory: the gate is a human's call.
+
+    The distinction this exists to draw: escalation exhausted and still empty points at the
+    sources; escalation not exhausted points at the search. It cannot see whether what WAS found
+    contains decisions-with-reasoning, which is the binding criterion, so it never returns an
+    admit verdict.
+    """
+    thin = sorted(slot for slot, found in pages.items() if not found)
+    if not thin:
+        return "", "every coverage slot returned material; run the gate on what it says."
+    escalated = len(passes) >= max_passes
+    if not escalated:
+        return (
+            "refuse_acquisition",
+            f"{len(thin)} slot(s) empty after {len(passes)} pass(es) of a possible {max_passes}: "
+            f"{', '.join(thin)}. Escalate before concluding anything about the subject.",
+        )
+    return (
+        "refuse_evidence",
+        f"{len(thin)} slot(s) still empty after {len(passes)} escalated pass(es): "
+        f"{', '.join(thin)}. Record what was tried in sufficiency.acquisition_attempts.",
+    )

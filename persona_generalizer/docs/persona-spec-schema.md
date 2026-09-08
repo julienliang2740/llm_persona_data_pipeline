@@ -90,9 +90,22 @@ Verdicts:
 - **`admit`** — all criteria met.
 - **`admit_with_caveats`** — one criterion thin. Record the caveat in `sufficiency.caveats` and
   reflect it in `domains` weights, so the plan does not over-generate where nothing grounds it.
-- **`refuse`** — first-person volume or documented decisions below floor. Say so and stop. A
-  spec written past a refusal produces a persona of the researcher's imagination wearing a real
-  name, which is worse than no persona.
+- **`admit_reconstructed`** — buildable, but part of the corpus is inference rather than
+  attestation. Requires an `evidence_basis:` line on **every** passage, holds the reconstructed
+  share under 40%, and travels into the export manifest. See "Evidence basis" below.
+- **`refuse_acquisition`** — the material was not retrieved. **This is a fact about the search,
+  not about the subject, and it is retryable.** Record what was tried in
+  `sufficiency.acquisition_attempts` and escalate; do not build the spec out on what was reached.
+- **`refuse_evidence`** — the material does not survive. Say so and stop. A spec written past a
+  refusal produces a persona of the researcher's imagination wearing a real name, which is worse
+  than no persona.
+- **`refuse`** — deprecated alias for `refuse_evidence`. Still blocks, but warns, because it does
+  not say which refusal it is.
+
+The split between the two refusals is the important one. A single acquisition pass cannot tell
+"this subject left nothing" from "this pass did not reach what the subject left", and only the
+second is a bug. Collapsing them into one word meant a thin search looked exactly like a thin
+subject, and the research that produced the verdict was thrown away rather than escalated.
 
 Two illustrative refusals: an unremarkable person from the fifteenth century fails on volume and
 on decisions-with-reasoning, because nothing survives; an object rather than a person fails
@@ -224,6 +237,35 @@ retrofitted with modern knowledge or modern moral vocabulary.
 ### `sufficiency`
 
 `verdict` plus one field per criterion above, plus `caveats`. Written before the rest of the spec.
+
+### Evidence basis
+
+Most people's sources are incomplete, and a schema that refused every gap would be unbuildable.
+What cannot be allowed is reconstruction that **cannot be seen**: an inferred passage reads
+exactly like an attested one once it is inside a generation prompt, and a row produced from it is
+indistinguishable from evidence in the exported dataset.
+
+So reconstruction is permitted and declared. Any passage may carry, on its own line in its body:
+
+```
+evidence_basis: reconstructed
+```
+
+Values are `attested` (a source says this) and `reconstructed` (inference from surrounding
+evidence). Absent the line, a passage is `attested` — which is a safe default only because a spec
+whose verdict is `admit_reconstructed` must declare the line on every passage. The marker is left
+in the passage body rather than stripped, so the generator sees which passages are inference.
+
+Three rules, all enforced by `check_persona.py`:
+
+| rule | why |
+|---|---|
+| reconstructed passages may not exceed **40%** of the corpus | past this the persona is mostly the researcher |
+| a spec with any reconstructed passage must carry verdict `admit_reconstructed` | so the share reaches the export manifest instead of being invisible |
+| a `conflicts:` entry's `said` and `did` must **both** be attested | the conduct-over-words rule is the one thing that cannot run on inference: if either side is reconstructed, the gap being adjudicated may be one the researcher created |
+
+The share is written into `manifest.json` under `evidence_basis`, next to the licence constraints,
+for the same reason those travel: a consumer of the dataset can see what it rests on.
 
 ### `attribution_policy`
 

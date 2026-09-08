@@ -273,3 +273,123 @@ def test_volume_ceiling_warns(check_persona, tmp_path, template_raw, capsys):
     (root / "probe" / "references" / "key_passages.md").write_text(padded, encoding="utf-8")
     assert check_persona("probe", root) == 0
     assert "over the 8000 ceiling" in capsys.readouterr().out
+
+
+# -------------------------------------------------------------------------------------------
+# Evidence basis, and the split between the two refusals.
+#
+# These pin the distinction the gate used to collapse: "the material does not survive" and "I
+# did not reach the material" are different findings, and only the second is retryable. And the
+# rule that makes reconstruction safe to allow at all — that it is visible downstream rather
+# than indistinguishable from evidence.
+# -------------------------------------------------------------------------------------------
+
+
+def mark_reconstructed(root: Path, persona_id: str, passage_ids: set[str]) -> None:
+    """Add an `evidence_basis:` line to the named passages of a built persona."""
+    path = root / persona_id / "references" / "key_passages.md"
+    out, current = [], None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("#") and not line.startswith("# "):
+            heading = line.lstrip("#").strip()
+            current = heading.split("—")[0].split(" - ")[0].strip()
+            out.append(line)
+            if current in passage_ids:
+                out.append("evidence_basis: reconstructed")
+            continue
+        out.append(line)
+    path.write_text("\n".join(out) + "\n", encoding="utf-8")
+
+
+def test_refuse_evidence_blocks_the_build(check_persona, tmp_path, template_raw, capsys):
+    raw = copy.deepcopy(template_raw)
+    raw["sufficiency"]["verdict"] = "refuse_evidence"
+    build(tmp_path, raw)
+    assert check_persona("probe", tmp_path) == 2
+    assert "does not survive" in capsys.readouterr().err
+
+
+def test_refuse_acquisition_blocks_but_names_itself_retryable(
+    check_persona, tmp_path, template_raw, capsys
+):
+    raw = copy.deepcopy(template_raw)
+    raw["sufficiency"]["verdict"] = "refuse_acquisition"
+    raw["sufficiency"]["acquisition_attempts"] = "three passes; slot-driven, references, Greek."
+    build(tmp_path, raw)
+    assert check_persona("probe", tmp_path) == 2
+    err = capsys.readouterr().err
+    assert "fact about the search" in err
+
+
+def test_refuse_acquisition_requires_recording_what_was_tried(
+    check_persona, tmp_path, template_raw, capsys
+):
+    raw = copy.deepcopy(template_raw)
+    raw["sufficiency"]["verdict"] = "refuse_acquisition"
+    raw["sufficiency"].pop("acquisition_attempts", None)
+    build(tmp_path, raw)
+    assert check_persona("probe", tmp_path) == 2
+    assert "acquisition_attempts" in capsys.readouterr().err
+
+
+def test_bare_refuse_still_blocks_but_is_deprecated(check_persona, tmp_path, template_raw, capsys):
+    raw = copy.deepcopy(template_raw)
+    raw["sufficiency"]["verdict"] = "refuse"
+    build(tmp_path, raw)
+    assert check_persona("probe", tmp_path) == 2
+    assert "deprecated" in capsys.readouterr().err
+
+
+def test_reconstruction_without_the_matching_verdict_blocks(
+    check_persona, tmp_path, template_raw, capsys
+):
+    """An inferred passage in an `admit` spec is invisible downstream. That is the whole risk."""
+    raw = copy.deepcopy(template_raw)
+    raw["sufficiency"]["verdict"] = "admit_with_caveats"
+    build(tmp_path, raw)
+    mark_reconstructed(tmp_path, "probe", {"AR-C1"})
+    assert check_persona("probe", tmp_path) == 2
+    assert "admit_reconstructed" in capsys.readouterr().err
+
+
+def test_reconstructed_verdict_requires_every_passage_to_declare(
+    check_persona, tmp_path, template_raw, capsys
+):
+    raw = copy.deepcopy(template_raw)
+    raw["sufficiency"]["verdict"] = "admit_reconstructed"
+    raw["sufficiency"]["caveats"] = "thin first-person volume; circumstance is inferred."
+    build(tmp_path, raw)
+    mark_reconstructed(tmp_path, "probe", {"AR-C1"})
+    assert check_persona("probe", tmp_path) == 2
+    assert "must declare an 'evidence_basis:' line" in capsys.readouterr().err
+
+
+def test_a_conflict_may_not_rest_on_a_reconstructed_passage(
+    check_persona, tmp_path, template_raw, capsys
+):
+    """Conduct-over-words cannot run on inference: the gap might be one the researcher made."""
+    raw = copy.deepcopy(template_raw)
+    raw["sufficiency"]["verdict"] = "admit_reconstructed"
+    raw["sufficiency"]["caveats"] = "thin; some passages inferred."
+    said = raw["conflicts"][0]["said"]
+    build(tmp_path, raw)
+    mark_reconstructed(tmp_path, "probe", {said})
+    assert check_persona("probe", tmp_path) == 2
+    assert "both sides must be attested" in capsys.readouterr().err
+
+
+def test_reconstruction_over_the_ceiling_blocks(check_persona, tmp_path, template_raw, capsys):
+    import re as _re
+
+    raw = copy.deepcopy(template_raw)
+    raw["sufficiency"]["verdict"] = "admit_reconstructed"
+    raw["sufficiency"]["caveats"] = "thin; mostly inferred."
+    build(tmp_path, raw)
+    text = (tmp_path / "probe" / "references" / "key_passages.md").read_text(encoding="utf-8")
+    every = {
+        h.lstrip("#").strip().split("—")[0].strip()
+        for h in _re.findall(r"^#{2,4}\s+.+$", text, _re.MULTILINE)
+    }
+    mark_reconstructed(tmp_path, "probe", every)
+    assert check_persona("probe", tmp_path) == 2
+    assert "over the 40% ceiling" in capsys.readouterr().err

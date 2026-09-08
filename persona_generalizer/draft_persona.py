@@ -64,7 +64,20 @@ async def run_pass(client: ModelClient, prompt: str, stage: str, max_tokens: int
     payload, response = await client.complete_json(
         "generator", messages(prompt), stage=stage, record_id=stage, max_tokens=max_tokens
     )
-    LOGGER.info("%s: %d completion tokens", stage, response.completion_tokens)
+    # ModelResponse carries the provider's raw `usage` dict; there is no completion_tokens
+    # attribute. Read defensively and never raise here: by this point the call has been made and
+    # paid for, and a logging line that crashes throws away work that already cost money. At
+    # reasoning_effort: max most of the spend is reasoning, so it is worth showing separately.
+    usage = getattr(response, "usage", None) or {}
+    details = usage.get("completion_tokens_details") or {}
+    completion = usage.get("completion_tokens")
+    reasoning = details.get("reasoning_tokens")
+    LOGGER.info(
+        "%s: %s completion tokens%s",
+        stage,
+        completion if completion is not None else "?",
+        f" ({reasoning} reasoning)" if reasoning else "",
+    )
     return payload
 
 
@@ -343,20 +356,51 @@ def render_notes(subject: str, sufficiency: dict[str, Any], evidence: list[dict[
     return "\n".join(lines)
 
 
-def format_acquired(acquired: dict[str, list]) -> str:
-    """Flatten the acquisition into prompt text, slot by slot, gaps included."""
+# Acquisition text goes straight into the sufficiency and evidence prompts, so it is a token
+# budget rather than storage. `websearch.fetch` returns up to 4,000 words per page and a full
+# run retrieves two pages for each of ten slots, which is ~80,000 words — more than the
+# generator's whole budget, and the repair retry then resends it along with the failed output.
+# Budget it here instead, and tell the model where it is reading an excerpt so it does not treat
+# a cut-off page as a complete source.
+ACQUIRED_WORDS_PER_PAGE = 800
+ACQUIRED_WORDS_TOTAL = 10000
+
+
+def format_acquired(
+    acquired: dict[str, list],
+    *,
+    words_per_page: int = ACQUIRED_WORDS_PER_PAGE,
+    words_total: int = ACQUIRED_WORDS_TOTAL,
+) -> str:
+    """Flatten the acquisition into prompt text, slot by slot, gaps included and size bounded."""
     blocks: list[str] = []
+    budget = words_total
     for slot, pages in acquired.items():
         if not pages:
             blocks.append(f"## {slot}\n\n(nothing retrieved for this slot — record it as a gap)")
             continue
         for result, text in pages:
-            blocks.append(f"## {slot}\n\nURL: {result.url}\nTITLE: {result.title}\n\n{text}")
+            if budget <= 0:
+                blocks.append(
+                    f"## {slot}\n\n(further pages retrieved but omitted from this prompt for "
+                    f"length; see SOURCES.md for the full ledger)"
+                )
+                break
+            words = text.split()
+            allowance = min(words_per_page, budget)
+            excerpt = " ".join(words[:allowance])
+            budget -= min(len(words), allowance)
+            truncated = "\n\n[excerpt truncated]" if len(words) > allowance else ""
+            blocks.append(
+                f"## {slot}\n\nURL: {result.url}\nTITLE: {result.title}\n\n{excerpt}{truncated}"
+            )
     return "\n\n".join(blocks)
 
 
 async def draft(subject: str, persona_id: str, config_path: str, out_dir: Path,
-                target_count: int, max_tokens: int, use_search: bool = False) -> int:
+                target_count: int, max_tokens: int, use_search: bool = False,
+                acquisition_passes: int = 3,
+                source_languages: tuple[str, ...] = ()) -> int:
     config = load_config(config_path)
     root = out_dir / persona_id
     (root / "references").mkdir(parents=True, exist_ok=True)
@@ -372,14 +416,46 @@ async def draft(subject: str, persona_id: str, config_path: str, out_dir: Path,
                 file=sys.stderr,
             )
             return 2
-        LOGGER.info("pass 0/4: acquisition (%s)", backend.name)
+        LOGGER.info(
+            "pass 0/4: acquisition (%s), up to %d escalating pass(es)",
+            backend.name,
+            acquisition_passes,
+        )
         ledger = websearch.Acquisition()
-        acquired = websearch.acquire(subject, backend, ledger)
+        acquired, acquisition_log = websearch.acquire_escalating(
+            subject,
+            backend,
+            ledger,
+            max_passes=acquisition_passes,
+            source_languages=source_languages,
+        )
         acquired_text = format_acquired(acquired)
+        LOGGER.info(
+            "  acquisition text for prompts: %d words (budget %d)",
+            len(acquired_text.split()),
+            ACQUIRED_WORDS_TOTAL,
+        )
+        for entry in acquisition_log:
+            LOGGER.info(
+                "  pass %s (%s): %s slot(s) filled, thin: %s",
+                entry["pass"], entry["strategy"], entry["slots_filled"],
+                ", ".join(entry["slots_thin"]) or "none",
+            )
         LOGGER.info(
             "  %d page(s) retrieved, %d declined, %d queries",
             len(ledger.fetched), len(ledger.declined), len(ledger.searches),
         )
+        # Which refusal a thin acquisition warrants is the drafter's most useful output when it
+        # has fallen short: "I did not reach it" and "it does not survive" are different findings
+        # and the gate prompt should not have to guess which one it is looking at.
+        suggested, why = websearch.gate_verdict_for_gaps(
+            acquired, acquisition_log, max_passes=acquisition_passes
+        )
+        if suggested:
+            LOGGER.warning("  gate hint: %s — %s", suggested, why)
+            acquired_text += (
+                f"\n\nACQUISITION SHORTFALL. Suggested gate verdict: {suggested}. {why}"
+            )
 
     async with ModelClient.from_config(config, root / "usage.jsonl", stage="draft") as client:
         LOGGER.info("pass 1/4: sufficiency gate")
@@ -495,6 +571,21 @@ def build_parser() -> argparse.ArgumentParser:
         "skill arm, and search is what separates them.",
     )
     parser.add_argument(
+        "--acquisition-passes",
+        type=int,
+        default=3,
+        help="how many escalating acquisition passes to allow (default 3: slot search, then "
+        "reference harvesting, then cross-language). Later passes only run for slots still "
+        "empty, so a well-covered subject costs no more than 1. Set 1 to disable escalation.",
+    )
+    parser.add_argument(
+        "--source-languages",
+        default="",
+        help="comma-separated language codes where this subject's sources actually survive, e.g. "
+        "'el,ar,hy'. Used by the cross-language pass. Asked for rather than inferred: ranking "
+        "languages by article size measures editor population, not where the record is.",
+    )
+    parser.add_argument(
         "--dry-run", action="store_true", help="print the plan and exit without calling a model"
     )
     parser.add_argument("-v", "--verbose", action="store_true")
@@ -515,7 +606,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.search:
             acquisition = (
                 f"  pass 0: acquisition over {len(websearch.COVERAGE_QUERIES)} coverage slots via "
-                f"{backend.name}, robots.txt honoured\n"
+                f"{backend.name}, robots.txt honoured; up to {args.acquisition_passes} escalating "
+                f"pass(es)"
+                + (f", languages {args.source_languages}" if args.source_languages else "")
+                + "\n"
                 if backend
                 else "  pass 0: SEARCH REQUESTED BUT NO PROVIDER CONFIGURED — set "
                 "BRAVE_SEARCH_API_KEY, SERPER_API_KEY or TAVILY_API_KEY\n"
@@ -544,10 +638,29 @@ def main(argv: list[str] | None = None) -> int:
                 args.passages,
                 args.max_tokens,
                 args.search,
+                args.acquisition_passes,
+                tuple(c.strip() for c in (args.source_languages or "").split(",") if c.strip()),
             )
         )
     except ModelError as error:
         print(f"error: {error}", file=sys.stderr)
+        # ModelError carries the text that failed to parse. Printing only str(error) throws away
+        # the one thing that says WHY — truncated JSON, prose, or an empty completion because the
+        # whole budget went on reasoning all look identical from the message alone.
+        raw = getattr(error, "raw_text", "") or ""
+        if raw:
+            head = raw.strip()[:600]
+            print(
+                f"\nlast response ({len(raw)} chars), first 600:\n{head}",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                "\nthe model returned no text at all. That usually means the whole max_tokens "
+                "budget went on reasoning: lower reasoning_effort or raise max_tokens for the "
+                "generator role in the config.",
+                file=sys.stderr,
+            )
         return 2
     except KeyboardInterrupt:
         print("interrupted", file=sys.stderr)

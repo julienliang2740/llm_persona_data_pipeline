@@ -225,3 +225,52 @@ def test_a_complete_draft_passes_the_persona_checker(drafter, evidence, tmp_path
     from check_persona import check_persona
 
     assert check_persona("probe", tmp_path) == 0, capsys.readouterr().err
+
+
+# -------------------------------------------------------------------------------------------
+# run_pass logs token usage. It read `response.completion_tokens`, which ModelResponse has
+# never had — it carries the provider's raw `usage` dict. Every drafter run crashed on the
+# first pass, AFTER the model call had been made and billed. A logging line must not be able
+# to throw away work that has already been paid for.
+# -------------------------------------------------------------------------------------------
+
+
+class _Resp:
+    def __init__(self, usage):
+        self.usage = usage
+
+
+class _Client:
+    def __init__(self, usage):
+        self._usage = usage
+
+    async def complete_json(self, *args, **kwargs):
+        return {"ok": True}, _Resp(self._usage)
+
+
+def test_run_pass_logs_usage_without_crashing(caplog):
+    import asyncio
+
+    from draft_persona import run_pass
+
+    usage = {
+        "completion_tokens": 4046,
+        "completion_tokens_details": {"reasoning_tokens": 2988},
+    }
+    with caplog.at_level("INFO"):
+        payload = asyncio.run(run_pass(_Client(usage), "prompt", "sufficiency", 100))
+    assert payload == {"ok": True}
+    assert "4046" in caplog.text
+    assert "2988" in caplog.text
+
+
+@pytest.mark.parametrize("usage", [{}, {"completion_tokens": 12}, None])
+def test_run_pass_survives_a_provider_that_reports_no_usage(usage, caplog):
+    """The call is already paid for by this point; missing usage must not raise."""
+    import asyncio
+
+    from draft_persona import run_pass
+
+    with caplog.at_level("INFO"):
+        payload = asyncio.run(run_pass(_Client(usage), "prompt", "evidence", 100))
+    assert payload == {"ok": True}

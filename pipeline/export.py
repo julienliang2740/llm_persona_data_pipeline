@@ -342,6 +342,32 @@ def check_license_metadata(spec: TargetSpec, redistribution_note: str) -> None:
         )
 
 
+def evidence_basis_summary(spec) -> dict[str, Any] | None:
+    """Attested/reconstructed counts for a persona corpus, or None when nothing is marked.
+
+    Mirrors `sufficiency.verdict: admit_reconstructed` in the spec. Returned as None rather
+    than as zeroes so that manifests for the value-system targets, which have no such notion,
+    are unchanged.
+    """
+    passages = getattr(spec, "key_passages", None) or []
+    reconstructed = sum(1 for p in passages if getattr(p, "evidence_basis", "") == "reconstructed")
+    if not reconstructed:
+        return None
+    total = len(passages)
+    verdict = ((spec.raw.get("sufficiency") or {}).get("verdict") if spec.raw else None)
+    return {
+        "attested": total - reconstructed,
+        "reconstructed": reconstructed,
+        "reconstructed_share": round(reconstructed / total, 3) if total else None,
+        "gate_verdict": verdict,
+        "note": (
+            "Passages marked reconstructed are inference from surrounding evidence, not "
+            "attestation. Rows generated from them are not records of anything the subject "
+            "said or did."
+        ),
+    }
+
+
 def license_constraints(spec: TargetSpec) -> list[dict[str, str]]:
     """Distinct licence terms on the grounding sources, so restrictions travel with the data."""
     seen: dict[tuple[str, str], dict[str, str]] = {}
@@ -633,6 +659,11 @@ def run_stage(config: RunConfig, spec: TargetSpec, run_dir: Path) -> dict[str, A
             "by_bucket": dict(sorted(counts.items())),
         },
         "license_constraints": license_constraints(spec),
+        # A persona corpus may be part inference rather than part attestation, and once rows are
+        # in a training set nothing downstream can tell the difference. The share travels with
+        # the export for the same reason the licence terms do: so a consumer of this dataset can
+        # see what it rests on. Absent for value-system targets, whose passages are all sourced.
+        "evidence_basis": evidence_basis_summary(spec),
         "redistribution_note": redistribution_note,
         "cost": {
             "usd": usage["cost_usd"] if usage["cost_known"] else None,

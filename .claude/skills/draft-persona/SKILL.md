@@ -41,9 +41,21 @@ Assess, from a first pass of searching:
 | contestedness | the attributable core must exceed the disputed part |
 | testimonial variety | 2+ observers with different interests |
 
-Return `admit`, `admit_with_caveats` or `refuse`. **A refusal is a real answer.** Report it and
-stop; do not write a spec anyway. A spec written past a refusal is imagination wearing a real
-name, which is worse than no persona.
+Return one of `admit`, `admit_with_caveats`, `admit_reconstructed`, `refuse_acquisition` or
+`refuse_evidence`. **A refusal is a real answer.** Report it and stop; do not write a spec anyway.
+A spec written past a refusal is imagination wearing a real name, which is worse than no persona.
+
+**Do not refuse off one acquisition pass.** The two refusals are different findings:
+
+- `refuse_acquisition` — you did not reach the material. A fact about your search. **Retryable:**
+  escalate through the ladder in phase 1 and run the gate again. Record what you tried in
+  `sufficiency.acquisition_attempts`.
+- `refuse_evidence` — the material does not survive. A fact about the subject. Only available
+  once the ladder is exhausted.
+
+If the sources are thin but real, `admit_reconstructed` is usually the honest answer rather than
+either refusal: build it, mark the inferred passages, and let the share travel into the manifest.
+See "Evidence basis" in the schema.
 
 Refuse regardless of volume: **living private individuals.** Public figures, historical subjects
 and fictional characters are in scope.
@@ -77,6 +89,28 @@ Every row must end with sources or an explicit recorded gap.
 | **deeds** | what they actually did | **registers, minutes, court and administrative records** |
 | testimony | contemporaries, with their interests noted | memoirs, correspondence, hostile accounts |
 | conflicts | statements their conduct contradicts | emerges from holding words and deeds together |
+
+### The escalation ladder
+
+Three passes, each changing *strategy*. Three identical passes find the same nothing.
+
+1. **Slot-driven search.** Query per coverage-matrix row, as below.
+2. **Reference harvesting.** Take what pass 1 found, pull the works it *cites*, and go after
+   those. This is how a researcher gets from a summary to the sources: find the standard edition
+   and the standard monograph, then chase their footnotes. `websearch.acquire_escalating` does
+   this automatically for the script arm.
+3. **Cross-language.** For subjects whose sources never existed in English. Choose the language by
+   **where the sources survive**, not by which Wikipedia is biggest — article size measures how
+   many modern editors a language has. A Byzantine emperor means Greek, Arabic, Armenian,
+   Georgian; article length would point you at German.
+
+Only after pass 3 may an empty slot be called `refuse_evidence`.
+
+**Wikipedia has exactly one legitimate role: its reference list.** Its prose is the popular
+version of the person — precisely what the paragraph above warns against, and for a subject whose
+fame is a later construction it is the legend rather than the record. So harvest the citations and
+chase them; never write Wikipedia prose into a passage. `websearch.wikipedia_reference_index`
+returns citations only, and reads the article path because `/w/` and `/api/` are disallowed.
 
 ### Search by source type, not by keyword
 
@@ -127,6 +161,16 @@ and it must match `sources:` entries character for character. Use `#` or bold fo
 
 Four kinds of entry, circumstance first. A readable prefix convention helps: `C` circumstance,
 `W` words, `D` deeds, `T` testimony.
+
+Where a passage is inference rather than attestation, say so on its own line in the body:
+
+```
+evidence_basis: reconstructed
+```
+
+Mark it honestly and it is allowed, capped at 40% of the corpus, and declared in the manifest.
+Leave it unmarked and it is indistinguishable from evidence for everyone downstream. A conflict's
+`said` and `did` must both be attested — the conduct-over-words rule cannot run on inference.
 
 Each entry states **in its own prose** what kind of record it is and what it bears on. This is
 where the said/did distinction is made: call it out wherever it is visible. It is *not* a label

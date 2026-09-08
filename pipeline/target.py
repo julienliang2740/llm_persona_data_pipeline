@@ -20,6 +20,21 @@ KEY_PASSAGES_SUFFIX = "key_passages.md"
 # optionally followed by " — title", then the excerpt text until the next heading.
 PASSAGE_HEADING = re.compile(r"^#{2,4}\s+(?P<id>[^\n#]+?)\s*$", re.MULTILINE)
 
+# A passage may declare, on its own line in the body, whether it rests on a source or on
+# reconstruction from surrounding evidence:
+#
+#     evidence_basis: reconstructed
+#
+# Absent the line a passage is `attested`, which is the safe default only because
+# check_persona.py requires the line explicitly on every passage of a spec whose gate verdict
+# is `admit_reconstructed`. The marker is deliberately left in the passage body rather than
+# stripped: the generator should see that a passage is reconstruction, not attestation.
+EVIDENCE_BASES = ("attested", "reconstructed")
+EVIDENCE_BASIS_LINE = re.compile(
+    r"^\s*[*_]{0,2}\s*evidence[_ ]basis\s*[:=]\s*(?P<basis>[a-z_]+)\s*[*_.]{0,3}\s*$",
+    re.MULTILINE | re.IGNORECASE,
+)
+
 
 class SpecError(Exception):
     """The target specification is missing something the pipeline needs."""
@@ -36,6 +51,13 @@ class KeyPassage:
     # licences), so licence aggregation should use the list and take the most restrictive.
     source_id: str = ""
     source_ids: list[str] = field(default_factory=list)
+    # "attested" (a source says this) or "reconstructed" (inferred from surrounding evidence).
+    # Declared per passage by an `evidence_basis:` line in the body; see EVIDENCE_BASIS_LINE.
+    evidence_basis: str = "attested"
+    # Whether the body actually carried an `evidence_basis:` line. A defaulted "attested" and a
+    # declared one are indistinguishable downstream otherwise, and a spec that claims to be part
+    # reconstruction has to mark every passage rather than rely on the default.
+    evidence_basis_declared: bool = False
 
     def render(self) -> str:
         header = f"[{self.id}]" + (f" {self.title}" if self.title else "")
@@ -213,7 +235,19 @@ def parse_key_passages(text: str) -> list[KeyPassage]:
         passage_id = parts[0].strip()
         title = parts[1].strip() if len(parts) > 1 else ""
         if passage_id:
-            passages.append(KeyPassage(id=passage_id, title=title, text=body))
+            basis_match = EVIDENCE_BASIS_LINE.search(body)
+            basis = basis_match.group("basis").lower() if basis_match else "attested"
+            passages.append(
+                KeyPassage(
+                    id=passage_id,
+                    title=title,
+                    text=body,
+                    # An unrecognised value is not silently treated as attested; the checker
+                    # reports it, and until then it is held as written so the error is visible.
+                    evidence_basis=basis,
+                    evidence_basis_declared=basis_match is not None,
+                )
+            )
     return passages
 
 

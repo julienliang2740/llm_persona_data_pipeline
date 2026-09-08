@@ -114,10 +114,37 @@ def test_markup_stripping_drops_scripts(ws):
     assert ws.strip_markup("<p>Hello <b>world</b></p><script>evil()</script>") == "Hello world"
 
 
-def test_no_backend_configured_is_not_an_error(ws, monkeypatch):
+def test_no_backend_configured_is_not_an_error(ws, monkeypatch, tmp_path):
+    """No environment variable AND no key file. Both sources have to be neutralised.
+
+    `repo_root` is pointed at an empty directory on purpose: a developer with a real
+    brave_api_key.txt in the repo root would otherwise see this pass or fail depending on
+    their own machine.
+    """
     for variable in ("BRAVE_SEARCH_API_KEY", "SERPER_API_KEY", "TAVILY_API_KEY"):
         monkeypatch.delenv(variable, raising=False)
-    assert ws.backend_from_env() is None
+    assert ws.backend_from_env(repo_root=tmp_path) is None
+
+
+def test_a_key_file_configures_a_backend(ws, monkeypatch, tmp_path):
+    """The file half of the lookup: same convention as the gitignored Fireworks key."""
+    for variable in ("BRAVE_SEARCH_API_KEY", "SERPER_API_KEY", "TAVILY_API_KEY"):
+        monkeypatch.delenv(variable, raising=False)
+    (tmp_path / "brave_api_key.txt").write_text("not-a-real-key\n", encoding="utf-8")
+    backend = ws.backend_from_env(repo_root=tmp_path)
+    assert backend is not None and backend.name == "brave"
+
+
+def test_the_environment_beats_the_key_file(ws, monkeypatch, tmp_path):
+    monkeypatch.setenv("BRAVE_SEARCH_API_KEY", "from-env")
+    (tmp_path / "brave_api_key.txt").write_text("from-file\n", encoding="utf-8")
+    assert ws.load_search_api_key("BRAVE_SEARCH_API_KEY", tmp_path) == "from-env"
+
+
+def test_an_empty_key_file_is_not_a_key(ws, monkeypatch, tmp_path):
+    monkeypatch.delenv("BRAVE_SEARCH_API_KEY", raising=False)
+    (tmp_path / "brave_api_key.txt").write_text("   \n", encoding="utf-8")
+    assert ws.load_search_api_key("BRAVE_SEARCH_API_KEY", tmp_path) is None
 
 
 def test_gaps_are_written_into_the_prompt_text():

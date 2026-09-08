@@ -48,7 +48,35 @@ SUFFICIENCY_CRITERIA = (
     "domain_breadth",
     "contestedness",
 )
-VERDICTS = ("admit", "admit_with_caveats", "refuse")
+# The gate answers two different questions and used to collapse them into one word. `refuse`
+# meant both "the material does not exist" and "I could not find the material", and only the
+# second is a bug in the acquisition pass rather than a fact about the subject. They are split
+# so that a refusal states which it is, and so a retry is aimed at the one that is retryable.
+#
+#   admit                  every criterion met
+#   admit_with_caveats     one criterion thin; say which
+#   admit_reconstructed    buildable, but part of the corpus is inference rather than
+#                          attestation. Requires evidence_basis on every passage, holds the
+#                          reconstruction share under RECONSTRUCTED_SHARE_CEILING, and travels
+#                          into the export manifest so a downstream consumer can see it
+#   refuse_acquisition     could not retrieve the material. RETRYABLE: record what was tried
+#                          in sufficiency.acquisition_attempts and run the gate again
+#   refuse_evidence        the material does not exist. Not retryable
+#   refuse                 deprecated alias for refuse_evidence; warns
+VERDICTS = (
+    "admit",
+    "admit_with_caveats",
+    "admit_reconstructed",
+    "refuse_acquisition",
+    "refuse_evidence",
+    "refuse",
+)
+BLOCKING_VERDICTS = ("refuse", "refuse_acquisition", "refuse_evidence")
+
+# A persona built more than half out of inference is a portrait of the researcher. The ceiling
+# is a share of passages rather than of words so that a few long reconstructed essays cannot
+# outweigh many short attested ones.
+RECONSTRUCTED_SHARE_CEILING = 0.4
 CONFLICT_RESOLUTIONS = ("conduct", "statement", "reconciled")
 HORIZON_POLICIES = (
     "translate_to_analogue",
@@ -130,11 +158,42 @@ def check_sufficiency(raw: dict[str, Any], report: Report) -> str:
             "must not be built out. A spec written past a refusal is the researcher's "
             "imagination wearing a real name. Record the refusal and stop."
         )
+        report.warn(
+            "sufficiency.verdict 'refuse' is deprecated because it does not say which refusal "
+            "this is. Use 'refuse_evidence' when the material does not survive, or "
+            "'refuse_acquisition' when it could not be retrieved and a further pass might "
+            "reach it."
+        )
+    elif verdict == "refuse_evidence":
+        report.error(
+            "sufficiency.verdict is 'refuse_evidence': the material a persona needs does not "
+            "survive for this subject, so the spec must not be built out. This is a finding "
+            "about the sources, not about the search; a further acquisition pass will not "
+            "change it."
+        )
+    elif verdict == "refuse_acquisition":
+        report.error(
+            "sufficiency.verdict is 'refuse_acquisition': the material was not retrieved, which "
+            "is a fact about the search rather than about the subject. Do not build the spec "
+            "out on what was reached. Escalate the acquisition pass and run the gate again; if "
+            "the material genuinely does not survive, record 'refuse_evidence' instead."
+        )
+        if _missing(sufficiency, "acquisition_attempts"):
+            report.error(
+                "sufficiency.acquisition_attempts: missing, and 'refuse_acquisition' claims the "
+                "search fell short. Record what was tried — tiers, languages, sites declined — "
+                "so the next pass escalates instead of repeating."
+            )
 
     for criterion in SUFFICIENCY_CRITERIA:
         if _missing(sufficiency, criterion):
             report.error(f"sufficiency.{criterion}: missing; the gate needs every criterion answered.")
 
+    if verdict == "admit_reconstructed" and _missing(sufficiency, "caveats"):
+        report.error(
+            "sufficiency.verdict is 'admit_reconstructed' but no caveats are recorded. Say which "
+            "criterion forced it and what the reconstructed passages rest on."
+        )
     if verdict == "admit_with_caveats" and _missing(sufficiency, "caveats"):
         report.error(
             "sufficiency.verdict is 'admit_with_caveats' but no caveats are recorded. Say which "
@@ -409,6 +468,88 @@ def check_corpus_volume(spec: TargetSpec, persona_id: str, report: Report) -> No
         )
 
 
+def check_evidence_basis(
+    spec: TargetSpec, raw: dict[str, Any], verdict: str, report: Report
+) -> dict[str, int]:
+    """How much of the corpus is inference, and is the inference in a place it can do harm?
+
+    Reconstruction is allowed — the sources for most people are incomplete and a persona that
+    refused every gap would be unbuildable. What is not allowed is reconstruction that cannot be
+    seen: an inferred passage reads exactly like an attested one once it is in a prompt, and a
+    row generated from it is indistinguishable from evidence in the exported dataset.
+    """
+    tally = {"attested": 0, "reconstructed": 0}
+    known_bases = {"attested", "reconstructed"}
+
+    for passage in spec.key_passages:
+        basis = passage.evidence_basis
+        if basis not in known_bases:
+            report.error(
+                f"key_passages.md [{passage.id}]: evidence_basis is {basis!r}; expected "
+                f"'attested' or 'reconstructed'."
+            )
+            continue
+        tally[basis] += 1
+
+    total = sum(tally.values())
+    reconstructed = tally["reconstructed"]
+
+    if verdict == "admit_reconstructed":
+        undeclared = [p.id for p in spec.key_passages if not p.evidence_basis_declared]
+        if undeclared:
+            report.error(
+                f"sufficiency.verdict is 'admit_reconstructed', so every passage must declare an "
+                f"'evidence_basis:' line rather than relying on the default. "
+                f"{len(undeclared)} do not: {', '.join(undeclared[:8])}"
+                + (" ..." if len(undeclared) > 8 else "")
+            )
+        if reconstructed == 0:
+            report.warn(
+                "sufficiency.verdict is 'admit_reconstructed' but no passage is marked "
+                "reconstructed. If the corpus is wholly attested, 'admit' or "
+                "'admit_with_caveats' describes it better."
+            )
+    elif reconstructed and verdict.startswith("admit"):
+        report.error(
+            f"{reconstructed} passage(s) are marked evidence_basis: reconstructed, but the "
+            f"gate verdict is {verdict!r}. A spec carrying reconstruction must say so at the "
+            f"gate, so the share travels into the export manifest: use 'admit_reconstructed'."
+        )
+
+    if total:
+        share = reconstructed / total
+        if share > RECONSTRUCTED_SHARE_CEILING:
+            report.error(
+                f"{reconstructed} of {total} passages ({share:.0%}) are reconstructed, over the "
+                f"{RECONSTRUCTED_SHARE_CEILING:.0%} ceiling. Past this the persona is mostly the "
+                f"researcher. Acquire more, or record a refusal."
+            )
+        elif share > RECONSTRUCTED_SHARE_CEILING / 2:
+            report.warn(
+                f"{reconstructed} of {total} passages ({share:.0%}) are reconstructed. Under the "
+                f"ceiling, but a reviewer should confirm the attested half carries the persona."
+            )
+
+    # The conduct-over-words rule is the one thing that cannot run on inference. A conflict
+    # weighs what someone said against what they did; if either side is reconstructed, the gap
+    # being adjudicated may be one the researcher created.
+    reconstructed_ids = {p.id for p in spec.key_passages if p.evidence_basis == "reconstructed"}
+    for index, conflict in enumerate(raw.get("conflicts") or []):
+        if not isinstance(conflict, dict):
+            continue
+        where = f"conflicts[{index}] ({conflict.get('id', 'no id')})"
+        for field_name in ("said", "did"):
+            cited = conflict.get(field_name)
+            if cited in reconstructed_ids:
+                report.error(
+                    f"{where}: '{field_name}' cites {cited!r}, which is marked "
+                    f"evidence_basis: reconstructed. A conflict adjudicates what a person said "
+                    f"against what they did, so both sides must be attested — otherwise the gap "
+                    f"may be one the reconstruction invented."
+                )
+    return tally
+
+
 def check_general(spec: TargetSpec, raw: dict[str, Any], report: Report) -> None:
     if len(spec.principles) < 8:
         report.warn(
@@ -452,6 +593,7 @@ def check_persona(persona_id: str, personas_dir: Path = PERSONAS_DIR) -> int:
     check_attribution(raw, report)
     check_no_modern_constraint_clause(spec, report)
     check_corpus_volume(spec, persona_id, report)
+    basis_tally = check_evidence_basis(spec, raw, verdict, report)
     check_general(spec, raw, report)
 
     subject = raw.get("subject") or {}
@@ -479,6 +621,15 @@ def check_persona(persona_id: str, personas_dir: Path = PERSONAS_DIR) -> int:
                 f"   formation phases: {len(raw.get('formation') or [])}"
                 f"   context+formation: {_prose_words(raw.get('context')) + _prose_words(raw.get('formation'))} words",
                 f"  conflicts: {len(raw.get('conflicts') or [])} ({resolutions})",
+                *(
+                    [
+                        f"  evidence basis: {basis_tally['attested']} attested, "
+                        f"{basis_tally['reconstructed']} reconstructed "
+                        f"({basis_tally['reconstructed'] / max(1, sum(basis_tally.values())):.0%})"
+                    ]
+                    if basis_tally["reconstructed"]
+                    else []
+                ),
                 f"  epistemic horizon: {(raw.get('epistemic_horizon') or {}).get('policy')}",
                 f"  attribution declared in manifest: "
                 f"{(raw.get('attribution_policy') or {}).get('declare_in_manifest')}",
