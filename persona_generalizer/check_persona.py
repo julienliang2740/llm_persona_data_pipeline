@@ -27,6 +27,9 @@ if str(REPO_ROOT) not in sys.path:
 
 from pipeline.target import SpecError, TargetSpec, load_target  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import scope as scope_rules  # noqa: E402
+
 PERSONAS_DIR = REPO_ROOT / "persona_generalizer" / "personas"
 
 REQUIRED_SECTIONS = (
@@ -62,6 +65,8 @@ SUFFICIENCY_CRITERIA = (
 #   refuse_acquisition     could not retrieve the material. RETRYABLE: record what was tried
 #                          in sufficiency.acquisition_attempts and run the gate again
 #   refuse_evidence        the material does not exist. Not retryable
+#   refuse_scope           out of scope whatever the evidence shows. A different axis from the
+#                          gate's criteria: see persona_generalizer/scope.py
 #   refuse                 deprecated alias for refuse_evidence; warns
 VERDICTS = (
     "admit",
@@ -69,9 +74,12 @@ VERDICTS = (
     "admit_reconstructed",
     "refuse_acquisition",
     "refuse_evidence",
+    "refuse_scope",
     "refuse",
 )
-BLOCKING_VERDICTS = ("refuse", "refuse_acquisition", "refuse_evidence")
+BLOCKING_VERDICTS = (
+    "refuse", "refuse_acquisition", "refuse_evidence", "refuse_scope",
+)
 
 # A persona built more than half out of inference is a portrait of the researcher. The ceiling
 # is a share of passages rather than of words so that a few long reconstructed essays cannot
@@ -185,9 +193,27 @@ def check_sufficiency(raw: dict[str, Any], report: Report) -> str:
                 "so the next pass escalates instead of repeating."
             )
 
+    elif verdict == "refuse_scope":
+        report.error(
+            "sufficiency.verdict is 'refuse_scope': this subject is out of scope for a persona "
+            "target whatever the evidence shows, so the spec must not be built out. Record the "
+            "refusal in personas/_refused/ and stop."
+        )
+
     for criterion in SUFFICIENCY_CRITERIA:
         if _missing(sufficiency, criterion):
             report.error(f"sufficiency.{criterion}: missing; the gate needs every criterion answered.")
+
+    # Scope is a separate axis from the five criteria, and the reason it is a required field
+    # rather than an automatic check is that no list can make the judgement. Requiring it means
+    # the question is asked once, in writing, by a person, on every spec that gets built.
+    if verdict.startswith("admit") and _missing(sufficiency, "scope_check"):
+        report.error(
+            "sufficiency.scope_check: missing. Every admitted spec must record that scope was "
+            "considered and what was concluded — a persona spec is fidelity-maximising and "
+            "carries no modern-constraint clause, so whether it should exist is not answered by "
+            "the evidentiary criteria. See persona_generalizer/scope.py."
+        )
 
     if verdict == "admit_reconstructed" and _missing(sufficiency, "caveats"):
         report.error(
@@ -468,6 +494,23 @@ def check_corpus_volume(spec: TargetSpec, persona_id: str, report: Report) -> No
         )
 
 
+def check_scope(raw: dict[str, Any], verdict: str, report: Report) -> None:
+    """The cheap stop, applied to the spec's own name.
+
+    A tripwire, not a filter — see persona_generalizer/scope.py. It exists so that an obvious
+    case fails at the checker rather than after a dataset has been generated from it.
+    """
+    name = str(raw.get("name") or "")
+    hit = scope_rules.tripwire_match(name)
+    if hit and verdict != scope_rules.SCOPE_VERDICT:
+        needle, why = hit
+        report.error(
+            f"name {name!r} matches the scope tripwire ({needle}: {why}), but the verdict is "
+            f"{verdict!r}. Out-of-scope subjects are refused whatever the evidence shows; set "
+            f"sufficiency.verdict to '{scope_rules.SCOPE_VERDICT}' and do not build the spec out."
+        )
+
+
 def check_evidence_basis(
     spec: TargetSpec, raw: dict[str, Any], verdict: str, report: Report
 ) -> dict[str, int]:
@@ -584,6 +627,7 @@ def check_persona(persona_id: str, personas_dir: Path = PERSONAS_DIR) -> int:
 
     verdict = check_sufficiency(raw, report)
     check_subject(raw, report)
+    check_scope(raw, verdict, report)
     check_context(raw, spec, report)
     tally = check_conflicts(raw, spec, report)
     check_formation(raw, spec, report)

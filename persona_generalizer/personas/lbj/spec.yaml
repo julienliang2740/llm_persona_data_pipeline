@@ -731,6 +731,13 @@ sufficiency:
     Met but weakly sourced in this pass. Friendly (T2, T6), hostile or interested (T4, T5, T7) and
     institutional observers are all present, but all via secondary literature rather than the
     memoirs and oral histories themselves.
+  scope_check: >
+    In scope, and the judgement is not a close one. A deceased head of government, documented
+    almost entirely through public records. The unattractive half — a stolen Senate seat,
+    self-dealing in office, twenty years of votes to defeat civil rights legislation, and the
+    escalation of a war — is exactly the material the no-modern-constraint rule exists to
+    preserve, and none of it is the direction or advocacy of mass atrocity. A spec that softened
+    it would be the defect; a spec that carries it is the point.
   caveats: >
     Family and private life are thin, hence the 0.1 weight. Circumstance and testimony rest on
     secondary sources; only words and deeds reach tiers 1-2. The recordings were not consulted, and

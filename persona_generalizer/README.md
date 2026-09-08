@@ -73,12 +73,23 @@ New sections the schema adds: `subject` (with `canon_boundary`), `context`, `for
 Not everyone, and the gate is a first-class part of the spec rather than a judgement call.
 `sufficiency` measures first-person volume, **documented decisions with their reasoning** (the
 binding criterion, and the one most subjects fail), domain breadth, contestedness, and
-testimonial variety, and returns `admit`, `admit_with_caveats` or `refuse`.
+testimonial variety, and returns one of `admit`, `admit_with_caveats`, `admit_reconstructed`,
+`refuse_acquisition` or `refuse_evidence`.
+
+The two refusals answer different questions, and only one of them is a bug.
+`refuse_acquisition` says the search fell short — retryable, and the gate asks what was tried so
+the next pass escalates rather than repeats. `refuse_evidence` says the material does not survive.
+Between them sits `admit_reconstructed`, for a subject whose sources are thin but real: build it,
+mark the inferred passages with `evidence_basis: reconstructed`, and the share travels into the
+export manifest so a consumer of the dataset can see what it rests on.
 
 An unremarkable person from the fifteenth century fails on volume — nothing survives to be
 faithful to. An object fails before the gate, having no conduct. Living private individuals are
 out of scope regardless of how much material exists. Public figures, historical subjects and
 fictional characters are in.
+
+Refusals are recorded in `personas/_refused/`, because a refusal costs the same research as an
+admission and is worth the same to the next person who proposes the subject.
 
 ## Drafting: two arms
 
@@ -185,10 +196,25 @@ and delete, not a target.
 ## Status
 
 Steps 1–3: the contract, the gate, and both drafter arms. The template validates in strict mode
-and passes the persona checker. 52 tests guard the schema, the checker and the script arm's
-output, all without network — including a round-trip proving the drafter writes a
-`key_passages.md` the pipeline's own parser accepts, and an end-to-end fixture proving a complete
-draft passes the checker.
+and passes the persona checker. 445 tests guard the schema, the checker, the escalating
+acquisition and the script arm's output, all without network — including a round-trip proving the
+drafter writes a `key_passages.md` the pipeline's own parser accepts, and an end-to-end fixture
+proving a complete draft passes the checker.
 
-The skill arm has not yet been run on a real subject; the script arm has been dry-run only.
-Neither has produced a dataset yet.
+**The skill arm has been run on two real subjects.** Lyndon B. Johnson was admitted
+(`admit_with_caveats`) and drafted: 98 passages, 6,028 words, 14 principles, 5 conflicts, grounded
+in 14 full public-domain speech transcripts and 92 congressional roll calls joined to his member
+record. Basil II was refused (`refuse_evidence`) on the binding criterion and the refusal is
+recorded in `personas/_refused/`. The script arm's escalating acquisition is wired but has not yet
+been exercised against a live search backend.
+
+**One dataset exists**, from a 2-family pilot on the LBJ spec: 4 responses, all accepted by two
+independent reviewers, 0 cue leakage, 2 training and 2 eval rows. It is a proof that the spec
+loads and generates in-persona output, not evidence that the persona is good — at that size only
+1 of 7 divergence hypotheses was exercised, 4 of 14 principles fired, and the divergence leg went
+unjudged because the local base model was not running. A run of 15–20 families with the baseline
+up is what would actually test it.
+
+Everything drafted so far is a **draft for human review**. No passage has been verified against
+its source twice, and `redistribution_note` blocks export until the licence questions are
+settled.

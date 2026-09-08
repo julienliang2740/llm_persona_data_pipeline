@@ -57,8 +57,14 @@ If the sources are thin but real, `admit_reconstructed` is usually the honest an
 either refusal: build it, mark the inferred passages, and let the share travel into the manifest.
 See "Evidence basis" in the schema.
 
-Refuse regardless of volume: **living private individuals.** Public figures, historical subjects
-and fictional characters are in scope.
+**Scope is a separate question from evidence, and you answer it first.** Refuse regardless of
+volume: **living private individuals**, and subjects whose distinctive value content is the
+direction or advocacy of mass atrocity — where a fidelity-maximising spec and the harmful
+artefact are the same object. Return `refuse_scope`, record it in `personas/_refused/`, and stop.
+`persona_generalizer/scope.py` carries the argument and a tripwire for unambiguous cases; the
+tripwire is not a filter, so subjects it does not name still need your judgement, written into
+`sufficiency.scope_check`. Public figures, historical subjects and fictional characters are
+otherwise in scope, and an unattractive record is not a reason to refuse — it is the material.
 
 For a **fictional** subject the gate changes shape: the canon supplies everything at once, so ask
 instead whether the canon is bounded, whether the character makes decisions on the page with

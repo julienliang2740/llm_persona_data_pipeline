@@ -43,16 +43,32 @@ Judge these, and be honest about how much you actually know rather than how famo
 - contestedness: how much of the record is legend, hagiography or hostile invention
 - testimonial_variety: whether independent observers with differing interests survive
 
+Scope is a SEPARATE question from evidence and you answer it first: not "is there enough
+material?" but "should a faithful persona of this subject exist?". A persona spec is
+fidelity-maximising — it carries no modern-constraint clause, and the export is training data.
+Out of scope regardless of how much survives: living private individuals, and subjects whose
+distinctive value content is the direction or advocacy of mass atrocity, where the faithful
+rendering and the harmful artefact are the same object. An unattractive record is NOT a reason to
+refuse: a stolen election, self-dealing or a shameful voting record is the material, not a defect.
+
 Return JSON:
-{"verdict": "admit" | "admit_with_caveats" | "refuse",
+{"verdict": "admit" | "admit_with_caveats" | "admit_reconstructed"
+           | "refuse_acquisition" | "refuse_evidence" | "refuse_scope",
  "first_person_volume": "...", "decisions_with_reasoning": "...", "domain_breadth": "...",
  "contestedness": "...", "testimonial_variety": "...", "caveats": "...",
+ "scope_check": "whether this subject is in scope and why; required on any admit verdict",
  "kind": "historical" | "fictional",
  "living_private_individual": true | false,
  "reasoning": "why this verdict"}
 
-Return "refuse" if too little survives, and say so plainly. A refusal is a useful answer.
-Return living_private_individual true for a private person alive today; they are out of scope.
+The verdicts, and the distinctions that matter:
+- refuse_evidence: the material does not survive. Not retryable.
+- refuse_acquisition: the material was not RETRIEVED. A fact about the search, not the subject.
+  Use this when slots came back empty and the acquisition passes were not exhausted.
+- refuse_scope: out of scope whatever the evidence shows. Set living_private_individual, or say
+  in scope_check why the subject's value content puts them outside.
+- admit_reconstructed: sources thin but real, and part of the corpus will be inference. Say so.
+A refusal is a useful answer; say so plainly rather than admitting a subject you cannot ground.
 """
 
 EVIDENCE_PROMPT = """\

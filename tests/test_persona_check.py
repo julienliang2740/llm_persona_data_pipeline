@@ -393,3 +393,46 @@ def test_reconstruction_over_the_ceiling_blocks(check_persona, tmp_path, templat
     mark_reconstructed(tmp_path, "probe", every)
     assert check_persona("probe", tmp_path) == 2
     assert "over the 40% ceiling" in capsys.readouterr().err
+
+
+# -------------------------------------------------------------------------------------------
+# Scope: the axis the evidentiary criteria cannot reach.
+#
+# The gate asks whether enough material survives. These pin the separate question of whether a
+# faithful persona of a subject should be built at all — which the criteria answer wrongly,
+# because the subjects excluded here are among the best-documented people who ever lived.
+# -------------------------------------------------------------------------------------------
+
+
+def test_scope_check_is_required_on_every_admitted_spec(
+    check_persona, tmp_path, template_raw, capsys
+):
+    raw = copy.deepcopy(template_raw)
+    raw["sufficiency"].pop("scope_check", None)
+    build(tmp_path, raw)
+    assert check_persona("probe", tmp_path) == 2
+    assert "scope_check" in capsys.readouterr().err
+
+
+def test_refuse_scope_blocks_the_build(check_persona, tmp_path, template_raw, capsys):
+    raw = copy.deepcopy(template_raw)
+    raw["sufficiency"]["verdict"] = "refuse_scope"
+    build(tmp_path, raw)
+    assert check_persona("probe", tmp_path) == 2
+    assert "out of scope" in capsys.readouterr().err
+
+
+def test_a_tripwire_subject_cannot_be_admitted(check_persona, tmp_path, template_raw, capsys):
+    """Evidence volume is irrelevant here, which is the whole reason the axis is separate."""
+    raw = copy.deepcopy(template_raw)
+    raw["name"] = "Adolf Hitler (1889-1945)"
+    build(tmp_path, raw)
+    assert check_persona("probe", tmp_path) == 2
+    assert "scope tripwire" in capsys.readouterr().err
+
+
+def test_an_in_scope_subject_is_untouched_by_the_tripwire(check_persona, tmp_path, template_raw):
+    raw = copy.deepcopy(template_raw)
+    raw["name"] = "Lyndon Baines Johnson (1908-1973)"
+    build(tmp_path, raw)
+    assert check_persona("probe", tmp_path) == 0

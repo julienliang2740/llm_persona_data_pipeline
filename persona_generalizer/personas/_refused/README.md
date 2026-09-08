@@ -8,6 +8,8 @@ One file per subject, named `<slug>.md`. No `spec.yaml` — nothing here is a pe
 spec. Each file carries the verdict, the per-criterion evidence, the acquisition passes actually
 run, and the sources checked.
 
-A `refuse_acquisition` record is an invitation to try again with a better search. A
+A `refuse_scope` record is a claim that the subject is inadmissible whatever the evidence shows;
+the evidentiary criteria will often *pass* such a subject, which is exactly why the axis is
+separate. A `refuse_acquisition` record is an invitation to try again with a better search. A
 `refuse_evidence` record is a claim about the sources, and should only be written once the
 escalation ladder in the drafting skill has been exhausted.

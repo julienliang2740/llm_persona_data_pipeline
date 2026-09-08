@@ -40,6 +40,7 @@ from pipeline.model import ModelClient, ModelError  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import draft_prompts as P  # noqa: E402
+import scope  # noqa: E402
 import websearch  # noqa: E402
 
 LOGGER = logging.getLogger("draft_persona")
@@ -208,6 +209,8 @@ def build_spec(persona_id: str, subject: str, spec: dict[str, Any], sufficiency:
                 "decisions_with_reasoning",
                 "domain_breadth",
                 "contestedness",
+                "testimonial_variety",
+                "scope_check",
                 "caveats",
             )
         },
@@ -391,8 +394,19 @@ def format_acquired(
             excerpt = " ".join(words[:allowance])
             budget -= min(len(words), allowance)
             truncated = "\n\n[excerpt truncated]" if len(words) > allowance else ""
+            # The tier travels with the excerpt. Without it a Wikipedia summary and an archive
+            # transcript arrive in the prompt looking identical, and the drafter has no way to
+            # apply the tiering the skill asks for.
+            tier = websearch.source_tier(result.url)
+            tier_line = (
+                "TIER: tertiary — a summary of the sources, not evidence. Use it to find what to "
+                "look for; do not build a passage on it.\n"
+                if tier == "tertiary"
+                else ""
+            )
             blocks.append(
-                f"## {slot}\n\nURL: {result.url}\nTITLE: {result.title}\n\n{excerpt}{truncated}"
+                f"## {slot}\n\nURL: {result.url}\nTITLE: {result.title}\n{tier_line}\n"
+                f"{excerpt}{truncated}"
             )
     return "\n\n".join(blocks)
 
@@ -401,6 +415,16 @@ async def draft(subject: str, persona_id: str, config_path: str, out_dir: Path,
                 target_count: int, max_tokens: int, use_search: bool = False,
                 acquisition_passes: int = 3,
                 source_languages: tuple[str, ...] = ()) -> int:
+    # Scope is checked before anything is loaded, created or spent. The gate that follows asks
+    # whether enough material survives; this asks whether a faithful persona of this subject
+    # should be built at all, and no amount of evidence changes the answer. Running it here means
+    # an out-of-scope subject costs nothing rather than a full acquisition pass.
+    hit = scope.tripwire_match(subject)
+    if hit is not None:
+        needle, why = hit
+        print(scope.refusal_message(subject, needle, why), file=sys.stderr)
+        return 2
+
     config = load_config(config_path)
     root = out_dir / persona_id
     (root / "references").mkdir(parents=True, exist_ok=True)

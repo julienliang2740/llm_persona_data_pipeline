@@ -155,3 +155,99 @@ def test_gaps_are_written_into_the_prompt_text():
 
     text = draft_persona.format_acquired({"deeds": [], "words": []})
     assert text.count("record it as a gap") == 2
+
+
+# -------------------------------------------------------------------------------------------
+# Two bugs found by running the escalating acquisition against a live backend rather than a
+# stub. Both were silent: the pass log said "0 citations followed" and looked like a thin
+# subject rather than a broken lookup.
+# -------------------------------------------------------------------------------------------
+
+
+def test_a_subject_given_as_a_search_phrase_still_resolves_an_article(ws, monkeypatch):
+    """"Basil II Byzantine emperor" is not an article title, and the verbatim lookup 404s."""
+    seen: list[str] = []
+
+    def fake_fetch_html(url, ledger):
+        seen.append(url)
+        # Only the trimmed title exists, as on the real encyclopedia.
+        return '<ol class="references">Holmes, Catherine, Basil II (2005)</ol>' \
+            if url.endswith("/Basil_II") else None
+
+    monkeypatch.setattr(ws, "fetch_html", fake_fetch_html)
+    cites = ws.wikipedia_reference_index("Basil II Byzantine emperor", ws.Acquisition())
+    assert cites, "trailing words should be dropped until an article resolves"
+    assert seen[0].endswith("/Basil_II_Byzantine_emperor"), "the full string is tried first"
+
+
+def test_article_title_fallback_is_bounded(ws, monkeypatch):
+    """A wrong subject must not turn the lookup into a crawl."""
+    attempts: list[str] = []
+
+    def fake_fetch_html(url, ledger):
+        attempts.append(url)
+        return None
+
+    monkeypatch.setattr(ws, "fetch_html", fake_fetch_html)
+    ws.wikipedia_reference_index("one two three four five six", ws.Acquisition())
+    assert len(attempts) <= 3
+
+
+def test_tertiary_hosts_are_labelled(ws):
+    """Wikipedia prose must not reach a prompt looking like an archive transcript."""
+    assert ws.source_tier("https://en.wikipedia.org/wiki/Basil_II") == "tertiary"
+    assert ws.source_tier("https://www.britannica.com/biography/Basil-II") == "tertiary"
+    assert ws.source_tier("https://www.doaks.org/resources/x") == "unclassified"
+    assert ws.source_tier("") == "unclassified"
+
+
+def test_the_escalation_stops_as_soon_as_the_slots_fill(ws, monkeypatch):
+    """Passes 2 and 3 cost money; they must not run when pass 1 already answered."""
+    class Backend:
+        name = "stub"
+        def search(self, query, n):
+            return [ws.SearchResult("https://example.invalid/a", "A", "s", "")]
+
+    monkeypatch.setattr(ws, "fetch", lambda url, ledger, **kw: "some retrieved text")
+    pages, passes = ws.acquire_escalating(
+        "A Subject", Backend(), ws.Acquisition(), slots=("words",),
+        max_passes=3, source_languages=("el",), fetch_per_slot=1,
+    )
+    assert [p["pass"] for p in passes] == [1], "a filled slot must not trigger a paid retry"
+    assert ws.gate_verdict_for_gaps(pages, passes, max_passes=3)[0] == ""
+
+
+def test_all_three_passes_run_when_nothing_is_found(ws, monkeypatch):
+    class Backend:
+        name = "stub"
+        def search(self, query, n):
+            return [ws.SearchResult("https://example.invalid/a", "A", "s", "")]
+
+    monkeypatch.setattr(ws, "fetch", lambda url, ledger, **kw: None)
+    monkeypatch.setattr(ws, "fetch_html", lambda url, ledger: None)
+    pages, passes = ws.acquire_escalating(
+        "A Subject", Backend(), ws.Acquisition(), slots=("words",),
+        max_passes=3, source_languages=("el",), fetch_per_slot=1,
+    )
+    assert [p["pass"] for p in passes] == [1, 2, 3]
+    assert ws.gate_verdict_for_gaps(pages, passes, max_passes=3)[0] == "refuse_evidence"
+
+
+def test_an_unexhausted_ladder_can_only_claim_an_acquisition_refusal(ws, monkeypatch):
+    """Pass 3 is skipped when no source languages are given, so the ladder is not exhausted.
+
+    Claiming `refuse_evidence` there would assert something about the subject on the strength of
+    a search that never tried the languages its sources are in.
+    """
+    class Backend:
+        name = "stub"
+        def search(self, query, n):
+            return [ws.SearchResult("https://example.invalid/a", "A", "s", "")]
+
+    monkeypatch.setattr(ws, "fetch", lambda url, ledger, **kw: None)
+    monkeypatch.setattr(ws, "fetch_html", lambda url, ledger: None)
+    pages, passes = ws.acquire_escalating(
+        "A Subject", Backend(), ws.Acquisition(), slots=("words",), max_passes=3, fetch_per_slot=1,
+    )
+    assert [p["pass"] for p in passes] == [1, 2]
+    assert ws.gate_verdict_for_gaps(pages, passes, max_passes=3)[0] == "refuse_acquisition"

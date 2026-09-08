@@ -199,6 +199,10 @@ def test_a_complete_draft_passes_the_persona_checker(drafter, evidence, tmp_path
             "decisions_with_reasoning": "eight",
             "domain_breadth": "two",
             "contestedness": "low",
+            "testimonial_variety": "two observers, differing interests",
+            # Required on every admitted spec: scope is a separate axis from the criteria above,
+            # and the checker blocks an admit that never asked the question.
+            "scope_check": "in scope; deceased public office-holder, no atrocity content",
         },
         [
             {

@@ -564,6 +564,13 @@ sufficiency:
   contestedness: >
     Low for the period 1869-1899. High for everything before 1869, which is why `formation`
     phase one is short and hedged.
+  # Scope is a different axis from the five criteria above: not "is there enough material?"
+  # but "should a faithful persona of this subject exist?". Required on every admitted spec.
+  scope_check: >
+    In scope. An invented nineteenth-century harbour official; deceased, a public office-holder,
+    and nothing in her distinctive value content turns on atrocity. The unattractive half of this
+    persona is a seven-year grudge and a doctored tide book, which is the kind of fault a faithful
+    spec is supposed to carry rather than a reason not to build one.
   caveats: >
     Testimony is dominated by one friendly memoirist (AR-T1) and one hostile institution (AR-T2).
     Nothing neutral survives.

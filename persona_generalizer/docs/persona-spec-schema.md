@@ -99,6 +99,7 @@ Verdicts:
 - **`refuse_evidence`** — the material does not survive. Say so and stop. A spec written past a
   refusal produces a persona of the researcher's imagination wearing a real name, which is worse
   than no persona.
+- **`refuse_scope`** — out of scope whatever the evidence shows. See "Scope" below.
 - **`refuse`** — deprecated alias for `refuse_evidence`. Still blocks, but warns, because it does
   not say which refusal it is.
 
@@ -111,8 +112,34 @@ Two illustrative refusals: an unremarkable person from the fifteenth century fai
 on decisions-with-reasoning, because nothing survives; an object rather than a person fails
 before the gate, because it has no conduct to be faithful to.
 
-Also refused regardless of evidence volume: **living private individuals.** Public figures,
-historical subjects and fictional characters are in scope.
+### Scope
+
+A second axis, and the evidentiary criteria cannot reach it: they ask whether enough material
+survives, not whether a faithful persona of this subject should exist. The subjects excluded here
+are among the best-documented people who ever lived and pass every criterion comfortably.
+
+The rule was always here — **living private individuals** are refused regardless of volume — it
+just had no verdict name and no enforcement. `persona_generalizer/scope.py` generalises it and
+carries the argument in full. In short: a persona spec is fidelity-maximising. It carries no
+modern-constraint clause by design, `divergence_hypotheses` deliberately enumerates where the
+subject departs from ordinary assistant ethics, and the export is fine-tuning data. For almost
+every subject that is the point — LBJ's unattractive half is electoral fraud and twenty years of
+segregationist votes, and softening it would produce a different and less useful person. The
+exclusion is narrower than "did terrible things": it is for subjects whose **distinctive value
+content** is the direction or advocacy of mass atrocity, where the faithful rendering and the
+harmful artefact are the same object.
+
+Two mechanisms, and neither is a filter:
+
+- **`sufficiency.scope_check`** is required on every admitted spec. It records that the question
+  was asked and what was concluded. Requiring the field is the point: no list can make the
+  judgement, so a person makes it once, in writing.
+- **A tripwire** on the subject name, checked by `check_persona.py` and by `draft_persona.py`
+  before it loads config or spends anything. It is short, it names unambiguous cases only, and it
+  is trivially evaded — it exists so an obvious case fails at pass 0 rather than after a dataset
+  has been generated from it.
+
+Public figures, historical subjects and fictional characters are otherwise in scope.
 
 ---
 

@@ -440,6 +440,27 @@ _REFERENCE_SECTION = re.compile(
 )
 
 
+# Hosts whose prose is tertiary under the skill's own tiering — "popular treatment, quarantined
+# by default". They are not excluded from acquisition: they are a fine index and often the only
+# thing a first pass returns. But their text must not reach a drafting prompt looking like a
+# primary source, because the popular version of a person is exactly what phase 1 warns against,
+# and for a subject whose fame is a later construction it is the legend rather than the record.
+TERTIARY_HOSTS = (
+    "wikipedia.org", "wikiwand.com", "britannica.com", "grokipedia.com",
+    "worldhistory.org", "thecollector.com", "history.com", "biography.com",
+)
+
+
+def source_tier(url: str) -> str:
+    """'tertiary' for hosts whose prose is a summary of the sources, else 'unclassified'.
+
+    Deliberately coarse. It exists so the drafting prompt can see that a page is a summary rather
+    than evidence; distinguishing tiers 1-4 from a URL is not possible and is not attempted.
+    """
+    lowered = (url or "").lower()
+    return "tertiary" if any(host in lowered for host in TERTIARY_HOSTS) else "unclassified"
+
+
 def fetch_html(url: str, ledger: Acquisition) -> str | None:
     """Retrieve raw HTML, honouring robots.txt. Needed where structure matters, not just text."""
     allowed, reason = robots_allows(url)
@@ -487,9 +508,19 @@ def wikipedia_reference_index(
     ordinary `/wiki/<Title>` article path, which is allowed, and `robots_allows` checks it
     anyway. Only the reference/reflist block is read.
     """
-    title = subject.strip().replace(" ", "_")
-    url = f"https://{lang}.wikipedia.org/wiki/{title}"
-    html = fetch_html(url, ledger)
+    # A subject is often given as a search phrase rather than an article title — "Basil II
+    # Byzantine emperor" rather than "Basil II" — and the verbatim title 404s, silently costing
+    # the whole pass. Try the full string, then drop trailing words. Bounded at three attempts so
+    # a wrong subject cannot turn into a crawl.
+    words = subject.strip().split()
+    html = None
+    for drop in range(min(3, len(words))):
+        candidate = "_".join(words[: len(words) - drop])
+        if not candidate:
+            break
+        html = fetch_html(f"https://{lang}.wikipedia.org/wiki/{candidate}", ledger)
+        if html:
+            break
     if not html:
         return []
     blocks = [m.group("body") for m in _REFERENCE_SECTION.finditer(html)]
