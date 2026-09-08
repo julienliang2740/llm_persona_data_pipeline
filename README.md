@@ -19,6 +19,23 @@ Every stage reads and writes JSONL in `runs/<target>/<run_id>/`, so any artifact
 inspected on its own and any stage can be re-run alone. Stages are idempotent on a run
 directory: re-running fills in what is missing rather than starting over.
 
+## Adding a target
+
+A target is a directory under `targets/`, not code. Copy `targets/_template/`, fill in `spec.yaml`
+and `references/key_passages.md`, record provenance in `SOURCES.md`, then run
+
+```bash
+.venv/bin/python main.py check --target <your_id>
+```
+
+until it reports no problems, and run a two-family pilot. The full walkthrough, with what each spec
+section does and the conventions that matter, is `targets/README.md`; the field reference is
+`docs/target-spec-schema.md`; the four existing targets are complete worked examples.
+
+The pipeline does not acquire sources. Collecting, verifying and licence-checking reference texts is
+research work done before the pipeline runs (for the four pilots it was done by research teammates
+with web access, recorded in each target's `SOURCES.md` and `research_notes.md`).
+
 ## Run a pilot
 
 ```bash

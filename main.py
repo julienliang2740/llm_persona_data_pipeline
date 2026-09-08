@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """CLI entry point.
 
+    python main.py check    --target confucian            # validate a target spec, no model calls
     python main.py generate --target confucian --config configs/pilot.yaml
     python main.py all      --target confucian --config configs/pilot.yaml --n-families 20
     python main.py evaluate --target confucian --run 20260907-101500 --endpoint base --label before
@@ -22,7 +23,7 @@ from pipeline import baseline, evaluate, export, generate, report, records, vali
 from pipeline.config import ConfigError, load_config, new_run_id, resolve_run_dir
 from pipeline.target import SpecError, load_target
 
-STAGES = ("generate", "baseline", "validate", "export", "evaluate", "report", "all")
+STAGES = ("check", "generate", "baseline", "validate", "export", "evaluate", "report", "all")
 
 
 def configure_logging(run_dir: Path, verbose: bool) -> None:
@@ -79,9 +80,48 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def check_target(targets_dir: Path, target_id: str) -> int:
+    """Validate a target spec in strict mode and describe what the pipeline would use.
+
+    This is the first command to run after adding or editing targets/<id>/; it never
+    creates a run directory and never calls a model.
+    """
+    try:
+        spec = load_target(targets_dir, target_id, strict=True)
+    except SpecError as error:
+        print(f"targets/{target_id}: NOT OK\n{error}", file=sys.stderr)
+        return 2
+    cue = spec.raw.get("cue_policy") or {}
+    grounding = [r for r in spec.raw.get("reference_material") or [] if r.get("use") == "grounding"]
+    unlicensed = [r.get("id") for r in grounding if not r.get("license")]
+    unresolved = [t.get("id") for t in spec.tradeoffs if t.get("unresolved") is True]
+    avoid = [c.get("id") for c in spec.unresolved_choices if c.get("generation_policy") == "avoid"]
+    lines = [
+        f"targets/{target_id}: OK (strict)",
+        f"  {spec.name} v{spec.version}",
+        f"  principles: {len(spec.principles)}   tradeoffs: {len(spec.tradeoffs)} ({len(unresolved)} unresolved)"
+        f"   boundaries: {len(spec.raw.get('boundaries') or [])}",
+        f"  divergence hypotheses: {len(spec.divergence_hypotheses)}   domains: {len(spec.domains)}"
+        f"   layers: {[l.get('id') for l in spec.raw.get('layers') or []] or 'none'}",
+        f"  key passages: {len(spec.key_passages)} (all cited ids resolve)",
+        f"  cue policy: {len(cue.get('forbidden_terms') or [])} forbidden, "
+        f"{len(cue.get('allowed_terms') or [])} allowed, {len(cue.get('soft_terms') or [])} soft",
+        f"  deliberation_shape: {'yes' if spec.raw.get('deliberation_shape') else 'MISSING (responses will use the generic shape)'}"
+        f"   signature_moves: {len(spec.raw.get('signature_moves') or [])}",
+        f"  avoid topics: {avoid or 'none'}   avoid keywords: {len(spec.avoid_keywords())}",
+        f"  grounding sources: {len(grounding)}"
+        + (f"   WITHOUT LICENCE: {unlicensed} (export will refuse)" if unlicensed else "   (all licensed)"),
+        f"  redistribution_note: {'yes' if spec.raw.get('redistribution_note') else 'none'}",
+    ]
+    print("\n".join(lines))
+    return 0
+
+
 async def run(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     targets_dir = Path(args.targets_dir) if args.targets_dir else config.targets_dir
+    if args.stage == "check":
+        return check_target(targets_dir, args.target)
     run_id = args.run or (new_run_id() if args.new_run else None)
     run_dir = resolve_run_dir(config, args.target, run_id)
     configure_logging(run_dir, args.verbose)

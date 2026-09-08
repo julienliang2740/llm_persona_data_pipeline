@@ -1,5 +1,8 @@
 # Target specification schema
 
+Start from `targets/_template/` (a minimal spec that validates) and the walkthrough in
+`targets/README.md`; validate with `python main.py check --target <id>`. This file is the field reference.
+
 A **target** is one belief/value system the pipeline can be configured with.
 Everything tradition-specific lives under `targets/<target_id>/`; the pipeline
 code never mentions a tradition by name.
