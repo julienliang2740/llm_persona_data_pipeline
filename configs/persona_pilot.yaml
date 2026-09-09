@@ -126,7 +126,11 @@ models:
     # a role whose budget is too small returns reasoning and no answer, and the client raises
     # an error naming the role. If that happens here, drop to "high" rather than raising
     # max_tokens further — 32000 is already the ceiling the client's own retry backs off to.
-    extra_body: {reasoning_effort: max}
+    # Was `max`. Dropped to `high` after a live drafting run returned 88,000 characters of
+    # planning prose in the answer channel instead of the JSON object — the failure this file's
+    # own comment above predicts, and for which it prescribes exactly this remedy rather than a
+    # larger budget. The evidence pass is now batched by kind as well, so each call is smaller.
+    extra_body: {reasoning_effort: high}
     # The 300s default cannot hold this role. A kimi-k3 call at max effort was measured at 242s
     # server-side for a family batch in runs/lbj/, and the drafter's evidence pass is a much
     # larger single generation — 70 structured passages in one response. Left at the default it

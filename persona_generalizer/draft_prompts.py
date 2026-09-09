@@ -74,9 +74,11 @@ A refusal is a useful answer; say so plainly rather than admitting a subject you
 EVIDENCE_PROMPT = """\
 Subject: {{subject}}
 
-Assemble the evidence a persona spec is built from. Produce {{target_count}} items across FOUR
-kinds, and weight them roughly: a third circumstance, a third deeds, a fifth words, the rest
-testimony.
+Assemble the evidence a persona spec is built from. Produce {{target_count}} items{{kind_clause}}.
+
+The full corpus is weighted roughly: a third circumstance, a third deeds, a fifth words, the rest
+testimony. All four kinds are described below because you need to know what the others are for
+even when this call asks for only one of them.
 
 - circumstance: the socio-economic and psychological conditions that produced them. What money
   meant, what ruin would have meant, their class and legal standing, whose permission they
@@ -114,7 +116,11 @@ Two consequences you should know: reconstructed passages may not exceed 40% of t
 conflict's said/did passages must both be attested, because conduct-over-words cannot adjudicate
 a gap that the reconstruction may itself have created.
 
-Return JSON: {"evidence": [ ... ]}
+{{id_clause}}
+
+Return JSON and nothing else: {"evidence": [ ... ]}. No preamble, no planning, no commentary
+before or after the object. If you find yourself writing a sentence that is not inside a JSON
+string, stop and emit the object.
 """
 
 CONFLICTS_PROMPT = """\

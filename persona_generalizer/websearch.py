@@ -451,9 +451,20 @@ _REFERENCE_SECTION = re.compile(
 # thing a first pass returns. But their text must not reach a drafting prompt looking like a
 # primary source, because the popular version of a person is exactly what phase 1 warns against,
 # and for a subject whose fame is a later construction it is the legend rather than the record.
+# NOTE ON THE SHAPE OF THIS LIST. It is a denylist, so anything absent counts as non-tertiary,
+# and that is a real weakness rather than an oversight to be patched away: no enumeration will
+# ever cover the open set of summary sites. A live run had reddit.com, quora.com and a fan
+# encyclopedia treated as strong sources because they were not named here. The list is therefore
+# used only to label material for the drafting prompt — never as the sole basis for deciding that
+# acquisition may stop. Where a caller states which languages the sources survive in, that
+# instruction governs instead.
 TERTIARY_HOSTS = (
     "wikipedia.org", "wikiwand.com", "britannica.com", "grokipedia.com",
     "worldhistory.org", "thecollector.com", "history.com", "biography.com",
+    # Observed on a live run, in descending order of how confidently they were mistaken for
+    # sources: a fan encyclopedia, two forums, and a travel site.
+    "kongming.net", "reddit.com", "quora.com", "travelchinaguide.com",
+    "thefamouspeople.com", "kiddle.co", "baike.baidu.com",
 )
 
 
@@ -636,9 +647,19 @@ def acquire_escalating(
         )
 
     # ---- pass 3: cross-language ------------------------------------------------------------
-    if max_passes >= 3 and thin() and source_languages:
+    # Runs whenever source languages were named, NOT only when English slots came back empty.
+    # Gating it on thinness was wrong twice over: `thin()` depends on classifying host quality,
+    # and the classifier is a denylist that cannot know a fan wiki from an archive — on a live
+    # run it counted reddit.com, quora.com and a fan encyclopedia "strong", reported nothing thin,
+    # and skipped the pass for a subject whose primary text exists only in Chinese. A researcher
+    # who states where the sources survive has given better information than any heuristic here
+    # can infer, so that instruction is obeyed rather than second-guessed.
+    if max_passes >= 3 and source_languages:
         langs = [code for code in language_candidates(source_languages) if code != "en"]
-        for slot in thin():
+        # Thin slots first, then the two where an original-language primary text would land even
+        # if an English summary has already answered them.
+        targets = list(dict.fromkeys(list(thin()) + [s for s in ("words", "deeds") if s in chosen]))
+        for slot in targets:
             for lang in langs:
                 if strong(slot) >= fetch_per_slot:
                     break

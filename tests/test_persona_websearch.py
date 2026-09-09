@@ -202,7 +202,7 @@ def test_tertiary_hosts_are_labelled(ws):
 
 
 def test_the_escalation_stops_as_soon_as_the_slots_fill(ws, monkeypatch):
-    """Passes 2 and 3 cost money; they must not run when pass 1 already answered."""
+    """Passes 2 and 3 cost money; with no language named, a filled slot ends the acquisition."""
     class Backend:
         name = "stub"
         def search(self, query, n):
@@ -211,10 +211,32 @@ def test_the_escalation_stops_as_soon_as_the_slots_fill(ws, monkeypatch):
     monkeypatch.setattr(ws, "fetch", lambda url, ledger, **kw: "some retrieved text")
     pages, passes = ws.acquire_escalating(
         "A Subject", Backend(), ws.Acquisition(), slots=("words",),
-        max_passes=3, source_languages=("el",), fetch_per_slot=1,
+        max_passes=3, fetch_per_slot=1,
     )
     assert [p["pass"] for p in passes] == [1], "a filled slot must not trigger a paid retry"
     assert ws.gate_verdict_for_gaps(pages, passes, max_passes=3)[0] == ""
+
+
+def test_naming_a_source_language_always_runs_the_cross_language_pass(ws, monkeypatch):
+    """An explicit instruction beats the host-quality heuristic, which cannot be made reliable.
+
+    Gating pass 3 on thinness meant a subject whose primary text exists only in Chinese never got
+    searched in Chinese, because English pages — a fan encyclopedia and two forums among them —
+    had filled every slot and nothing classified them as weak. A caller who says where the
+    sources survive has supplied better information than the denylist can infer.
+    """
+    class Backend:
+        name = "stub"
+        def search(self, query, n):
+            return [ws.SearchResult("https://example.invalid/a", "A", "s", "")]
+
+    monkeypatch.setattr(ws, "fetch", lambda url, ledger, **kw: "some retrieved text")
+    monkeypatch.setattr(ws, "fetch_html", lambda url, ledger: None)
+    _, passes = ws.acquire_escalating(
+        "A Subject", Backend(), ws.Acquisition(), slots=("words",),
+        max_passes=3, source_languages=("zh",), fetch_per_slot=1,
+    )
+    assert 3 in [p["pass"] for p in passes], "a named language must be searched in"
 
 
 def test_all_three_passes_run_when_nothing_is_found(ws, monkeypatch):
@@ -274,9 +296,9 @@ def test_a_slot_filled_only_with_summaries_still_counts_as_thin(ws, monkeypatch)
     monkeypatch.setattr(ws, "fetch_html", lambda url, ledger: None)
     pages, passes = ws.acquire_escalating(
         "A Subject", Backend(), ws.Acquisition(), slots=("words",),
-        max_passes=3, source_languages=("zh",), fetch_per_slot=1,
+        max_passes=3, fetch_per_slot=1,
     )
-    assert [p["pass"] for p in passes] == [1, 2, 3], "tertiary-only fill must not stop escalation"
+    assert [p["pass"] for p in passes] == [1, 2], "tertiary-only fill must not stop escalation"
     assert pages["words"], "the tertiary pages are still kept, just not counted as sufficient"
 
 
@@ -290,7 +312,7 @@ def test_a_strong_source_does_stop_the_escalation(ws, monkeypatch):
     monkeypatch.setattr(ws, "fetch", lambda url, ledger, **kw: "primary text")
     _, passes = ws.acquire_escalating(
         "A Subject", Backend(), ws.Acquisition(), slots=("words",),
-        max_passes=3, source_languages=("zh",), fetch_per_slot=1,
+        max_passes=3, fetch_per_slot=1,
     )
     assert [p["pass"] for p in passes] == [1]
 

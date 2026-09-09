@@ -546,17 +546,52 @@ async def draft(subject: str, persona_id: str, config_path: str, out_dir: Path,
             )
             return 2
 
-        LOGGER.info("pass 2/4: evidence")
-        evidence_prompt = fill(
-            P.EVIDENCE_PROMPT, subject=subject, target_count=str(target_count)
-        )
-        if acquired_text:
-            evidence_prompt = (
-                fill(P.SOURCED_PREAMBLE, sources=acquired_text) + "\n\n" + evidence_prompt
+        # Batched by kind rather than asked for in one call. Seventy structured items in a
+        # single JSON response is the largest generation in this repository and it failed three
+        # different ways on live runs: truncation at the token ceiling, a read timeout, and — with
+        # a reasoning model at maximum effort — 88,000 characters of planning prose where the
+        # object should have been. Four smaller calls each fit comfortably, a failure costs one
+        # kind rather than the whole pass, and the weighting the schema wants is enforced by
+        # construction instead of by asking the model to remember it.
+        LOGGER.info("pass 2/4: evidence (batched by kind)")
+        shares = (("circumstance", 0.34), ("deed", 0.32), ("words", 0.20), ("testimony", 0.14))
+        evidence: list[dict[str, Any]] = []
+        for kind, share in shares:
+            want = max(4, round(target_count * share))
+            used = [str(e.get("id")) for e in evidence]
+            kind_prompt = fill(
+                P.EVIDENCE_PROMPT,
+                subject=subject,
+                target_count=str(want),
+                kind_clause=f", ALL of kind {kind!r}",
+                id_clause=(
+                    f"Ids already used, which you must not reuse: {', '.join(used)}"
+                    if used
+                    else "Use short stable ids appropriate to the kind, e.g. C1 / D1 / W1 / T1."
+                ),
             )
-        evidence = normalise_evidence(
-            await run_pass(client, evidence_prompt, "evidence", max_tokens)
-        )
+            if acquired_text:
+                kind_prompt = (
+                    fill(P.SOURCED_PREAMBLE, sources=acquired_text) + "\n\n" + kind_prompt
+                )
+            try:
+                batch = normalise_evidence(
+                    await run_pass(client, kind_prompt, f"evidence:{kind}", max_tokens)
+                )
+            except ModelError as error:
+                # One kind failing should not throw away the other three.
+                LOGGER.warning("  %s batch failed (%s); continuing without it", kind, error)
+                continue
+            seen = {str(e.get("id")) for e in evidence}
+            batch = [e for e in batch if str(e.get("id")) not in seen]
+            evidence.extend(batch)
+            LOGGER.info("  %s: %d item(s)", kind, len(batch))
+        if not evidence:
+            print(
+                f"error: the evidence pass produced nothing for '{subject}'. No spec was written.",
+                file=sys.stderr,
+            )
+            return 2
         LOGGER.info("  %d passages", len(evidence))
         evidence_text = json.dumps(
             [{k: e.get(k) for k in ("id", "kind", "title", "period", "body")} for e in evidence],
