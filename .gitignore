@@ -15,3 +15,10 @@ venv/
 # Local scratch
 scratch/
 *.log
+
+# Comparison-experiment output. liubei_script/ is the script arm's draft of a subject the skill
+# arm has already drafted; it is kept locally as evidence for that comparison and is not a
+# persona. It fails check_persona.py by design — the defects it exposed are fixed in the prompts
+# rather than patched in the artefact — so committing it would leave `--all` permanently red.
+# Ignored because two `git add -A` runs have already swept it in by accident.
+persona_generalizer/personas/*_script/

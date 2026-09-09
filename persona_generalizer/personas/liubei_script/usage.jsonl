@@ -1,1 +1,0 @@
-{"stage": "sufficiency", "role": "generator", "model": "accounts/fireworks/models/kimi-k3", "record_id": "sufficiency", "request_id": "chatcmpl-78068b6e682b48d1bd1e67c49cba004b", "prompt_tokens": 985, "completion_tokens": 1577, "reasoning_tokens": 350, "cost_usd": 0.02661, "latency_s": 32.081, "finish_reason": "stop"}
