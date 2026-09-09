@@ -27,11 +27,25 @@ def scope():
 
 @pytest.mark.parametrize(
     "subject",
-    ["Adolf Hitler", "adolf hitler", "ADOLF  HITLER!", "Ādolf Hitler", "Hitler, Adolf"],
+    ["Ada Quill", "ada quill", "ADA  QUILL!", "Ãda Quill", "Quill, Ada", "Ada M. Quill (1801-1870)"],
 )
-def test_spelling_variants_still_match(scope, subject):
-    """Normalisation is the only thing standing between the tripwire and a trivial evasion."""
+def test_spelling_variants_still_match(scope, subject, monkeypatch):
+    """Normalisation is the only thing standing between the tripwire and a trivial evasion.
+
+    Exercised against a synthetic entry rather than a real one, so the test pins the matching
+    behaviour rather than the contents of the list. The cases that matter are the ones that broke
+    it: an inverted "surname, forename" as a catalogue writes it, accents, stray punctuation, and
+    extra words around the name.
+    """
+    monkeypatch.setattr(scope, "TRIPWIRE", (("ada quill", "synthetic entry for this test"),))
     assert scope.tripwire_match(subject) is not None
+
+
+def test_an_unrelated_subject_sharing_one_token_does_not_match(scope, monkeypatch):
+    """All tokens must be present, or a shared surname would trip the gate on the wrong person."""
+    monkeypatch.setattr(scope, "TRIPWIRE", (("ada quill", "synthetic entry for this test"),))
+    assert scope.tripwire_match("Beatrix Quill") is None
+    assert scope.tripwire_match("Ada Lovelace") is None
 
 
 @pytest.mark.parametrize(
@@ -51,5 +65,5 @@ def test_every_tripwire_entry_carries_a_reason(scope):
 def test_the_refusal_message_says_it_is_not_a_filter(scope):
     """The limits have to travel with the refusal, or the list gets mistaken for a policy."""
     needle, why = scope.TRIPWIRE[0]
-    message = scope.refusal_message("Adolf Hitler", needle, why)
+    message = scope.refusal_message("A Subject", needle, why)
     assert "not a filter" in message and "scope_check" in message

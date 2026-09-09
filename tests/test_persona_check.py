@@ -423,9 +423,20 @@ def test_refuse_scope_blocks_the_build(check_persona, tmp_path, template_raw, ca
 
 
 def test_a_tripwire_subject_cannot_be_admitted(check_persona, tmp_path, template_raw, capsys):
-    """Evidence volume is irrelevant here, which is the whole reason the axis is separate."""
+    """Evidence volume is irrelevant here, which is the whole reason the axis is separate.
+
+    The subject is read from the list rather than written out, so the test pins the behaviour
+    and not the contents — and stays correct if the list is ever revised.
+    """
+    import sys
+
+    generalizer = REPO_ROOT / "persona_generalizer"
+    if str(generalizer) not in sys.path:
+        sys.path.insert(0, str(generalizer))
+    import scope as scope_rules
+
     raw = copy.deepcopy(template_raw)
-    raw["name"] = "Adolf Hitler (1889-1945)"
+    raw["name"] = f"{scope_rules.TRIPWIRE[0][0].title()} (dates)"
     build(tmp_path, raw)
     assert check_persona("probe", tmp_path) == 2
     assert "scope tripwire" in capsys.readouterr().err

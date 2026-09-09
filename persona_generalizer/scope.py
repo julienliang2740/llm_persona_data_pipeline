@@ -3,7 +3,7 @@
 The sufficiency gate answers "is there enough material?". This answers a different question:
 "should a faithful persona of this subject be built at all?" — and it is not a question the
 evidentiary criteria can reach, because the subjects it excludes are among the best documented
-people who have ever lived. Hitler passes every criterion in the gate comfortably.
+people who have ever lived, and pass every criterion in the gate comfortably.
 
 The schema already had exactly one rule on this axis — living private individuals, refused
 "regardless of evidence volume" — with no verdict name and no enforcement. This generalises that
@@ -68,9 +68,10 @@ def tripwire_match(subject: str) -> tuple[str, str] | None:
     """Return (matched entry, why) when a subject hits the tripwire, else None.
 
     Matching is on whole tokens, unordered: every token of the entry must appear as a token of
-    the subject. Ordered substrings missed "Hitler, Adolf", which is simply how a catalogue or
-    an index writes a name, and a tripwire defeated by comma order is not worth having. Requiring
-    *all* tokens keeps it tight enough that an unrelated subject sharing one surname is unaffected.
+    the subject. Ordered substrings missed the inverted "surname, forename" form, which is simply
+    how a catalogue or an index writes a name, and a tripwire defeated by comma order is not worth
+    having. Requiring *all* tokens keeps it tight enough that an unrelated subject sharing one
+    surname is unaffected.
     """
     tokens = set(_normalise(subject).split())
     for needle, why in TRIPWIRE:
