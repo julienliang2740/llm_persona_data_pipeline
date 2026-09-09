@@ -39,10 +39,15 @@ class FakeBackend:
 
     def search(self, query, count):
         self.queries.append(query)
-        if "testimony" in query or "contemporaries" in query or "critics" in query:
-            return []
         import websearch
 
+        # Match the slot's real query set rather than guessing at substrings. The previous
+        # version keyed on the word "contemporaries" and silently started returning results for
+        # the testimony slot the moment a query using "contemporary" was added — a test that
+        # breaks when the data it mirrors is edited is worse than no test.
+        testimony = {q.format(s="A Subject") for q in websearch.COVERAGE_QUERIES["testimony"]}
+        if query in testimony:
+            return []
         return [websearch.SearchResult(f"https://example.org/{len(self.queries)}", "T", "S")]
 
 

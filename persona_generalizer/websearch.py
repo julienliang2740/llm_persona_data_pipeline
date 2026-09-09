@@ -44,10 +44,19 @@ TIMEOUT = httpx.Timeout(20.0, connect=10.0)
 # Searching a subject's name returns the popular version of them: heavy on quotation, light on
 # conduct, dominated by whichever biography the web copied. Searching per coverage slot is what
 # reaches the registers and returns where deeds and circumstances live. {s} is the subject.
+# A NOTE ON WHAT THESE ASSUME. The first version of this table was written for modern subjects
+# and asked about salaries, voting records and court papers. Run against a third-century warlord
+# it retrieved a fashion model's salary page, a review of a twentieth-century dissident with a
+# similar name, a Nature paper, two university library guides and a Steam forum thread — and
+# because any fill counted as a filled slot, that noise satisfied the coverage matrix. Each slot
+# therefore carries a pre-modern alternative alongside the modern phrasing: the query that finds
+# a wage book for a Victorian clerk cannot find the landholding of an ancient general, and asking
+# both costs one extra search.
 COVERAGE_QUERIES: dict[str, tuple[str, ...]] = {
     "context.material_conditions": (
         "{s} salary income wealth debts finances",
         "{s} personal finances biography archival",
+        "{s} landholding household economy how he was supported historians",
     ),
     "context.standing_and_constraint": (
         "{s} social class background upbringing status",
@@ -56,6 +65,7 @@ COVERAGE_QUERIES: dict[str, tuple[str, ...]] = {
     "context.institutions": (
         "{s} institution served membership records",
         "{s} organisation colleagues who he answered to",
+        "{s} office rank title under whose authority he held it",
     ),
     "context.what_was_ordinary_then": (
         "{s} era what was normal practice historians",
@@ -82,10 +92,12 @@ COVERAGE_QUERIES: dict[str, tuple[str, ...]] = {
     "deeds": (
         "{s} documented decisions record of actions archive",
         "{s} voting record court records official papers",
+        "{s} campaigns appointments recorded acts chronicle annals",
     ),
     "testimony": (
         "{s} contemporaries described him memoir account",
         "{s} critics opponents said about him",
+        "{s} historian's appraisal contemporary chronicle assessment of him",
     ),
     "conflicts": (
         "{s} hypocrisy contradiction said versus did",

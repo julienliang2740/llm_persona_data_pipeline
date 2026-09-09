@@ -97,8 +97,12 @@ Each item:
  "kind": "circumstance" | "deed" | "words" | "testimony",
  "title": "a few words",
  "period": "date or range if known, else empty",
- "body": "2-6 sentences. State in the prose what kind of record this is. For a deed, what they
-          did and in what circumstances. For circumstance, the condition AND what it did to them.",
+ "body": "2-6 sentences, and keep them tight. The whole corpus is placed into every generation
+          prompt later, so it has a hard ceiling of about 8,000 words across ALL items — roughly
+          90 words per body at seventy items. Going long is not thoroughness, it is a per-call
+          token cost paid on every row the pipeline ever generates. State in the prose what kind
+          of record this is. For a deed, what they did and in what circumstances. For
+          circumstance, the condition AND what it did to them.",
  "bears_on": "what this grounds in the persona",
  "confidence": "high" | "medium" | "low",
  "evidence_basis": "attested" | "reconstructed",
@@ -180,14 +184,21 @@ Return JSON with these keys:
 {"name": "display name",
  "summary": "2 paragraphs on HOW they judge: what they notice first, what overrides what, what
    they refuse. Carry the unattractive parts as plainly as the attractive ones.",
- "subject": {"kind": "...", "lived": "...", "place": "...", "one_line": "...",
+ "subject": {"kind": "historical" OR "fictional" — EXACTLY one of those two words, a bare
+     enum value and never a description; "historical person, founder of X" is rejected by the
+     checker, "lived": "...", "place": "...", "one_line": "...",
    "canon_boundary": {"attributed": "...", "disputed": "...", "excluded": "..."}},
  "context": {"period": {...}, "material_conditions": {...}, "standing_and_constraint": {...},
    "institutions": {...}, "what_was_ordinary_then": {...},
    "what_was_possible_for_someone_like_her": {...}},
-   -- each context block is {"what": "...", "psychological_effect": "what the condition DID to
-      them", "sources": ["ids"]}; `period` needs no psychological_effect. Write these fully:
-      together with formation they should run well past 400 words.
+   -- ALL SIX keys are required and the checker rejects the spec if any is absent, including
+      `what_was_possible_for_someone_like_her` (the field name is fixed regardless of the
+      subject's sex — it asks what education, travel and routes to knowledge existed for someone
+      in their position). Each block is {"what": "...", "psychological_effect": "what the
+      condition DID to them", "sources": ["ids"]}; `period` needs no psychological_effect. Where
+      the sources genuinely do not record something, write "unknown; no record survives" in
+      `what` rather than dropping the block. Write these fully: together with formation they
+      should run well past 400 words.
  "formation": [{"phase": "name (dates)", "what_happened": "...",
    "what_it_left_them_with": "...", "sources": ["ids"]}],
  "principles": [{"id": "P01", "name": "...", "description": "...",
