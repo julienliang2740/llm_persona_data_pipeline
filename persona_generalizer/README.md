@@ -13,6 +13,7 @@ persona_generalizer/
   docs/persona-spec-schema.md      the field reference, including the sufficiency gate
   check_persona.py                 schema + gate validation
   skills/draft-persona/SKILL.md    the drafter, default arm (agent, with web search)
+  ask_model.py                     delegate one pass to a non-Claude model role
   draft_persona.py                 the drafter, fallback arm (script, model memory only)
   draft_prompts.py                 model-facing text for the script arm
   personas/
@@ -100,11 +101,37 @@ measured on the same subject rather than argued about.
 | | skill (default) | script (fallback) |
 |---|---|---|
 | run by | an agent, `skills/draft-persona/SKILL.md` | `python persona_generalizer/draft_persona.py` |
-| sources | real: searches, retrieves, checks `robots.txt`, records URLs and access dates | none: a Fireworks model's own memory |
-| can reach deeds | yes — registers, minutes, court records | no |
-| can tell apocrypha from attestation | yes, by tracing to earliest source | no |
+| who reasons | the agent | a Fireworks model, four passes |
+| sources | real: the agent's own search and fetch, `robots.txt` checked by hand, URLs and access dates recorded | none by default; `--search` adds `websearch.acquire_escalating` and needs a Brave/Serper/Tavily key |
+| can reach deeds | yes — registers, roll calls, court records, primary text in the original language | only what a search backend surfaces, or the model's memory without `--search` |
+| can tell apocrypha from attestation | yes, by tracing to earliest attestation | weakly |
 | reproducible | no | yes, and costed in `usage.jsonl` |
-| cost | none | ~4 model calls |
+| Fireworks cost | none, unless it delegates a pass (below) | ~4 model calls, about $1 |
+
+**The skill is not a relaxed version of the script, and neither is a fallback for the other
+failing.** They differ on one axis — who does the reasoning — and that is the comparison the pair
+exists to make. The script is deterministic, costed and shallow; the skill is non-deterministic,
+free of Fireworks cost and far more thorough, because an agent can chase a citation into a Chinese
+primary text and a four-pass script cannot. Neither has yet been run on the same subject, which is
+the experiment still outstanding.
+
+### Delegating a pass from the skill
+
+The skill arm is one model acquiring, judging, writing and then checking its own work, and the
+last of those is unsound: a drafter cannot audit its own systematic bias. `ask_model.py` lets it
+hand one pass to a different model family, the way the pipeline already uses `reviewer_second`:
+
+```bash
+python persona_generalizer/ask_model.py --role reviewer_second --json \
+    --usage persona_generalizer/personas/<id>/usage.jsonl --prompt-file /tmp/gate.md
+```
+
+Two uses are wired into the skill: an independent second opinion on the gate verdict, and an
+adversarial read of `key_passages.md` against the canon boundary, looking for entries that are
+legend rather than record. Both write their disagreement into `research_notes.md` rather than
+overriding anything. `generator` is refused as a second-opinion role by default, because in the
+pilot config it is the model the pipeline will later generate with and self-agreement is not
+corroboration.
 
 ```bash
 # default: ask an agent to run the draft-persona skill for your subject

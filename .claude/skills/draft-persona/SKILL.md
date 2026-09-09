@@ -72,6 +72,21 @@ tripwire is not a filter, so subjects it does not name still need your judgement
 `sufficiency.scope_check`. Public figures, historical subjects and fictional characters are
 otherwise in scope, and an unattractive record is not a reason to refuse — it is the material.
 
+### Optional: a second opinion on the verdict
+
+You are one model judging your own evidence. Where the verdict is close — anything other than an
+obvious `admit` — get an independent read from a different model family, blind to your answer:
+
+```bash
+python persona_generalizer/ask_model.py --role reviewer_second --json \
+    --usage persona_generalizer/personas/<id>/usage.jsonl --prompt-file /tmp/gate.md
+```
+
+Write the prompt yourself: the five criteria, the evidence you actually found, and a request for a
+verdict with reasoning. **Do not include your own verdict** — the point is an independent answer,
+not agreement. Record the second verdict and any disagreement in `sufficiency.caveats` and
+`research_notes.md`. Disagreement does not decide anything; it tells a reviewer where to look.
+
 For a **fictional** subject the gate changes shape: the canon supplies everything at once, so ask
 instead whether the canon is bounded, whether the character makes decisions on the page with
 reasons attached, and which adaptations are in or out.
@@ -257,6 +272,23 @@ python persona_generalizer/check_persona.py <persona_id>
 ```
 
 Fix until clean. Errors block; warnings are a reviewer's call.
+
+### Optional: adversarial review of the passages
+
+The failure you cannot catch yourself is your own systematic bias. If you have quietly imported
+the popular version of the subject, re-reading your passages will not reveal it, because the same
+priors wrote them and approve them. So ask a different family:
+
+```bash
+python persona_generalizer/ask_model.py --role reviewer \
+    --usage persona_generalizer/personas/<id>/usage.jsonl --prompt-file /tmp/review.md
+```
+
+Build the prompt from `subject.canon_boundary` plus `references/key_passages.md`, and ask it to
+name every entry that reads like legend, later tradition or popular treatment rather than the
+attested record, and every entry whose stated evidence basis looks wrong. Record what it flags in
+`research_notes.md` — including the flags you reject, and why. This costs a few cents and is the
+only check in the whole procedure that is not you marking your own work.
 
 Then hand off with, explicitly:
 
