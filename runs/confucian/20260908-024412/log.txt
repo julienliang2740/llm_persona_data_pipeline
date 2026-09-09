@@ -1,0 +1,20 @@
+02:44:12 INFO    main: target confucian v0.1 (16 principles, 10 tradeoffs, 91 key passages); run dir /home/ubuntu/llm_persona/llm_persona_data_pipeline/runs/confucian/20260908-024412
+02:44:12 INFO    main: === stage: generate ===
+02:45:32 INFO    pipeline.generate: families: 30 of 30 planned (30 new, 0 reserved by the avoided-topic screen)
+02:46:47 INFO    pipeline.generate: prompts: 42 total (42 new)
+02:49:57 INFO    pipeline.generate: responses: 42 total (42 new, 0 failed)
+02:49:57 INFO    main: === stage: baseline ===
+03:08:30 INFO    pipeline.baseline: baseline: 32 answers total (32 new, 0 failed, 0 truncated)
+03:09:21 INFO    pipeline.baseline: strong generic: 32 answers total (32 new, 0 failed, 0 truncated)
+03:09:21 INFO    main: === stage: validate ===
+03:16:14 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+03:20:10 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+03:21:00 INFO    pipeline.review: revise: rewriting 4 responses the reviewer flagged
+03:29:31 INFO    pipeline.validate: similarity (embeddings): 861 pairs, median 0.461, robust sd 0.104, threshold median+3.0sd = 0.774
+03:29:32 INFO    pipeline.validate: validate: {'responses': 42, 'kept': 39, 'dropped': 3, 'similarity_method': 'embeddings', 'similarity_calibration': {'statistic': 'median + 3 x robust_sd', 'centre': 0.461, 'spread': 0.1043, 'sigmas': 3.0}, 'leakage_calibration': {'statistic': 'median + 3 x robust_sd', 'centre': 0.457, 'spread': 0.1005, 'sigmas': 3.0}, 'duplicate_threshold': 0.7739, 'leakage_threshold': 0.7586, 'duplicate_clusters': 0, 'duplicates': 0, 'cue_hits': 0, 'eval_items_checked_for_leakage': 22, 'max_leakage_seen': 0.7058, 'divergence_confirmed': 19, 'divergence_not_confirmed': 3, 'divergence_unverified': 0, 'divergence_action': 15, 'divergence_reasons': 15, 'divergence_pairwise': {'candidate_vs_base': 22, 'candidate_vs_strong_generic': 19, 'strong_generic_vs_base': 15, 'judged': 22}, 'divergence_families_intended': 15, 'divergence_families_judged': 15, 'divergence_families_value': 12, 'divergence_value_rate_by_family': 0.8, 'divergence_families_value_any_prompt': 14, 'divergence_value_rate_any_prompt': 0.933, 'divergence_closer_to': {'generic': 14, 'neither': 7, 'weak': 1}, 'divergence_by_source': {'none': 2, 'value': 19, 'capability': 1}, 'soft_cue_flags': 3, 'explicit_mode_records': 0, 'quoted_source_flags': 0, 'archaic_register_flags': 0, 'reviewer_flag_score_conflicts': {'reviews_with_flag_and_five': 1, 'reviews_total': 42, 'flag_five_pairs': {'formulaic_shape+fidelity=5': 1, 'formulaic_shape+scenario_quality=5': 1}, 'stipulating_prompts': 2}}
+03:29:32 INFO    main: === stage: export ===
+03:29:32 WARNING pipeline.export: export: dropping train row resp_1e023691fb, unfilled placeholders ['[specific date or instance]', '[specific thing that happened]']
+03:29:32 WARNING pipeline.export: export: dropping train row resp_6f8bfd9b95, unfilled placeholders ["[tenant's name]", '[cousin]']
+03:29:32 INFO    pipeline.export: export: 17 training rows, 20 eval rows -> /home/ubuntu/llm_persona/llm_persona_data_pipeline/runs/confucian/20260908-024412
+03:29:32 INFO    main: === stage: report ===
+03:29:32 INFO    pipeline.report: report: wrote /home/ubuntu/llm_persona/llm_persona_data_pipeline/runs/confucian/20260908-024412/report.md

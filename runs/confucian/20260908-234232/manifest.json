@@ -1,0 +1,75 @@
+{
+  "target_id": "confucian",
+  "target_name": "Early Confucian (Analects and Mengzi)",
+  "spec_version": "0.1",
+  "spec_hash": "c6e1e897bc37",
+  "run_id": "20260908-234232",
+  "exported_at": "2026-09-09T06:01:27+00:00",
+  "git_commit": "25eb72ff8e0a802ef9d5ebaa4d3c18be8765d8e9-dirty",
+  "config_file": "/home/ubuntu/llm_persona/llm_persona_data_pipeline/configs/confucian_sft_only.yaml",
+  "config_hash": "a9d995abb09b",
+  "config_copy": "config.resolved.yaml",
+  "spec_copy": "spec.yaml",
+  "models": {
+    "generator": "accounts/fireworks/models/qwen3p8-max",
+    "reviewer": "accounts/fireworks/models/deepseek-v4-pro-0813",
+    "judge": "accounts/fireworks/models/deepseek-v4-pro-0813",
+    "embeddings": "accounts/fireworks/models/qwen3-embedding-8b",
+    "base": "qwen2.5-7b-instruct",
+    "strong_generic": "accounts/fireworks/models/qwen3p8-max"
+  },
+  "counts": {
+    "n_families_configured": 240,
+    "n_families_effective": 240,
+    "families": 240,
+    "families_train": 239,
+    "families_eval": 1,
+    "families_reserved": 0,
+    "layers_generated": [
+      "core",
+      "mencian"
+    ],
+    "prompts": 479,
+    "responses": 479,
+    "kept": 277,
+    "dropped": 202,
+    "sft_train_rows": 241,
+    "eval_rows": 0,
+    "eval_rows_kept_despite_score_cut": 0,
+    "rows_dropped_for_placeholders": 32,
+    "explicit_mode_rows": 0,
+    "counterfactual_groups": 23,
+    "counterfactual_groups_incomplete": 4,
+    "by_bucket": {
+      "train:advice_and_correction": 17,
+      "train:civic_institutional": 32,
+      "train:family": 74,
+      "train:interpersonal_conflict": 37,
+      "train:learning_and_self_cultivation": 23,
+      "train:work": 58,
+      "train_case:divergence": 80,
+      "train_case:ordinary": 161
+    }
+  },
+  "license_constraints": [
+    {
+      "license": "public domain. Compiled for this project from the two public-domain Legge translations listed below plus original editorial notes; the most restrictive component is public domain, so the file may be redistributed without restriction.",
+      "use": "grounding",
+      "sources": "key_passages"
+    },
+    {
+      "license": "public domain",
+      "use": "grounding",
+      "sources": "analects_legge, mengzi_legge"
+    }
+  ],
+  "redistribution_note": "Every grounding source for this target is in the public domain (James Legge's Analects and Mengzi translations, and the Chinese originals), so the contents of references/ may be redistributed and included in generated artifacts without restriction. No copyrighted modern translation is quoted anywhere; those are listed reference_only in SOURCES.md.",
+  "cost": {
+    "usd": 51.765204480000065,
+    "display": "$51.7652",
+    "calls": 2122,
+    "prompt_tokens": 13345974,
+    "completion_tokens": 6782716,
+    "reasoning_tokens": 5567440
+  }
+}

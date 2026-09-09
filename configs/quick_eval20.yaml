@@ -1,0 +1,169 @@
+# Quick Confucian run sized for about 20 evaluation rows: 30 families, two thirds of them
+# eval (20 families x 1 prompt + 2 reframed = 22 raw eval rows, ~20 after validation drops),
+# 10 train families x 2 prompts as a by-product. Otherwise identical to pilot_low_effort.yaml
+# (generator at reasoning_effort: low, no second reviewer). Written 8 September 2026.
+# Small pilot: a handful of families, enough to inspect every artifact by hand.
+# Sizes here are deliberately tiny; see full.yaml for the 500/50 run.
+
+# Travels into manifest.json next to the source licence terms.
+redistribution_note: ""
+
+# All four committed targets satisfy this, so it is on: an unresolved choice with
+# generation_policy: avoid must carry avoid_keywords, or nothing screens the situations
+# the generator produces for that topic.
+strict_specs: true
+
+targets_dir: targets
+runs_dir: runs
+pricing_file: configs/pricing.yaml
+
+generation:
+  n_families: 30             # 20 eval + 10 train; override with --n-families
+  families_per_call: 4       # families requested in one generator call
+  # A batch occasionally comes back short. Unfilled slots are retried this many times.
+  family_generation_attempts: 2
+  # Two per family, asking different questions (what to do / how to say it / was my
+  # decision right), not one question at three lengths.
+  prompts_per_family: 2
+  eval_prompts_per_family: 1
+  divergence_fraction: 0.5    # pilot: oversample intended-divergence so the divergence check has material
+  eval_family_fraction: 0.67  # round(30 * 0.67) = 20 eval families
+  reserved_family_fraction: 0.0
+  # Contrastive groups: the same situation with exactly one morally relevant fact
+  # changed. Members are never deduped against each other and never split apart.
+  # Tradeoffs whose families all go to eval, held out entirely so novel transfer is tested
+  # on a tradeoff training never saw rather than on a new wording of a familiar one.
+  # This is a planning decision, so it lives here rather than under validation.
+  held_out_tradeoffs: 1
+  counterfactual_fraction: 0.3
+  # Share of families whose tradeoff is one the spec marks unresolved. Raised
+  # automatically when a target has more unresolved tradeoffs than this would cover.
+  unresolved_tradeoff_fraction: 0.25
+  # Every divergence hypothesis must get at least this many families per 100. The plan
+  # already round-robins to achieve it; stating it here makes the requirement checkable
+  # and puts it in the report's coverage table rather than leaving it implicit.
+  hypothesis_coverage_floor: 1.0
+  # Small slice where the prompt may name the tradition and the cue check is skipped.
+  # Researchers suggest 0.05-0.10 once the neutral slice is working.
+  explicit_fraction: 0.0
+  # Which spec layers to generate from. Omit to use the spec's own
+  # layers[].generate_by_default flags (all layers when the spec defines none).
+  target_layers: []
+  # Length budget for both baseline legs, so length cannot masquerade as a difference.
+  baseline_max_tokens: 1600
+  # All five, cycled deterministically so each is exercised across a run.
+  reframing_variants: [setting_shift, role_shift, fiction, roleplay, terse]
+  # A reframing that still shares this much wording with its base tests nothing.
+  reframing_max_jaccard: 0.55
+  reframing_families: 2      # eval families that also get a reframed prompt
+  # Passage budgets. The family-generation call sees the whole passage file; response
+  # generation only ever sees the passages its own family cites.
+  # Share of responses that keep their deliberation. 1.0 is the normal setting; lower it
+  # for a no-deliberation ablation slice. The draw is deterministic per prompt.
+  deliberation_fraction: 1.0
+  max_passage_chars_families: 40000
+  max_passage_chars_responses: 8000
+
+validation:
+  use_embeddings: true
+  # Similarity is measured on the prompt and seed situation only, never on answers:
+  # generated answers share register and wash the scenario signal out.
+  # The cut is calibrated per run at mean + N sd of that run's own pair distribution,
+  # because a fixed threshold cannot hold across embedding models and traditions.
+  duplicate_sigmas: 3.0
+  duplicate_floor_embeddings: 0.55      # never flag below this, however tight the spread
+  duplicate_floor_jaccard: 0.35
+  # Within one family, several prompts and reframing variants are meant to be close.
+  # Only a near-verbatim repeat counts as a duplicate there.
+  within_family_duplicate_embeddings: 0.985
+  within_family_duplicate_jaccard: 0.9
+  min_fidelity: 4
+  min_judgment_not_terminology: 3
+  min_scenario_quality: 3
+  # A revise verdict now costs a rewrite and a re-review. Set 0 to skip the round; a
+  # response that still asks for revision afterwards is dropped, never annotated and kept.
+  revise_rounds: 1
+  # Set to another model role (e.g. a second Fireworks model) to review everything twice
+  # and record agreement. Leave empty for one reviewer.
+  second_reviewer_role: ""   # round-2 experiment E2: agreement with a second model family
+  # The reviewer flags a response that quotes or closely echoes source wording. That is a
+  # licensing control; set true to drop those rather than only report them.
+  reject_on_quoted_source: false
+
+# Read by the llm_persona_eval repository, not by any stage here.
+evaluation:
+  temperature: 0.7           # matched before/after, per the plan
+  # null means each endpoint uses its own max_tokens, so before/after settings stay
+  # matched when you swap in the tuned checkpoint. Set a number to force one budget.
+  answer_max_tokens: null
+
+models:
+  generator:
+    model: accounts/fireworks/models/qwen3p8-max
+    base_url: https://api.fireworks.ai/inference/v1
+    api_key_source: fireworks
+    max_concurrency: 4
+    temperature: 0.9
+    # Measured: this model spends about 5,000 tokens on reasoning for a response-
+    # generation prompt, and more on a contrastive-pair family batch: a batch has been
+    # observed to spend all of 16,000 on reasoning and return no answer. Reasoning is
+    # charged against max_tokens, so this ceiling is generous on purpose. The client
+    # raises a clear error naming the role when it is still too low.
+    max_tokens: 24000
+    # Cost lever, measured on a real generation call: extra_body: {reasoning_effort: low}
+    # cuts reasoning tokens about fourfold and the per-response cost about in half.
+    # Not every model accepts every value ("none" is rejected by gpt-oss-120b).
+    extra_body: {reasoning_effort: low}   # round-2 experiment E4
+  reviewer:
+    model: accounts/fireworks/models/deepseek-v4-pro-0813
+    base_url: https://api.fireworks.ai/inference/v1
+    api_key_source: fireworks
+    max_concurrency: 4
+    temperature: 0.2
+    # Observed: this model spends 6,000-8,000 tokens reasoning about one review of a
+    # real 60 KB spec, and reasoning is charged against max_tokens.
+    max_tokens: 16000
+  reviewer_second:
+    # Round-2 experiment E2: a second reviewer from a third model family; writes
+    # reviews_second.jsonl and the report shows agreement. Not used for decisions.
+    model: accounts/fireworks/models/kimi-k3
+    base_url: https://api.fireworks.ai/inference/v1
+    api_key_source: fireworks
+    max_concurrency: 4
+    temperature: 0.2
+    max_tokens: 16000
+  judge:
+    model: accounts/fireworks/models/deepseek-v4-pro-0813
+    base_url: https://api.fireworks.ai/inference/v1
+    api_key_source: fireworks
+    max_concurrency: 4
+    temperature: 0.0
+    max_tokens: 12000        # reasoning tokens come out of this budget
+  embeddings:
+    model: accounts/fireworks/models/qwen3-embedding-8b
+    base_url: https://api.fireworks.ai/inference/v1
+    api_key_source: fireworks
+    max_concurrency: 2
+    supports_json_mode: false
+  base:
+    # Local llama-server, OpenAI-compatible. Start it before the baseline stage.
+    # Measured on this machine (8 CPU cores, no GPU): 7.8 tok/s single stream,
+    # ~17 tok/s aggregate with 4 in flight (the server runs 4 slots). See docs/base-model.md.
+    model: qwen2.5-7b-instruct
+    base_url: http://127.0.0.1:8080/v1
+    api_key_source: none
+    max_concurrency: 4
+    temperature: 0.7
+    # 512 cut off 18 of 34 round-1 baselines mid-sentence, several before they reached
+    # any recommendation, and the judge scored them as though they had.
+    max_tokens: 1600
+    timeout_s: 1800
+    supports_json_mode: false
+  strong_generic:
+    # Inherits everything unset from `generator`, including its reasoning_effort, so this
+    # experiment compares like with like: both legs run at low effort and differ only in
+    # the specification.
+    model: accounts/fireworks/models/qwen3p8-max
+    base_url: https://api.fireworks.ai/inference/v1
+    api_key_source: fireworks
+    max_concurrency: 4

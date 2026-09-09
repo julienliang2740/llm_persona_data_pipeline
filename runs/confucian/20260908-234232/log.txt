@@ -1,0 +1,93 @@
+23:42:33 INFO    main: target confucian v0.1 (16 principles, 10 tradeoffs, 91 key passages); run dir /home/ubuntu/llm_persona/llm_persona_data_pipeline/runs/confucian/20260908-234232
+23:42:33 INFO    main: === stage: generate ===
+23:51:25 WARNING pipeline.generate: families_advice_and_correction_52 returned 0 of 4 items; retrying once with an explicit shape reminder (payload saved to /home/ubuntu/llm_persona/llm_persona_data_pipeline/runs/confucian/20260908-234232/debug)
+23:52:29 WARNING pipeline.generate: families_learning_and_self_cultivation_101 returned 0 of 4 items; retrying once with an explicit shape reminder (payload saved to /home/ubuntu/llm_persona/llm_persona_data_pipeline/runs/confucian/20260908-234232/debug)
+23:52:57 INFO    pipeline.generate: families: 240 of 240 planned (240 new, 0 reserved by the avoided-topic screen)
+00:02:48 INFO    pipeline.generate: prompts: 479 total (479 new)
+00:19:00 WARNING pipeline.model: generator attempt 1/10 failed (HTTP 503: {"error":{"object":"error","type":"invalid_request_error","code":"invalid_request_error","message":"service overloaded, please try again later"}}); retrying in 1.7s
+00:33:13 INFO    pipeline.generate: responses: 479 total (479 new, 0 failed)
+00:33:13 INFO    main: === stage: baseline ===
+02:08:49 INFO    pipeline.baseline: baseline: 193 answers total (193 new, 0 failed, 0 truncated)
+02:13:31 INFO    pipeline.baseline: strong generic: 193 answers total (193 new, 0 failed, 0 truncated)
+02:13:31 INFO    main: === stage: validate ===
+02:18:29 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+02:26:52 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+02:43:45 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+02:51:05 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+02:53:39 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+02:55:59 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+03:06:01 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+03:07:01 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+03:11:41 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+03:13:46 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+03:17:23 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+03:18:48 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+03:19:33 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+03:19:44 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+03:20:42 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+03:23:27 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+03:23:45 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+03:24:03 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+03:27:16 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+03:34:28 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+03:39:56 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+03:45:56 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+03:47:59 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+03:58:23 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+03:58:54 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+04:01:06 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+04:07:10 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+04:19:37 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+04:23:30 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+04:28:34 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) overflowed reasoning twice; retrying once with reasoning_effort=low
+04:29:21 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) overflowed reasoning twice; retrying once with reasoning_effort=low
+04:30:20 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) overflowed reasoning twice; retrying once with reasoning_effort=low
+04:33:46 INFO    pipeline.review: revise: rewriting 105 responses the reviewer flagged
+04:40:59 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+04:50:16 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+04:50:49 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+04:51:23 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+05:03:03 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+05:06:39 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+05:08:39 WARNING pipeline.model: reviewer (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=16000; retrying once at 32000
+05:25:43 WARNING pipeline.model: judge (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=12000; retrying once at 24000
+05:55:09 WARNING pipeline.model: judge (accounts/fireworks/models/deepseek-v4-pro-0813) produced only reasoning at max_tokens=12000; retrying once at 24000
+06:00:57 INFO    pipeline.validate: similarity (embeddings): 114481 pairs, median 0.439, robust sd 0.085, threshold median+3.0sd = 0.693
+06:01:25 INFO    pipeline.validate: validate: {'responses': 479, 'kept': 277, 'dropped': 202, 'similarity_method': 'embeddings', 'similarity_calibration': {'statistic': 'median + 3 x robust_sd', 'centre': 0.4392, 'spread': 0.0847, 'sigmas': 3.0}, 'leakage_calibration': {'statistic': 'median + 3 x robust_sd', 'centre': 0.3934, 'spread': 0.0681, 'sigmas': 3.0}, 'duplicate_threshold': 0.6931, 'leakage_threshold': 0.5976, 'duplicate_clusters': 94, 'duplicates': 188, 'cue_hits': 0, 'eval_items_checked_for_leakage': 1, 'max_leakage_seen': 0.7097, 'divergence_confirmed': 167, 'divergence_not_confirmed': 22, 'divergence_unverified': 0, 'divergence_action': 117, 'divergence_reasons': 149, 'divergence_pairwise': {'candidate_vs_base': 191, 'candidate_vs_strong_generic': 170, 'strong_generic_vs_base': 171, 'judged': 192}, 'divergence_families_intended': 96, 'divergence_families_judged': 96, 'divergence_families_value': 75, 'divergence_value_rate_by_family': 0.781, 'divergence_families_value_any_prompt': 95, 'divergence_value_rate_any_prompt': 0.99, 'divergence_closer_to': {'generic': 150, 'neither': 39, 'weak': 3}, 'divergence_by_source': {'capability': 13, 'value': 167, 'none': 9}, 'soft_cue_flags': 61, 'explicit_mode_records': 0, 'quoted_source_flags': 1, 'archaic_register_flags': 0, 'reviewer_flag_score_conflicts': {'reviews_with_flag_and_five': 8, 'reviews_total': 479, 'flag_five_pairs': {'formulaic_shape+fidelity=5': 5, 'formulaic_shape+scenario_quality=5': 5, 'confident_on_unresolved+scenario_quality=5': 2, 'quoted_source_text+fidelity=5': 1, 'quoted_source_text+judgment_not_terminology=5': 1, 'quoted_source_text+scenario_quality=5': 1, 'confident_on_unresolved+judgment_not_terminology=5': 1}, 'stipulating_prompts': 51}}
+06:01:26 INFO    main: === stage: export ===
+06:01:26 WARNING pipeline.export: export: counterfactual group(s) ['cf_399c03f9f8', 'cf_47a06a710c', 'cf_96a6d4b1df', 'cf_d0c9acb995'] kept fewer than two families and are not exported; there is nothing left to contrast with.
+06:01:27 WARNING pipeline.export: export: dropping train row resp_95ff98bb8b, unfilled placeholders ['[project]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_77dfaf557b, unfilled placeholders ['[person]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_17848cfb79, unfilled placeholders ['[the specific point]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_1f26885f6a, unfilled placeholders ['[date]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_23382bd4be, unfilled placeholders ['[daughter]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_fb29518639, unfilled placeholders ["[Child's name]"]
+06:01:27 WARNING pipeline.export: export: dropping train row resp_255652bb2d, unfilled placeholders ['[the specific issue]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_7553f3e730, unfilled placeholders ['[X months]', '[amount]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_04b36c1b9a, unfilled placeholders ['[date]', '[date]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_cbef32618b, unfilled placeholders ['[name them]', '[specific consequence]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_053b2f151e, unfilled placeholders ['[name]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_bad5794ca8, unfilled placeholders ['[Partner]', '[other flatmate]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_bb0b537ef2, unfilled placeholders ['[whoever is above him or on call]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_c073937e36, unfilled placeholders ['[wrong policy]', '[correct policy]', '[X days]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_6d41df87e6, unfilled placeholders ["[worker's name]"]
+06:01:27 WARNING pipeline.export: export: dropping train row resp_019c6aeab1, unfilled placeholders ['[location]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_f87944884f, unfilled placeholders ['[case]', '[case]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_031ba174b3, unfilled placeholders ['[name]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_a73eb4842d, unfilled placeholders ['[describe it]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_4d512dc687, unfilled placeholders ['[day]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_0958d28daf, unfilled placeholders ['[your kid]', '[my kid]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_e8f3a0356e, unfilled placeholders ['[clinic name]', '[PM]', '[clinic name]', '[date/timeframe]', '[number of patients/appointments per day if you know it]', '[normal channel]', '[Your name]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_179241157f, unfilled placeholders ['[her name]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_40d144818c, unfilled placeholders ['[Colleague]', '[family name]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_d07a532ec8, unfilled placeholders ['[name]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_9f08b717ad, unfilled placeholders ['[team]', '[site]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_fb01d9d2ce, unfilled placeholders ['[location]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_4acb9a6a0c, unfilled placeholders ['[person]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_c7a350c4fd, unfilled placeholders ['[the copying]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_8689912ff1, unfilled placeholders ['[Colleague]']
+06:01:27 WARNING pipeline.export: export: dropping train row resp_070573416a, unfilled placeholders ["[tutor's name]", "[learner's name]"]
+06:01:27 WARNING pipeline.export: export: dropping train row resp_1eda1b3192, unfilled placeholders ['[tutor]', '[learner]']
+06:01:27 INFO    pipeline.export: export: 241 training rows, 0 eval rows -> /home/ubuntu/llm_persona/llm_persona_data_pipeline/runs/confucian/20260908-234232
+06:01:27 INFO    main: === stage: report ===
+06:01:27 INFO    pipeline.report: report: wrote /home/ubuntu/llm_persona/llm_persona_data_pipeline/runs/confucian/20260908-234232/report.md

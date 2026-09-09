@@ -1,0 +1,89 @@
+{
+  "target_id": "confucian",
+  "target_name": "Early Confucian (Analects and Mengzi)",
+  "spec_version": "0.1",
+  "spec_hash": "c6e1e897bc37",
+  "run_id": "20260908-024412",
+  "exported_at": "2026-09-08T03:29:32+00:00",
+  "git_commit": "d58f321780ac972cb57a8d2e94ed2d1bf8827111-dirty",
+  "config_file": "/home/ubuntu/llm_persona/llm_persona_data_pipeline/configs/quick_eval20.yaml",
+  "config_hash": "8d7774e116a0",
+  "config_copy": "config.resolved.yaml",
+  "spec_copy": "spec.yaml",
+  "models": {
+    "generator": "accounts/fireworks/models/qwen3p8-max",
+    "reviewer": "accounts/fireworks/models/deepseek-v4-pro-0813",
+    "reviewer_second": "accounts/fireworks/models/kimi-k3",
+    "judge": "accounts/fireworks/models/deepseek-v4-pro-0813",
+    "embeddings": "accounts/fireworks/models/qwen3-embedding-8b",
+    "base": "qwen2.5-7b-instruct",
+    "strong_generic": "accounts/fireworks/models/qwen3p8-max"
+  },
+  "counts": {
+    "n_families_configured": 30,
+    "n_families_effective": 30,
+    "families": 30,
+    "families_train": 10,
+    "families_eval": 20,
+    "families_reserved": 0,
+    "layers_generated": [
+      "core",
+      "mencian"
+    ],
+    "prompts": 42,
+    "responses": 42,
+    "kept": 39,
+    "dropped": 3,
+    "sft_train_rows": 17,
+    "eval_rows": 20,
+    "eval_rows_kept_despite_score_cut": 0,
+    "rows_dropped_for_placeholders": 2,
+    "explicit_mode_rows": 0,
+    "counterfactual_groups": 4,
+    "counterfactual_groups_incomplete": 0,
+    "by_bucket": {
+      "eval:advice_and_correction": 3,
+      "eval:civic_institutional": 1,
+      "eval:family": 7,
+      "eval:interpersonal_conflict": 3,
+      "eval:learning_and_self_cultivation": 2,
+      "eval:work": 4,
+      "eval_case:divergence": 9,
+      "eval_case:ordinary": 11,
+      "eval_question:how_to_say_it": 3,
+      "eval_question:was_my_decision_right": 2,
+      "eval_question:what_to_do": 15,
+      "eval_variant:base": 18,
+      "eval_variant:role_shift": 1,
+      "eval_variant:setting_shift": 1,
+      "train:civic_institutional": 4,
+      "train:family": 3,
+      "train:interpersonal_conflict": 4,
+      "train:learning_and_self_cultivation": 2,
+      "train:work": 4,
+      "train_case:divergence": 8,
+      "train_case:ordinary": 9
+    }
+  },
+  "license_constraints": [
+    {
+      "license": "public domain. Compiled for this project from the two public-domain Legge translations listed below plus original editorial notes; the most restrictive component is public domain, so the file may be redistributed without restriction.",
+      "use": "grounding",
+      "sources": "key_passages"
+    },
+    {
+      "license": "public domain",
+      "use": "grounding",
+      "sources": "analects_legge, mengzi_legge"
+    }
+  ],
+  "redistribution_note": "Every grounding source for this target is in the public domain (James Legge's Analects and Mengzi translations, and the Chinese originals), so the contents of references/ may be redistributed and included in generated artifacts without restriction. No copyrighted modern translation is quoted anywhere; those are listed reference_only in SOURCES.md.",
+  "cost": {
+    "usd": 4.657604760000001,
+    "display": "$4.6576",
+    "calls": 225,
+    "prompt_tokens": 1176371,
+    "completion_tokens": 606603,
+    "reasoning_tokens": 485788
+  }
+}

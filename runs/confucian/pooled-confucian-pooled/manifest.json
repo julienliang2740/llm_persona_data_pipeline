@@ -1,0 +1,48 @@
+{
+  "pooled": true,
+  "target_id": "confucian",
+  "created_utc": "2026-09-08T21:12:14Z",
+  "source_runs": [
+    {
+      "run": "20260907-075012",
+      "sft": 15,
+      "eval": 7,
+      "spec_version": "0.1",
+      "spec_hash": "c6e1e897bc37"
+    },
+    {
+      "run": "20260907-184558",
+      "sft": 12,
+      "eval": 3,
+      "spec_version": "0.1",
+      "spec_hash": "c6e1e897bc37"
+    },
+    {
+      "run": "20260907-210504",
+      "sft": 11,
+      "eval": 3,
+      "spec_version": "0.1",
+      "spec_hash": "c6e1e897bc37"
+    },
+    {
+      "run": "20260908-024412",
+      "sft": 17,
+      "eval": 20,
+      "spec_version": "0.1",
+      "spec_hash": "c6e1e897bc37"
+    }
+  ],
+  "counts": {
+    "sft_train": 88,
+    "eval": 0,
+    "sft_from_eval": 33
+  },
+  "merge_eval": true,
+  "eval_rows_unconvertible": [],
+  "eval_file_note": "former eval prompts kept as generation probes; they are in the training set, so answers measure memorisation",
+  "dropped_duplicate_ids": 0,
+  "dropped_eval_leaks": [],
+  "leak_check": "lexical Jaccard >= 0.5 between any eval prompt and any train prompt",
+  "spec_version": "0.1",
+  "spec_hash": "c6e1e897bc37"
+}
