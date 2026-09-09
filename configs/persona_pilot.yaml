@@ -127,6 +127,12 @@ models:
     # an error naming the role. If that happens here, drop to "high" rather than raising
     # max_tokens further — 32000 is already the ceiling the client's own retry backs off to.
     extra_body: {reasoning_effort: max}
+    # The 300s default cannot hold this role. A kimi-k3 call at max effort was measured at 242s
+    # server-side for a family batch in runs/lbj/, and the drafter's evidence pass is a much
+    # larger single generation — 70 structured passages in one response. Left at the default it
+    # times out, retries ten times at five minutes each, and produces nothing: two drafting runs
+    # died that way before this was found. Matches the precedent the local base role already set.
+    timeout_s: 1800
   reviewer:
     model: accounts/fireworks/models/deepseek-v4-pro-0813
     base_url: https://api.fireworks.ai/inference/v1

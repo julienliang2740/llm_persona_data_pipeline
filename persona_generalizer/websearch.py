@@ -72,6 +72,12 @@ COVERAGE_QUERIES: dict[str, tuple[str, ...]] = {
     "words": (
         "{s} letters papers writings primary source archive",
         "{s} speeches transcripts recorded remarks",
+        # Pre-modern and non-English subjects: the primary text is usually a public-domain
+        # edition on a transcription site, and none of the queries above ever reach one. A live
+        # run on a third-century subject retrieved four encyclopedia pages and a fan site while
+        # the biography sat on Wikisource, permitted and untouched.
+        "{s} wikisource full text original edition",
+        "{s} primary text original language translated edition public domain",
     ),
     "deeds": (
         "{s} documented decisions record of actions archive",
@@ -569,8 +575,20 @@ def acquire_escalating(
     merged: dict[str, list[tuple[SearchResult, str]]] = {slot: [] for slot in chosen}
     passes: list[dict[str, object]] = []
 
+    def strong(slot: str) -> int:
+        """Pages for a slot that are not tertiary summaries."""
+        return sum(1 for result, _ in merged[slot] if source_tier(result.url) != "tertiary")
+
     def thin() -> tuple[str, ...]:
-        return tuple(slot for slot in chosen if not merged[slot])
+        """Slots that are empty, or filled only with tertiary summaries.
+
+        Counting a slot as done because an encyclopedia answered it is how escalation gets
+        skipped exactly where it is most needed. On a live run the cross-language pass never
+        fired for a Chinese subject, because English tertiary pages had filled every slot on
+        pass 1 — so `--source-languages zh` did nothing and the primary text was never sought.
+        Quality of fill has to enter the test, or "thin" only ever means "empty".
+        """
+        return tuple(slot for slot in chosen if strong(slot) == 0)
 
     # ---- pass 1: slot-driven search --------------------------------------------------------
     first = acquire(
@@ -595,7 +613,7 @@ def acquire_escalating(
         queries = [c for c in citations if not (c.lower() in seen or seen.add(c.lower()))][:12]
         for slot in thin():
             for cite in queries:
-                if len(merged[slot]) >= fetch_per_slot:
+                if strong(slot) >= fetch_per_slot:
                     break
                 query = f"{cite} {subject}"
                 try:
@@ -605,7 +623,7 @@ def acquire_escalating(
                     continue
                 ledger.record_search(f"{slot}/refs", query, results)
                 for result in results:
-                    if len(merged[slot]) >= fetch_per_slot:
+                    if strong(slot) >= fetch_per_slot:
                         break
                     text = fetch(result.url, ledger)
                     if text:
@@ -622,10 +640,10 @@ def acquire_escalating(
         langs = [code for code in language_candidates(source_languages) if code != "en"]
         for slot in thin():
             for lang in langs:
-                if len(merged[slot]) >= fetch_per_slot:
+                if strong(slot) >= fetch_per_slot:
                     break
                 for cite in wikipedia_reference_index(subject, ledger, lang=lang, limit=8):
-                    if len(merged[slot]) >= fetch_per_slot:
+                    if strong(slot) >= fetch_per_slot:
                         break
                     try:
                         results = backend.search(cite, per_query)
@@ -634,7 +652,7 @@ def acquire_escalating(
                         continue
                     ledger.record_search(f"{slot}/{lang}", cite, results)
                     for result in results:
-                        if len(merged[slot]) >= fetch_per_slot:
+                        if strong(slot) >= fetch_per_slot:
                             break
                         text = fetch(result.url, ledger)
                         if text:

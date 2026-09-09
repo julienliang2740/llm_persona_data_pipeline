@@ -251,3 +251,51 @@ def test_an_unexhausted_ladder_can_only_claim_an_acquisition_refusal(ws, monkeyp
     )
     assert [p["pass"] for p in passes] == [1, 2]
     assert ws.gate_verdict_for_gaps(pages, passes, max_passes=3)[0] == "refuse_acquisition"
+
+
+def test_a_slot_filled_only_with_summaries_still_counts_as_thin(ws, monkeypatch):
+    """The bug this pins cost a real run: escalation skipped exactly where it was needed.
+
+    On a live third-century subject, English encyclopedia pages filled every slot on pass 1, so
+    `thin()` reported nothing thin, the cross-language pass never fired despite --source-languages
+    being given, and the primary text — public domain, permitted, in the original language — was
+    never sought. A slot is not done because a summary answered it.
+    """
+    calls = {"n": 0}
+
+    class Backend:
+        name = "stub"
+        def search(self, query, n):
+            calls["n"] += 1
+            return [ws.SearchResult("https://en.wikipedia.org/wiki/X", "X", "s", "")]
+
+    # Every fetch succeeds, but only ever with a tertiary page.
+    monkeypatch.setattr(ws, "fetch", lambda url, ledger, **kw: "a summary")
+    monkeypatch.setattr(ws, "fetch_html", lambda url, ledger: None)
+    pages, passes = ws.acquire_escalating(
+        "A Subject", Backend(), ws.Acquisition(), slots=("words",),
+        max_passes=3, source_languages=("zh",), fetch_per_slot=1,
+    )
+    assert [p["pass"] for p in passes] == [1, 2, 3], "tertiary-only fill must not stop escalation"
+    assert pages["words"], "the tertiary pages are still kept, just not counted as sufficient"
+
+
+def test_a_strong_source_does_stop_the_escalation(ws, monkeypatch):
+    """The counterpart: a real source satisfies the slot and no further passes are paid for."""
+    class Backend:
+        name = "stub"
+        def search(self, query, n):
+            return [ws.SearchResult("https://zh.wikisource.org/wiki/X", "X", "s", "")]
+
+    monkeypatch.setattr(ws, "fetch", lambda url, ledger, **kw: "primary text")
+    _, passes = ws.acquire_escalating(
+        "A Subject", Backend(), ws.Acquisition(), slots=("words",),
+        max_passes=3, source_languages=("zh",), fetch_per_slot=1,
+    )
+    assert [p["pass"] for p in passes] == [1]
+
+
+def test_the_words_slot_can_reach_a_primary_text_host(ws):
+    """A query set that never names a transcription site cannot find a public-domain edition."""
+    queries = " ".join(ws.COVERAGE_QUERIES["words"]).lower()
+    assert "wikisource" in queries or "original language" in queries
