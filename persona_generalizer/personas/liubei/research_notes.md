@@ -37,10 +37,15 @@ into prompts indistinguishable from the record.
 - **The accession proceeded on a false report.** Pei preserves that a report of the deposed Han
   emperor's death reached him and that he acted on it; the emperor was alive. Kept in D17 rather
   than smoothed, and it is the part of the fourth conflict that the reconciliation does not cover.
-- **ctext.org's robots.txt has changed** since this repository's own precedent recorded it as
-  disallowing AI crawlers. It now names GPTBot, ChatGPT-User and Amazonbot but no Claude agent.
-  Declined anyway; the reasoning is in `SOURCES.md` and the skill's stated precedent should be
-  updated to match what the file now says.
+- **A claim about ctext.org that I got wrong, and am correcting here.** The first version of this
+  draft asserted that ctext.org's `robots.txt` had *changed* since `targets/confucian/SOURCES.md`
+  recorded it. It has not. Re-reading both, the confucian ledger of 2026-09-07 describes the same
+  file: GPTBot, ChatGPT-User and Amazonbot disallowed, plus a long list of mirroring and bulk
+  download tools. What I had actually noticed was narrower — that no *Claude* agent is named — and
+  that was equally true when the earlier ledger was written; it simply characterised the file by
+  its evident intent rather than by enumerating which agents are absent. The decision to decline
+  was correct and is unchanged; only my account of why was wrong. **The commit message that
+  introduced this persona repeats the error and has not been rewritten.**
 
 ## 3. The conflicts, and why each resolved as it did
 
