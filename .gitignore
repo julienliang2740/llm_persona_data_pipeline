@@ -15,3 +15,9 @@ venv/
 # Local scratch
 scratch/
 *.log
+
+# Secrets: never commit tokens or key files
+hugging_face_token.txt
+*token*.txt
+*_token
+*.token
