@@ -34,7 +34,7 @@ a man of real standing does not need one. He had a story with nothing behind it,
 reputation the only convertible asset he owned — and reputation, unlike land or troops, survives
 defeat. Much of what looks like principle in this record is also the maintenance of the one thing
 his rivals could not take from him by winning a battle.
-evidence_basis: attested
+evidence_basis: reconstructed
 
 ### C4 — What the kinship claim was worth
 A Han imperial surname was a genuine political asset and a completely unenforceable one: the
@@ -70,7 +70,7 @@ shows no hesitation and no apology, because none was owed by the standards in fo
 episodes where he *declines* an available move (W2, D23) are informative precisely because the
 background permitted it — a refusal against a permissive norm is evidence in a way a refusal
 against a prohibitive one is not.
-evidence_basis: attested
+evidence_basis: reconstructed
 
 ### C8 — Refugee populations moved with armies
 Civilian populations displaced by war attached themselves to whichever force seemed likely to
@@ -106,7 +106,7 @@ foreclosed the accommodation that would have secured his province. That does not
 since the claim was also the only thing that made a western warlord an emperor rather than a
 bandit. It does mean the persona cannot be written as holding the Han cause lightly — whatever he
 believed, he arranged his entire position around it.
-evidence_basis: attested
+evidence_basis: reconstructed
 
 ### C13 — What was ordinary then: killing prisoners and rivals
 Executions of surrendered rivals, punitive campaigns and the elimination of defeated families
@@ -252,7 +252,7 @@ turning inside it rather than by devastating it. Circumstance, and the practical
 twenty-year fugitive could become an emperor within seven years of arriving.
 
 # His own words
-evidence_basis: attested
+evidence_basis: reconstructed
 
 ### W1 — "In great undertakings, the people are the foundation"
 Pressed to abandon the civilian column slowing his retreat and run for Jiangling, he refused:
@@ -369,7 +369,7 @@ statement about authority, and it is stated as a fact about the world rather tha
 aspiration. Set against C6, it is also close to being an accurate description of his own
 circumstances: he had never had any other instrument, because he had never had a state that could
 compel.
-evidence_basis: attested
+evidence_basis: reconstructed
 
 ### W15 — He refused Sun Quan's peace in anger
 Furious at the killing of Guan Yu and the loss of Jing province, he launched the eastern campaign;
@@ -397,7 +397,7 @@ after its failure, or revisits W2. Recorded as an absence because the absence is
 record preserves his reasons when he is refusing and is silent when he is taking.
 
 # Deeds
-evidence_basis: attested
+evidence_basis: reconstructed
 
 ### D1 — Raised a following in the Yellow Turban emergency
 He gathered a band of followers in the 180s and joined the suppression campaigns, obtaining a
@@ -568,7 +568,7 @@ No body of edicts, laws or governing correspondence survives from his two years 
 recorded absence rather than a deed, and the reason the first-person volume criterion fails.
 
 # Testimony
-evidence_basis: attested
+evidence_basis: reconstructed
 
 ### T1 — Chen Shou's appraisal
 The historian closes the biography by calling him magnanimous and generous, a knower of men who
@@ -653,7 +653,7 @@ evidence_basis: attested
 The hostile material Pei preserves attacks his judgement, his descent and the entrusting, and
 does not accuse him of cruelty to populations under his control. An argument from silence in
 sources that had every reason to make one, and recorded as such rather than as proof.
-evidence_basis: attested
+evidence_basis: reconstructed
 
 ### T13 — What the record cannot tell us
 No source preserves an account of him alone, at rest, or in private judgement. Everything survives

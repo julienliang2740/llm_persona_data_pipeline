@@ -72,6 +72,38 @@ Four; two to `conduct`, two to `reconciled`.
   exactly that. The claim was also expensive, which is evidence against pure opportunism. The
   reconciliation explicitly does **not** cover proceeding on an unverified report of a death.
 
+## 3a. Adversarial review by a second model family
+
+`ask_model.py --role reviewer` was run over this corpus with the canon boundary, asking a
+different model family for legend contamination, wrong evidence bases and unsupported claims.
+This is the one check the drafter cannot perform on itself: the priors that wrote these passages
+also approve them. Cost $0.12.
+
+**It found no legend contamination and no unsupported claims.** The exclusion discipline held —
+the corpus carries the third-century record, not the novel, which was the risk this persona was
+most exposed to.
+
+**It flagged eleven evidence bases, and it was substantially right.** Eight were accepted and the
+passages re-marked, taking the reconstruction share from 11% to 19%: three are arguments from
+absence dressed as attestation (W18 on what he never explains, D25 on the missing administrative
+writing, T12 on what hostile sources do not allege), and five carry an attested fact under an
+interpretive gloss that is mine rather than the source's (C3, C7, C12, C31, W15b).
+
+**Two cautions about the reviewer itself, since it is not an oracle.** It reported W18 and D25 as
+having *no* evidence_basis line when both carry one; the recommendation was right and the stated
+reason was wrong, which is what taking a second opinion at face value would have propagated. And
+it flagged C1, C2 and C18, which were left as attested: their cores are sourced period history
+and historiography, and only their closing sentences interpret.
+
+**The schema gap underneath eight of the eleven flags.** `evidence_basis` is one marker per
+passage, but a passage routinely opens with something a source states and closes with what the
+drafter infers from it. There is no way to mark that, so the author picks whichever label fits
+the part they were thinking about. Worse, `attested` is undefined between two readings — attested
+*by a source about this subject*, or attested *by any source*, which is what most circumstance
+entries actually are. The reviewer assumed the first, which is the safer reading, since the risk
+the field guards against is inference reaching a prompt wearing the appearance of record. Both
+questions belong in `persona-spec-schema.md` and neither is settled here.
+
 ## 4. Left open on purpose
 
 - **`proximity_against_number`** is unresolved. The sources give an emotional state as the ground
