@@ -295,6 +295,11 @@ def robots_allows(url: str, user_agent: str = USER_AGENT) -> tuple[bool, str]:
 
 def fetch(url: str, ledger: Acquisition, max_words: int = 4000) -> str | None:
     """Retrieve one page as text, honouring robots.txt and recording the outcome."""
+    # A product listing for a book is not the book. These were being fetched, counted as
+    # sources, and in one run filled a slot that then blocked a cross-language search.
+    if source_tier(url) == "marketplace":
+        ledger.record_declined(url, "commercial marketplace listing, not a source")
+        return None
     allowed, reason = robots_allows(url)
     if not allowed:
         LOGGER.info("declined %s (%s)", url, reason)
@@ -358,7 +363,9 @@ def acquire(
                 LOGGER.warning("search failed for %r: %s", query, error)
                 results = []
             ledger.record_search(slot, query, results)
-            for result in results:
+            # Best tier first: the engine ranks by relevance, which is not the same as ranking
+            # by whether the thing at the far end is a transcription or a listicle.
+            for result in rank_results(results):
                 if len(collected) >= fetch_per_slot:
                     break
                 if not result.url or result.url in seen_urls:
@@ -467,31 +474,65 @@ _REFERENCE_SECTION = re.compile(
 # thing a first pass returns. But their text must not reach a drafting prompt looking like a
 # primary source, because the popular version of a person is exactly what phase 1 warns against,
 # and for a subject whose fame is a later construction it is the legend rather than the record.
-# NOTE ON THE SHAPE OF THIS LIST. It is a denylist, so anything absent counts as non-tertiary,
-# and that is a real weakness rather than an oversight to be patched away: no enumeration will
-# ever cover the open set of summary sites. A live run had reddit.com, quora.com and a fan
-# encyclopedia treated as strong sources because they were not named here. The list is therefore
-# used only to label material for the drafting prompt — never as the sole basis for deciding that
-# acquisition may stop. Where a caller states which languages the sources survive in, that
-# instruction governs instead.
-TERTIARY_HOSTS = (
-    "wikipedia.org", "wikiwand.com", "britannica.com", "grokipedia.com",
-    "worldhistory.org", "thecollector.com", "history.com", "biography.com",
-    # Observed on a live run, in descending order of how confidently they were mistaken for
-    # sources: a fan encyclopedia, two forums, and a travel site.
-    "kongming.net", "reddit.com", "quora.com", "travelchinaguide.com",
-    "thefamouspeople.com", "kiddle.co", "baike.baidu.com",
+# SOURCE TIERS. The first version of this was a denylist of summary sites, which cannot work:
+# anything absent counted as a good source, so a live run treated an Amazon listing, a Wikidata
+# entry and a fan encyclopedia as strong material. A denylist can only ever say what is bad. What
+# the acquisition actually needs to know is what is GOOD, so it can prefer it — hence four named
+# tiers, best first, with everything unrecognised falling through to "unclassified" rather than
+# being flattered.
+
+# Commercial listings. Never fetched at all: a product page for a book is not the book, and it
+# carries no information about the subject beyond the title it is selling.
+MARKETPLACE_HOSTS = (
+    "amazon.", "ebay.", "alibaba.", "aliexpress.", "etsy.", "walmart.", "target.com",
+    "bookdepository.", "abebooks.", "barnesandnoble.", "thriftbooks.", "taobao.", "jd.com",
 )
+
+# Transcriptions and scans of the sources themselves. This is what the acquisition is for.
+PRIMARY_HOSTS = (
+    "wikisource.org", "gutenberg.org", "archive.org", "hathitrust.org", "perseus.tufts.edu",
+    "loc.gov", "govinfo.gov", "sacred-texts.com", "dmgh.de", "documentarchiv.de",
+)
+
+# Curated reference works. Reliable for orientation and for finding the sources, but still
+# summary prose: good enough to cite as background, never as the record.
+REFERENCE_HOSTS = (
+    "wikipedia.org", "britannica.com", "wikidata.org", "plato.stanford.edu",
+    "oxfordreference.com", "encyclopedia.com", "newworldencyclopedia.org",
+)
+
+# Summary sites with no editorial guarantee. Usable as an index, never as a passage.
+TERTIARY_HOSTS = (
+    "wikiwand.com", "grokipedia.com", "worldhistory.org", "thecollector.com", "history.com",
+    "biography.com", "kongming.net", "reddit.com", "quora.com", "travelchinaguide.com",
+    "thefamouspeople.com", "kiddle.co", "baike.baidu.com", "alchetron.com", "steamcommunity.com",
+)
+
+TIER_RANK = {"primary": 0, "reference": 1, "unclassified": 2, "tertiary": 3, "marketplace": 4}
 
 
 def source_tier(url: str) -> str:
-    """'tertiary' for hosts whose prose is a summary of the sources, else 'unclassified'.
+    """Rank a URL by what kind of thing is at the other end of it.
 
-    Deliberately coarse. It exists so the drafting prompt can see that a page is a summary rather
-    than evidence; distinguishing tiers 1-4 from a URL is not possible and is not attempted.
+    Ordered checks, most specific first. "unclassified" sits between reference and tertiary on
+    purpose: an unrecognised host might be a university archive or might be a content farm, and
+    the honest position is that we do not know — not that it is good, which was the old bug.
     """
     lowered = (url or "").lower()
-    return "tertiary" if any(host in lowered for host in TERTIARY_HOSTS) else "unclassified"
+    for hosts, tier in (
+        (MARKETPLACE_HOSTS, "marketplace"),
+        (PRIMARY_HOSTS, "primary"),
+        (REFERENCE_HOSTS, "reference"),
+        (TERTIARY_HOSTS, "tertiary"),
+    ):
+        if any(host in lowered for host in hosts):
+            return tier
+    return "unclassified"
+
+
+def rank_results(results: "list[SearchResult]") -> "list[SearchResult]":
+    """Best-tier results first, stable within a tier so the engine's own ranking survives."""
+    return sorted(results, key=lambda r: TIER_RANK.get(source_tier(r.url), 2))
 
 
 def fetch_html(url: str, ledger: Acquisition) -> str | None:
@@ -631,8 +672,15 @@ def acquire_escalating(
     passes: list[dict[str, object]] = []
 
     def strong(slot: str) -> int:
-        """Pages for a slot that are not tertiary summaries."""
-        return sum(1 for result, _ in merged[slot] if source_tier(result.url) != "tertiary")
+        """Pages good enough to stop looking for: a transcription or a curated reference work.
+
+        Deliberately excludes `unclassified`. An unrecognised host was previously counted as
+        strong, which let an Amazon listing and a Wikidata page satisfy a slot; the honest
+        reading of an unknown host is that it has not been shown to be worth stopping for.
+        """
+        return sum(
+            1 for result, _ in merged[slot] if source_tier(result.url) in ("primary", "reference")
+        )
 
     def thin() -> tuple[str, ...]:
         """Slots that are empty, or filled only with tertiary summaries.
@@ -757,6 +805,15 @@ def acquire_escalating(
              "slots_filled": len(chosen) - len(thin()), "slots_thin": list(thin())}
         )
 
+    # Final ordering, across the whole slot rather than within one query's results. Ranking per
+    # query is not enough: pass 1 collects tertiary pages before the cross-language pass has even
+    # run, so the transcription arrives last and is the first thing a per-response passage budget
+    # discards. Sorting here puts the best source in front of the model rather than behind the
+    # summaries that happened to be found first.
+    for slot in merged:
+        merged[slot] = sorted(
+            merged[slot], key=lambda pair: TIER_RANK.get(source_tier(pair[0].url), 2)
+        )
     return merged, passes
 
 

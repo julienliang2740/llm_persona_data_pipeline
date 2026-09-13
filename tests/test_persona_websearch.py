@@ -198,12 +198,35 @@ def test_article_title_fallback_is_bounded(ws, monkeypatch):
     assert len(attempts) <= 3
 
 
-def test_tertiary_hosts_are_labelled(ws):
-    """Wikipedia prose must not reach a prompt looking like an archive transcript."""
-    assert ws.source_tier("https://en.wikipedia.org/wiki/Basil_II") == "tertiary"
-    assert ws.source_tier("https://www.britannica.com/biography/Basil-II") == "tertiary"
+def test_sources_are_ranked_by_what_is_at_the_far_end(ws):
+    """Four tiers, because a denylist can only say what is bad and never what is worth having."""
+    assert ws.source_tier("https://zh.wikisource.org/wiki/x") == "primary"
+    assert ws.source_tier("https://en.wikipedia.org/wiki/Basil_II") == "reference"
+    assert ws.source_tier("https://kongming.net/encyclopedia/x") == "tertiary"
+    assert ws.source_tier("https://www.amazon.com/s?k=x") == "marketplace"
+    # An unrecognised host is unknown, not good. Treating it as good is what let a product
+    # listing and a Wikidata entry satisfy a coverage slot.
     assert ws.source_tier("https://www.doaks.org/resources/x") == "unclassified"
     assert ws.source_tier("") == "unclassified"
+
+
+def test_results_are_reordered_best_source_first(ws):
+    ranked = ws.rank_results([
+        ws.SearchResult("https://kongming.net/x", "t", "s"),
+        ws.SearchResult("https://www.amazon.com/x", "t", "s"),
+        ws.SearchResult("https://zh.wikisource.org/x", "t", "s"),
+        ws.SearchResult("https://en.wikipedia.org/x", "t", "s"),
+    ])
+    assert [ws.source_tier(r.url) for r in ranked] == [
+        "primary", "reference", "tertiary", "marketplace",
+    ]
+
+
+def test_a_marketplace_listing_is_never_fetched(ws):
+    """A product page for a book is not the book, and it filled a slot on a live run."""
+    ledger = ws.Acquisition()
+    assert ws.fetch("https://www.amazon.com/Books-Someone/s?rh=x", ledger) is None
+    assert ledger.declined and "marketplace" in ledger.declined[0]["reason"]
 
 
 def test_the_escalation_stops_as_soon_as_the_slots_fill(ws, monkeypatch):
@@ -211,14 +234,14 @@ def test_the_escalation_stops_as_soon_as_the_slots_fill(ws, monkeypatch):
     class Backend:
         name = "stub"
         def search(self, query, n):
-            return [ws.SearchResult("https://example.invalid/a", "A", "s", "")]
+            return [ws.SearchResult("https://zh.wikisource.org/a", "A", "s", "")]
 
     monkeypatch.setattr(ws, "fetch", lambda url, ledger, **kw: "some retrieved text")
     pages, passes = ws.acquire_escalating(
         "A Subject", Backend(), ws.Acquisition(), slots=("words",),
         max_passes=3, fetch_per_slot=1,
     )
-    assert [p["pass"] for p in passes] == [1], "a filled slot must not trigger a paid retry"
+    assert [p["pass"] for p in passes] == [1], "a primary source must end the paid retries"
     assert ws.gate_verdict_for_gaps(pages, passes, max_passes=3)[0] == ""
 
 
@@ -294,7 +317,7 @@ def test_a_slot_filled_only_with_summaries_still_counts_as_thin(ws, monkeypatch)
         name = "stub"
         def search(self, query, n):
             calls["n"] += 1
-            return [ws.SearchResult("https://en.wikipedia.org/wiki/X", "X", "s", "")]
+            return [ws.SearchResult("https://kongming.net/encyclopedia/X", "X", "s", "")]
 
     # Every fetch succeeds, but only ever with a tertiary page.
     monkeypatch.setattr(ws, "fetch", lambda url, ledger, **kw: "a summary")
@@ -344,3 +367,35 @@ def test_primary_source_queries_come_first(ws):
     assert "salary" not in finances[0], (
         "a salary query leads with a living namesake for any pre-modern subject"
     )
+
+
+def test_the_best_source_in_a_slot_is_first(ws, monkeypatch):
+    """Per-query ranking is not enough: pass 1 fills with summaries before the good source exists.
+
+    On a live run the transcription of the primary text arrived ninth of eleven pages, which is
+    the first thing a per-response passage budget discards. Ordering has to be applied across the
+    whole slot, after every pass has contributed.
+    """
+    urls = iter([
+        "https://kongming.net/x", "https://en.wikipedia.org/x",
+        "https://zh.wikisource.org/x", "https://unknown.tld/x",
+    ])
+
+    class Backend:
+        name = "stub"
+        def search(self, query, n):
+            try:
+                return [ws.SearchResult(next(urls), "t", "s", "")]
+            except StopIteration:
+                return []
+
+    monkeypatch.setattr(ws, "fetch", lambda url, ledger, **kw: "text")
+    monkeypatch.setattr(ws, "fetch_html", lambda url, ledger: None)
+    pages, _ = ws.acquire_escalating(
+        "A Subject", Backend(), ws.Acquisition(), slots=("words",),
+        max_passes=3, source_languages=("zh",), fetch_per_slot=4,
+    )
+    tiers = [ws.source_tier(r.url) for r, _ in pages["words"]]
+    assert tiers == sorted(tiers, key=lambda x: ws.TIER_RANK[x]), tiers
+    if "primary" in tiers:
+        assert tiers[0] == "primary", "the transcription must lead, not trail the summaries"
