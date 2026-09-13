@@ -519,6 +519,15 @@ async def condense_acquired(
         if not pages:
             out[slot] = pages
             continue
+        # A slot carrying a transcription is not condensed at all. The guideline says a primary
+        # text passes through close to whole, and on the first live run this slot went from
+        # 16,476 words to 32 — the model discarded the source instead of compressing it, and the
+        # one slot that mattered most was the one destroyed. Asking a model to be careful is not
+        # a control; not asking it is.
+        if any(websearch.source_tier(r.url) == "primary" for r, _ in pages):
+            LOGGER.info("  %s: holds a primary source, left uncondensed", slot)
+            out[slot] = pages
+            continue
         joined = "\n\n".join(
             f"URL: {result.url}\nTIER: {websearch.source_tier(result.url)}\n\n{text}"
             for result, text in pages
@@ -531,7 +540,15 @@ async def condense_acquired(
             out[slot] = pages
             continue
         condensed = str((payload or {}).get("condensed") or "").strip()
-        if not condensed:
+        before = sum(len(text.split()) for _, text in pages)
+        after = len(condensed.split())
+        # Anything under a fifth of the input is discarding, not condensing. Keep the raw pages:
+        # too much material is a budget problem, and losing the material is a correctness one.
+        if not condensed or (before and after < before * 0.2):
+            LOGGER.warning(
+                "  %s: condensation returned %d words from %d (under the 20%% floor); "
+                "keeping the raw pages", slot, after, before,
+            )
             out[slot] = pages
             continue
         LOGGER.info(

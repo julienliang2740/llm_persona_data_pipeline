@@ -410,3 +410,49 @@ def test_verification_downgrades_rather_than_deletes():
     # Already inferred: a downgrade must not silently promote it back up.
     assert by_id["W3"]["evidence_basis"] == "reconstructed"
     assert len(notes) == 3 and len(evidence) == 3, "findings downgrade, they do not delete"
+
+
+def _pages(ws, urls_and_text):
+    return [(ws.SearchResult(u, "t", "s", ""), txt) for u, txt in urls_and_text]
+
+
+def test_a_slot_holding_a_primary_source_is_not_condensed():
+    """A transcription must pass through whole. On a live run this slot went 16,476 -> 32 words.
+
+    The guideline said to preserve a primary text and the model discarded it anyway, destroying
+    the one slot that mattered most. An instruction is not a control.
+    """
+    import asyncio, sys
+
+    generalizer = REPO_ROOT / "persona_generalizer"
+    if str(generalizer) not in sys.path:
+        sys.path.insert(0, str(generalizer))
+    import draft_persona as drafter
+    import websearch as ws
+
+    class Client:
+        async def complete_json(self, *a, **k):
+            raise AssertionError("a primary source must not be sent for condensation")
+
+    pages = _pages(ws, [("https://zh.wikisource.org/wiki/x", "the chronicle " * 500)])
+    out = asyncio.run(drafter.condense_acquired(Client(), {"words": pages}, 4000))
+    assert out["words"] == pages
+
+
+def test_an_over_aggressive_condensation_is_rejected():
+    """Under a fifth of the input is discarding, not condensing; the raw pages are kept."""
+    import asyncio, sys
+
+    generalizer = REPO_ROOT / "persona_generalizer"
+    if str(generalizer) not in sys.path:
+        sys.path.insert(0, str(generalizer))
+    import draft_persona as drafter
+    import websearch as ws
+
+    class Client:
+        async def complete_json(self, *a, **k):
+            return {"condensed": "far too little"}, None
+
+    pages = _pages(ws, [("https://example.org/a", "word " * 1000)])
+    out = asyncio.run(drafter.condense_acquired(Client(), {"slot": pages}, 4000))
+    assert out["slot"] == pages, "losing the material is worse than an oversized prompt"
