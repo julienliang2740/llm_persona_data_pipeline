@@ -521,21 +521,22 @@ def check_evidence_basis(
     seen: an inferred passage reads exactly like an attested one once it is in a prompt, and a
     row generated from it is indistinguishable from evidence in the exported dataset.
     """
-    tally = {"attested": 0, "reconstructed": 0}
-    known_bases = {"attested", "reconstructed"}
+    tally = {"attested": 0, "reconstructed": 0, "mixed": 0}
+    known_bases = {"attested", "reconstructed", "mixed"}
 
     for passage in spec.key_passages:
         basis = passage.evidence_basis
         if basis not in known_bases:
             report.error(
                 f"key_passages.md [{passage.id}]: evidence_basis is {basis!r}; expected "
-                f"'attested' or 'reconstructed'."
+                f"'attested', 'reconstructed' or 'mixed'."
             )
             continue
         tally[basis] += 1
 
     total = sum(tally.values())
-    reconstructed = tally["reconstructed"]
+    # `mixed` is counted as inference: a passage that is part gloss cannot be relied on as record.
+    reconstructed = tally["reconstructed"] + tally["mixed"]
 
     if verdict == "admit_reconstructed":
         undeclared = [p.id for p in spec.key_passages if not p.evidence_basis_declared]
@@ -576,7 +577,9 @@ def check_evidence_basis(
     # The conduct-over-words rule is the one thing that cannot run on inference. A conflict
     # weighs what someone said against what they did; if either side is reconstructed, the gap
     # being adjudicated may be one the researcher created.
-    reconstructed_ids = {p.id for p in spec.key_passages if p.evidence_basis == "reconstructed"}
+    reconstructed_ids = {
+        p.id for p in spec.key_passages if p.evidence_basis in ("reconstructed", "mixed")
+    }
     for index, conflict in enumerate(raw.get("conflicts") or []):
         if not isinstance(conflict, dict):
             continue
@@ -586,7 +589,8 @@ def check_evidence_basis(
             if cited in reconstructed_ids:
                 report.error(
                     f"{where}: '{field_name}' cites {cited!r}, which is marked "
-                    f"evidence_basis: reconstructed. A conflict adjudicates what a person said "
+                    f"evidence_basis: {spec.passage(cited).evidence_basis}. A conflict "
+                    f"adjudicates what a person said "
                     f"against what they did, so both sides must be attested — otherwise the gap "
                     f"may be one the reconstruction invented."
                 )

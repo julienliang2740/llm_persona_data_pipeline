@@ -105,11 +105,13 @@ Each item:
           circumstance, the condition AND what it did to them.",
  "bears_on": "what this grounds in the persona",
  "confidence": "high" | "medium" | "low",
- "evidence_basis": "attested" | "reconstructed",
+ "evidence_basis": "attested" | "reconstructed" | "mixed",
  "verify": "what a human must check against a source"}
 
 evidence_basis is the difference between something a source says and something you inferred from
-the surrounding evidence. Mark it "reconstructed" whenever the item is your inference — a
+the surrounding evidence. Use "mixed" when the body opens with something a source states and closes with your inference
+from it, which is common and should be said rather than rounded; "mixed" is treated as inference
+wherever it matters. Mark it "reconstructed" whenever the item is your inference — a
 psychological effect nobody recorded, a motive the sources do not state, a circumstance argued
 from what was normal at the time. Reconstruction is allowed and expected where sources are thin;
 what is not allowed is reconstruction that cannot be seen, because once a passage is in a prompt
@@ -195,6 +197,12 @@ Two rules govern this:
 
 Return JSON with these keys:
 
+EVERY `sources` ARRAY ANYWHERE BELOW MAY ONLY CONTAIN IDS FROM THE EVIDENCE ABOVE. That list is
+closed: you may not coin a new id, reuse a conflict id as a passage id, or invent a sequence like
+"P10". A previous run cited nine ids the evidence pass never produced; they were stripped to make
+the spec load, and every section that had cited them was left citing nothing. If no evidence item
+supports a claim, either drop the claim or cite the nearest item that genuinely bears on it.
+
 {"name": "display name",
  "summary": "2 paragraphs on HOW they judge: what they notice first, what overrides what, what
    they refuse. Carry the unattractive parts as plainly as the attractive ones.",
@@ -269,6 +277,11 @@ Use them as follows.
   recorded gap.
 - `evidence_basis: attested` means A SOURCE YOU ACTUALLY SAW states this. A claim you believe
   from background knowledge, however confident you are, is `reconstructed`.
+- A WORK YOU NAME IN A BODY MUST BE ONE OF THE PAGES ABOVE, or must be named as something those
+  pages report rather than as something you consulted. There is no cap on how often a single
+  source appears: if one chronicle is the only near-contemporary record, it SHOULD carry most of
+  the corpus, and padding the citations for variety would be worse. The rule is about honesty of
+  provenance, not spread.
 
 RETRIEVED MATERIAL
 

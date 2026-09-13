@@ -290,7 +290,13 @@ be *about the subject*: period history, institutional background and the ordinar
 time are `attested` when they come from a work that says so, and that is what most `context`
 entries legitimately are.
 
-**A passage that mixes the two takes the weaker label.** In practice a passage often opens with
+**A passage that mixes the two is marked `mixed`.** That is the third value, and it exists
+because rounding was producing dishonest labels: forced to choose, drafters picked `attested`,
+which is how inference came to sit in a corpus under the appearance of record. `mixed` counts as
+reconstruction for the 40% ceiling and is refused by the conflict rule exactly as `reconstructed`
+is, so the conservative reading still governs everything that matters — it only buys the ability
+to say what is true. Splitting such a passage in two remains better where the halves can stand
+alone. The old advice, for reference: In practice a passage often opens with
 what a source records and closes with what the drafter infers from it — "he sold mats" is
 attested, "reputation was therefore the only asset he owned" is not. One marker cannot express
 that, so the rule is the conservative one: if any load-bearing part of the body is inference,

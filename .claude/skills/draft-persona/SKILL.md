@@ -198,8 +198,9 @@ evidence_basis: reconstructed
 `attested` means **a source you actually consulted states this** — not that one exists, and not
 that it is well known; background knowledge is `reconstructed` however sure you are. The source
 need not be about the subject, so sourced period history is attested. Where a passage mixes a
-recorded fact with your gloss on it, either split it in two or mark the whole thing
-`reconstructed`; the conservative label is the correct one.
+recorded fact with your gloss on it, split it in two if the halves can stand alone, and otherwise
+mark it `mixed`. `mixed` is treated as inference wherever it matters — it counts against the 40%
+ceiling and cannot carry a conflict — so nothing is lost by saying precisely what a passage is.
 
 Mark it honestly and it is allowed, capped at 40% of the corpus, and declared in the manifest.
 Leave it unmarked and it is indistinguishable from evidence for everyone downstream. A conflict's

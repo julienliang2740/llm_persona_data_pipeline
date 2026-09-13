@@ -29,7 +29,15 @@ PASSAGE_HEADING = re.compile(r"^#{2,4}\s+(?P<id>[^\n#]+?)\s*$", re.MULTILINE)
 # check_persona.py requires the line explicitly on every passage of a spec whose gate verdict
 # is `admit_reconstructed`. The marker is deliberately left in the passage body rather than
 # stripped: the generator should see that a passage is reconstruction, not attestation.
-EVIDENCE_BASES = ("attested", "reconstructed")
+# `mixed` exists because the honest answer for many passages is neither of the other two: a body
+# routinely opens with what a source records and closes with what the drafter infers from it.
+# Before this, the author had to pick one, and picking `attested` is how eleven passages in a real
+# corpus came to carry inference under the appearance of record. `mixed` counts as reconstruction
+# for the ceiling and for the conflict rule, so the conservative reading still governs anything
+# that matters — it only buys the ability to say so precisely instead of rounding.
+EVIDENCE_BASES = ("attested", "reconstructed", "mixed")
+# Bases that may not carry a conflict, or stand unreviewed as record.
+INFERRED_BASES = ("reconstructed", "mixed")
 EVIDENCE_BASIS_LINE = re.compile(
     r"^\s*[*_]{0,2}\s*evidence[_ ]basis\s*[:=]\s*(?P<basis>[a-z_]+)\s*[*_.]{0,3}\s*$",
     re.MULTILINE | re.IGNORECASE,
