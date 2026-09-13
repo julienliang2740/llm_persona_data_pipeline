@@ -417,9 +417,49 @@ def format_acquired(
     return "\n\n".join(blocks)
 
 
+async def condense_acquired(
+    client: "ModelClient", acquired: dict, max_tokens: int
+) -> dict:
+    """Replace each slot's raw pages with one condensed account, per docs/condensing-sources.md.
+
+    Raw pages arrive as navigation chrome, cookie notices and restatement, and the passage budget
+    then spends itself on those rather than on the source. Condensing first is cheaper than
+    raising the budget, because the budget is paid again on every row the pipeline later
+    generates. A slot whose condensation fails keeps its raw pages rather than being lost.
+    """
+    out: dict = {}
+    for slot, pages in acquired.items():
+        if not pages:
+            out[slot] = pages
+            continue
+        joined = "\n\n".join(
+            f"URL: {result.url}\nTIER: {websearch.source_tier(result.url)}\n\n{text}"
+            for result, text in pages
+        )
+        prompt = fill(P.CONDENSE_PROMPT, slot=slot, pages=joined[:60000])
+        try:
+            payload = await run_pass(client, prompt, f"condense:{slot}", max_tokens)
+        except ModelError as error:
+            LOGGER.warning("  %s: condensation failed (%s); keeping raw pages", slot, error)
+            out[slot] = pages
+            continue
+        condensed = str((payload or {}).get("condensed") or "").strip()
+        if not condensed:
+            out[slot] = pages
+            continue
+        LOGGER.info(
+            "  %s: %d -> %d words", slot,
+            sum(len(t.split()) for _, t in pages), len(condensed.split()),
+        )
+        # Keep the best-ranked result as the carrier so the URL and tier survive.
+        carrier = pages[0][0]
+        out[slot] = [(carrier, condensed)]
+    return out
+
+
 async def draft(subject: str, persona_id: str, config_path: str, out_dir: Path,
                 target_count: int, max_tokens: int, use_search: bool = False,
-                acquisition_passes: int = 3,
+                acquisition_passes: int = 3, condense: bool = True,
                 source_languages: tuple[str, ...] = ()) -> int:
     # Scope is checked before anything is loaded, created or spent. The gate that follows asks
     # whether enough material survives; this asks whether a faithful persona of this subject
@@ -478,6 +518,12 @@ async def draft(subject: str, persona_id: str, config_path: str, out_dir: Path,
             source_languages=source_languages,
         )
         acquired_text = format_acquired(acquired)
+        if condense:
+            LOGGER.info("pass 0b/4: condensing retrieved pages")
+            async with ModelClient.from_config(
+                load_config(config_path), root / "usage.jsonl", stage="condense"
+            ) as condenser:
+                acquired = await condense_acquired(condenser, acquired, max_tokens)
         LOGGER.info(
             "  acquisition text for prompts: %d words (budget %d)",
             len(acquired_text.split()),
@@ -686,6 +732,14 @@ def build_parser() -> argparse.ArgumentParser:
         "languages by article size measures editor population, not where the record is.",
     )
     parser.add_argument(
+        "--no-condense",
+        dest="condense",
+        action="store_false",
+        help="feed raw retrieved pages to the drafter instead of condensing them first. Kept so "
+        "the two paths can be compared on one subject; the ratios in "
+        "persona_generalizer/docs/condensing-sources.md are untested.",
+    )
+    parser.add_argument(
         "--dry-run", action="store_true", help="print the plan and exit without calling a model"
     )
     parser.add_argument("-v", "--verbose", action="store_true")
@@ -737,9 +791,15 @@ def main(argv: list[str] | None = None) -> int:
                 out_dir,
                 args.passages,
                 args.max_tokens,
-                args.search,
-                args.acquisition_passes,
-                tuple(c.strip() for c in (args.source_languages or "").split(",") if c.strip()),
+                # Keyword from here on: these are four optional flags of three different types
+                # and the positional order has already been got wrong once, which silently put a
+                # tuple of languages into the condense switch.
+                use_search=args.search,
+                acquisition_passes=args.acquisition_passes,
+                condense=args.condense,
+                source_languages=tuple(
+                    c.strip() for c in (args.source_languages or "").split(",") if c.strip()
+                ),
             )
         )
     except ModelError as error:

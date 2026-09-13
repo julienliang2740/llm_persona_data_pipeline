@@ -329,3 +329,23 @@ def test_rendered_passages_declare_an_evidence_basis():
     assert parsed["D1"].evidence_basis == "attested"
     # Under-marking is the serious error, so an unrecognised value fails safe.
     assert parsed["W1"].evidence_basis == "reconstructed"
+
+
+def test_the_optional_draft_flags_are_passed_by_keyword():
+    """Four optional flags of three types; positional order has already been got wrong once.
+
+    Threading --no-condense in positionally put the tuple of source languages into the condense
+    switch and the boolean into source_languages. Neither raises: the run just quietly does the
+    wrong thing. Pinning the call shape is cheaper than finding that again in a paid run.
+    """
+    import inspect
+    import sys
+
+    generalizer = REPO_ROOT / "persona_generalizer"
+    if str(generalizer) not in sys.path:
+        sys.path.insert(0, str(generalizer))
+    import draft_persona as drafter
+
+    source = inspect.getsource(drafter.main)
+    for flag in ("use_search=", "acquisition_passes=", "condense=", "source_languages="):
+        assert flag in source, f"{flag} must be passed by keyword, not position"

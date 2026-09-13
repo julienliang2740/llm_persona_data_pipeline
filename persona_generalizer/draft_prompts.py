@@ -250,6 +250,42 @@ supports a claim, either drop the claim or cite the nearest item that genuinely 
 """
 
 
+CONDENSE_PROMPT = """\
+Condense the retrieved pages below for one coverage slot, following the repository's guideline in
+`persona_generalizer/docs/condensing-sources.md`.
+
+KEEP, in priority order: anything the subject said or wrote, verbatim and in the original language
+where given; dated acts with their circumstances and who else was involved; who is reporting a
+claim and what they had at stake; numbers, titles and other checkable specifics; and every hedge
+the source expressed.
+
+DROP: navigation, cookie and subscription notices, "see also" and category lists; anything about a
+different person who shares the name; plot summary of fiction about the subject, unless the page
+is distinguishing fiction from record, in which case keep the distinction; restatements of a claim
+already made by an earlier page; and modern commentary on reputation that is not testimony from
+someone who knew them.
+
+Write prose, not fragments — "he refused, and the reason he gave was X" is evidence, "refused /
+reason: X" is a note. Attribute inline, and where a page is summarising rather than recording,
+say so: "<page> reports that the chronicle records…", never "the chronicle records…".
+
+Target a quarter to a third of the input length, but pass a transcription of a primary text
+through close to whole: every sentence of one is the material this is meant to preserve. Never
+invent, never resolve a hedge, and never paraphrase a direct utterance — a paraphrase cannot be
+restored into a quotation later.
+
+Return JSON and nothing else: {"condensed": "the prose", "dropped": "what was removed and why,
+one line"}.
+
+SLOT: {{slot}}
+
+PAGES
+
+{{pages}}
+
+END OF PAGES
+"""
+
 SOURCED_PREAMBLE = """\
 You have been given excerpts from pages retrieved from the web for this subject, grouped by the
 coverage slot each search was aimed at. They are raw and uneven: some are useful, some are
