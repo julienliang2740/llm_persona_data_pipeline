@@ -241,3 +241,7 @@ under test and which is the no-spec reply, because it must quote the closest no-
 (`generic_echo`). A provenance-blind second pass that never names roles is a deferred option; it doubles
 judge cost. A family counts as value-attributed only when every judged prompt in it is; the any-prompt
 rate is reported as a secondary line.
+
+### Sources and References:
+https://arxiv.org/abs/2408.11779 
+https://arxiv.org/abs/2410.16491
