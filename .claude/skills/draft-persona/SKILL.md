@@ -195,6 +195,12 @@ Where a passage is inference rather than attestation, say so on its own line in 
 evidence_basis: reconstructed
 ```
 
+`attested` means **a source you actually consulted states this** — not that one exists, and not
+that it is well known; background knowledge is `reconstructed` however sure you are. The source
+need not be about the subject, so sourced period history is attested. Where a passage mixes a
+recorded fact with your gloss on it, either split it in two or mark the whole thing
+`reconstructed`; the conservative label is the correct one.
+
 Mark it honestly and it is allowed, capped at 40% of the corpus, and declared in the manifest.
 Leave it unmarked and it is indistinguishable from evidence for everyone downstream. A conflict's
 `said` and `did` must both be attested — the conduct-over-words rule cannot run on inference.

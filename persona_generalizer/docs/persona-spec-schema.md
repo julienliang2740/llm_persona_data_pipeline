@@ -278,8 +278,24 @@ So reconstruction is permitted and declared. Any passage may carry, on its own l
 evidence_basis: reconstructed
 ```
 
-Values are `attested` (a source says this) and `reconstructed` (inference from surrounding
-evidence). Absent the line, a passage is `attested` — which is a safe default only because a spec
+Values are `attested` and `reconstructed`, defined as follows — the definitions matter, because
+an adversarial review of a real corpus produced eleven disagreements and eight of them traced to
+these two questions being unsettled.
+
+**`attested` means a source the drafter actually consulted states this.** Not "a source exists
+that would state this", and not "this is well known". A claim believed from background knowledge
+is `reconstructed`, however confident the drafter is, because the risk the field guards against
+is inference reaching a generation prompt wearing the appearance of record. The source need not
+be *about the subject*: period history, institutional background and the ordinary conditions of a
+time are `attested` when they come from a work that says so, and that is what most `context`
+entries legitimately are.
+
+**A passage that mixes the two takes the weaker label.** In practice a passage often opens with
+what a source records and closes with what the drafter infers from it — "he sold mats" is
+attested, "reputation was therefore the only asset he owned" is not. One marker cannot express
+that, so the rule is the conservative one: if any load-bearing part of the body is inference,
+the passage is `reconstructed`. Splitting such passages in two is usually better than marking the
+whole thing down, and is the preferred fix where the two halves can stand alone. Absent the line, a passage is `attested` — which is a safe default only because a spec
 whose verdict is `admit_reconstructed` must declare the line on every passage. The marker is left
 in the passage body rather than stripped, so the generator sees which passages are inference.
 

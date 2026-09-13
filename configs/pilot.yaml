@@ -38,6 +38,12 @@ generation:
   # Every divergence hypothesis must get at least this many families per 100. The plan
   # already round-robins to achieve it; stating it here makes the requirement checkable
   # and puts it in the report's coverage table rather than leaving it implicit.
+  # Principles are assigned by the plan rather than left to the generator's choice. Without
+  # this, a 16-family run applied two of fourteen principles in 97% of responses and never
+  # applied four of them at all; the distinctive ones lose to the general ones every time.
+  # 0 disables the assignment entirely and restores the pre-existing behaviour.
+  principle_coverage_floor: 1.0
+  principles_per_family: 2
   hypothesis_coverage_floor: 1.0
   # Small slice where the prompt may name the tradition and the cue check is skipped.
   # Researchers suggest 0.05-0.10 once the neutral slice is working.

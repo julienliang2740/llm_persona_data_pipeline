@@ -268,6 +268,13 @@ async def generate_families(
                 f"tradeoff_ids={slot.tradeoff_ids or ['(any)']}",
                 f"case_type_intent={slot.case_type_intent!r}",
             ]
+            # Only stated when the plan actually assigned principles, so a target planned
+            # without principle_coverage_floor sees exactly the prompt it saw before.
+            if slot.principle_ids:
+                parts.append(
+                    f"principle_ids={slot.principle_ids} (build a situation where THESE are the "
+                    f"principles that decide it, not whichever fit most easily)"
+                )
             if slot.institution:
                 parts.append(f"institution={slot.institution!r}")
             for field_name in ("role_type", "harm_severity", "urgency", "public_or_private", "asker_stance"):

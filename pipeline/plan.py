@@ -49,6 +49,9 @@ class FamilySlot:
     counterfactual_group: str | None = None
     mode: str = "neutral"
     divergence_hypothesis_id: str = ""
+    # Principles this family is asked to put under pressure. Empty means "any", which is the
+    # behaviour every target had before principle_coverage_floor existed.
+    principle_ids: list[str] = field(default_factory=list)
     unresolved_choice_id: str = ""
     # Filled in by A3 structural diversity; empty until then.
     asker_stance: str = ""
@@ -93,6 +96,7 @@ def plan_families(
     assign_divergence_intent(slots, units, float(settings.get("divergence_fraction", 0.35)))
     representatives = [slots[unit[0]] for unit in units]
     assign_tradeoffs(spec, representatives, settings)
+    assign_principles(spec, representatives, settings)
     assign_modes(representatives, float(settings.get("explicit_fraction", 0.0)))
     assign_situation_features(representatives)
     assign_institutions(representatives, seed=spec.target_id)
@@ -110,6 +114,36 @@ def plan_families(
 
 
 # -- domains ----------------------------------------------------------------
+
+
+def assign_principles(spec, representatives, settings) -> None:
+    """Spread the principles across families so the plan exercises all of them, not the general ones.
+
+    Left to itself the generator reaches for whichever principles fit any situation. On a real
+    16-family run two of fourteen were applied in 97% of responses and four were never applied at
+    all — including the one the specification's whole second half turns on. That is not a spec
+    defect, it is an unconstrained choice: nothing ever asked for the others.
+
+    Off by default (`principle_coverage_floor: 0`), so targets planned before this existed are
+    unaffected. The assignment is a round robin from a rotating start, which distributes evenly
+    without needing to know how many families there are relative to principles.
+    """
+    floor = float(settings.get("principle_coverage_floor", 0.0))
+    if floor <= 0:
+        return
+    principle_ids = [str(p.get("id")) for p in spec.principles if p.get("id")]
+    if not principle_ids:
+        return
+    per_family = max(1, int(settings.get("principles_per_family", 2)))
+    cursor = 0
+    for slot in representatives:
+        chosen: list[str] = []
+        while len(chosen) < min(per_family, len(principle_ids)):
+            candidate = principle_ids[cursor % len(principle_ids)]
+            cursor += 1
+            if candidate not in chosen:
+                chosen.append(candidate)
+        slot.principle_ids = chosen
 
 
 def _ordered_domains(spec: TargetSpec, n_families: int) -> list[str]:
@@ -823,6 +857,19 @@ def check_plan(
             f"{severity} {len(missing_unresolved)} unresolved tradeoff(s) get no family "
             f"at n={total}: {missing_unresolved}"
         )
+    principle_floor = float(settings.get("principle_coverage_floor", 0.0))
+    if principle_floor > 0 and spec.principles:
+        all_principles = [str(p.get("id")) for p in spec.principles if p.get("id")]
+        counts = Counter(pid for slot in slots for pid in slot.principle_ids)
+        wanted = max(1, round(total * principle_floor / 100.0))
+        starved = sorted(p for p in all_principles if counts.get(p, 0) < wanted)
+        if starved:
+            severity = "ERROR" if floor_scale else "WARN"
+            problems.append(
+                f"{severity} {len(starved)} principle(s) get fewer than the configured floor of "
+                f"{wanted} families per {total}: {starved[:6]}"
+            )
+
     hypotheses = [str(h.get("id")) for h in spec.divergence_hypotheses if h.get("id")]
     covered_hypotheses = {slot.divergence_hypothesis_id for slot in slots if slot.divergence_hypothesis_id}
     missing_hypotheses = [h for h in hypotheses if h not in covered_hypotheses]

@@ -145,6 +145,20 @@ the conduct sits inside a carve-out it already made?
 Write out what you tested and why each reading does or does not hold. Only when none holds does
 conduct govern.
 
+BUT BEWARE THE OPPOSITE ERROR, WHICH IS THE COMMON ONE. Reaching for reconciliation first is
+correct; arriving there most of the time is not. A draft of this kind resolved seven of its nine
+conflicts as `reconciled`, which is not a subject who turned out to be consistent — it is a
+drafter explaining away a record it found uncomfortable, and it produces exactly the corrected,
+better-than-the-evidence person the whole specification exists to prevent. A reconciliation is
+only valid if it rests on something IN the evidence: a date that makes the chronology work, a
+coercion the sources record, a carve-out the statement itself makes. "He must have had reasons",
+"circumstances were difficult", and "he was acting for the greater good" are not reconciliations,
+they are sympathy. If you cannot name the evidence your reconciliation rests on, the resolution
+is `conduct`.
+
+If most of your conflicts come out `reconciled`, go back and re-read the ones you were most
+comfortable with.
+
 Each conflict:
 {"id": "snake_case",
  "said": "the id of the words item",
@@ -245,6 +259,16 @@ Use them as follows.
   memory. A recorded gap is a result.
 - Set `source_url` on any item that a retrieved page actually supports, and leave it empty
   otherwise. Do not attach a URL to a claim the page does not make.
+- NAME IN THE BODY ONLY WHAT YOU ACTUALLY READ. If a retrieved page reports what a primary
+  source says, attribute it to the page that reported it, not to the primary source: write
+  "<page> reports that the chronicle records X", never "Recorded in the chronicle, book 32".
+  A draft that cites a work it never retrieved looks like one built on archives while resting on
+  a summary, and a reviewer cannot detect it without independently checking every citation — it
+  is worse than an obviously thin draft, because it is thin AND unfalsifiable by reading. If the
+  primary source matters and you could not retrieve it, say so in `verify` and treat that as a
+  recorded gap.
+- `evidence_basis: attested` means A SOURCE YOU ACTUALLY SAW states this. A claim you believe
+  from background knowledge, however confident you are, is `reconstructed`.
 
 RETRIEVED MATERIAL
 
