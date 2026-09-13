@@ -399,3 +399,43 @@ def test_the_best_source_in_a_slot_is_first(ws, monkeypatch):
     assert tiers == sorted(tiers, key=lambda x: ws.TIER_RANK[x]), tiers
     if "primary" in tiers:
         assert tiers[0] == "primary", "the transcription must lead, not trail the summaries"
+
+
+def test_markup_stripping_preserves_paragraph_boundaries(ws):
+    """Collapsing all whitespace flattened every page into one line, which broke everything after.
+
+    Condensation had no units to drop and relevance selection fell back to slicing at fixed
+    character offsets — which is why, when first measured, selecting scored exactly the same as
+    truncating. Structure has to survive the strip.
+    """
+    out = ws.strip_markup("<p>First para</p><p>Second para</p><div>Third</div>")
+    assert out.count("\n\n") >= 2, out
+    # The original contract still holds for a single block.
+    assert ws.strip_markup("<p>Hello <b>world</b></p><script>evil()</script>") == "Hello world"
+
+
+def test_selection_beats_truncation_on_signal_density(ws):
+    """What extraction is for: keeping acts and utterances rather than navigation chrome.
+
+    Topic presence is the wrong measure — no 1,200-word window of a 19,000-word article holds
+    every topic. The thing that matters is how much of the budget carries speech, documents and
+    dates rather than menus and lead-section boilerplate.
+    """
+    chrome = "Jump to content From Wikipedia the free encyclopedia See also References \n\n"
+    body = (
+        "In 208 he refused, and the reason he gave was recorded by the chronicle. "
+        "He wrote to his commander and declared that he would not abandon them.\n\n"
+    )
+    text = chrome * 40 + body * 40
+    budget = 220
+    truncated = " ".join(text.split()[:budget])
+    selected = ws.extract_relevant(text, "he", budget)
+    assert len(ws._SIGNAL.findall(selected)) > len(ws._SIGNAL.findall(truncated))
+
+
+def test_selection_keeps_source_order(ws):
+    """Chronology must survive: a drafter reading selected text reads it in the source's order."""
+    paras = [f"In 1{i:03d} he declared something recorded by the chronicle.\n\n" for i in range(20)]
+    out = ws.extract_relevant("".join(paras), "he", 60)
+    years = [int(y) for y in __import__("re").findall(r"\b1(\d{3})\b", out)]
+    assert years == sorted(years), years

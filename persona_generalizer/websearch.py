@@ -260,6 +260,10 @@ class Acquisition:
 
 
 _ROBOTS_CACHE: dict[str, urllib.robotparser.RobotFileParser | None] = {}
+# Set once per acquisition so `fetch` can score pages against the subject without threading it
+# through every call site. Module-level because the alternative is changing a signature used in
+# six places and in the tests, for a value that is constant for the life of one run.
+_FETCH_SUBJECT: dict[str, str] = {}
 
 
 def robots_allows(url: str, user_agent: str = USER_AGENT) -> tuple[bool, str]:
@@ -293,6 +297,64 @@ def robots_allows(url: str, user_agent: str = USER_AGENT) -> tuple[bool, str]:
     return False, "disallowed by robots.txt"
 
 
+# Terms that mark a paragraph as carrying the kind of thing a persona is built from. Cheap and
+# deterministic on purpose: this runs on every page of every acquisition, and a model call per
+# page would cost more than the drafting does.
+_SIGNAL = re.compile(
+    r"\b(said|wrote|replied|declared|refused|ordered|recorded|reports?|according to|"
+    r"letter|memorial|edict|decree|chronicle|annals|manuscript|archive)\b"
+    r"|[「『\"“”]"                      # any quotation marker, including CJK
+    r"|\b1?[0-9]{3}\b"                 # a year
+    r"|曰|云|詔|表|書|記|傳",            # classical Chinese speech and document markers
+    re.IGNORECASE,
+)
+
+
+def extract_relevant(text: str, subject: str, max_words: int, *, slot: str = "") -> str:
+    """Keep the parts of a page that bear on the subject, instead of its first N words.
+
+    Truncation takes whatever the page put at the top, which is navigation, a lead section and a
+    disambiguation note. A long biography's substance is in the middle, and a transcription's
+    substance is everywhere. Paragraphs are scored on mentions of the subject, on markers of
+    speech and documents, and on dates, then the best are kept IN THEIR ORIGINAL ORDER so the
+    chronology a drafter reads is still the source's.
+
+    Deterministic and free. It is not summarisation — nothing is rewritten, only selected — so a
+    quotation that survives selection survives verbatim, which is what the words criterion needs.
+    """
+    words = text.split()
+    if len(words) <= max_words:
+        return text
+    tokens = [w for w in re.split(r"[^\w]+", subject.lower()) if len(w) > 2]
+    paragraphs = [p for p in re.split(r"\n\s*\n|(?<=[.。!?！？])\s{2,}", text) if p.strip()]
+    if len(paragraphs) < 3:
+        paragraphs = [text[i : i + 1200] for i in range(0, len(text), 1200)]
+
+    slot_tokens = [w for w in re.split(r"[^\w]+", slot.lower()) if len(w) > 3]
+    scored = []
+    for index, para in enumerate(paragraphs):
+        lowered = para.lower()
+        score = 2 * sum(lowered.count(tok) for tok in tokens)
+        score += sum(lowered.count(tok) for tok in slot_tokens)
+        score += 2 * len(_SIGNAL.findall(para))
+        # Per-word, so a long paragraph does not win on length alone.
+        scored.append((score / max(1, len(para.split()) ** 0.5), index, para))
+
+    kept: list[tuple[int, str]] = []
+    budget = max_words
+    for _, index, para in sorted(scored, key=lambda s: -s[0]):
+        length = len(para.split())
+        if length > budget:
+            continue
+        kept.append((index, para))
+        budget -= length
+        if budget <= 0:
+            break
+    if not kept:
+        return " ".join(words[:max_words])
+    return "\n\n".join(para for _, para in sorted(kept))
+
+
 def fetch(url: str, ledger: Acquisition, max_words: int = 4000) -> str | None:
     """Retrieve one page as text, honouring robots.txt and recording the outcome."""
     # A product listing for a book is not the book. These were being fetched, counted as
@@ -317,12 +379,26 @@ def fetch(url: str, ledger: Acquisition, max_words: int = 4000) -> str | None:
     text = strip_markup(response.text)
     words = text.split()
     ledger.record_fetch(url, url, len(words))
-    return " ".join(words[:max_words])
+    # Select rather than truncate. `subject` is not threaded down here, so selection falls back
+    # to signal markers alone, which still beats taking whatever sat at the top of the page.
+    return extract_relevant(text, _FETCH_SUBJECT.get("name", ""), max_words)
 
 
 def strip_markup(html: str) -> str:
-    """Crude tag stripping. Enough to feed a model; not a parser."""
+    """Crude tag stripping that PRESERVES paragraph boundaries. Enough to feed a model.
+
+    It used to finish with a single collapse of all whitespace, which flattened every page into
+    one unbroken line. Nothing downstream could then tell a heading from a sentence: condensation
+    had no units to drop, and relevance selection fell back to slicing at fixed character offsets,
+    which is why selecting scored no better than truncating. Block boundaries become blank lines
+    here, once, so everything after this point has structure to work with.
+    """
     html = re.sub(r"(?is)<(script|style|nav|footer|header)[^>]*>.*?</\1>", " ", html)
+    # Block boundaries FIRST. Stripping every tag before this ran was the bug: the closes were
+    # already gone by the time they were looked for, so no paragraph break was ever produced and
+    # the "preserves boundaries" rewrite silently did nothing.
+    html = re.sub(r"(?is)<br\s*/?>", "\n", html)
+    html = re.sub(r"(?is)</(p|div|li|tr|h[1-6]|section|article|blockquote)>", "\n\n", html)
     html = re.sub(r"(?s)<[^>]+>", " ", html)
     html = (
         html.replace("&nbsp;", " ")
@@ -332,7 +408,9 @@ def strip_markup(html: str) -> str:
         .replace("&#39;", "'")
         .replace("&quot;", '"')
     )
-    return re.sub(r"\s+", " ", html).strip()
+    html = re.sub(r"[ \t\xa0]+", " ", html)
+    html = re.sub(r" *\n *", "\n", html)
+    return re.sub(r"\n{3,}", "\n\n", html).strip()
 
 
 def acquire(
@@ -668,6 +746,7 @@ def acquire_escalating(
     empty after one pass is only evidence about the search.
     """
     chosen = tuple(slots or tuple(COVERAGE_QUERIES))
+    _FETCH_SUBJECT["name"] = subject
     merged: dict[str, list[tuple[SearchResult, str]]] = {slot: [] for slot in chosen}
     passes: list[dict[str, object]] = []
 
