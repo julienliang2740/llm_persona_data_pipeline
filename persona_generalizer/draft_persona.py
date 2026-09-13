@@ -278,8 +278,34 @@ following the five steps in `persona_generalizer/README.md`.
 """
 
 
+def render_verification(notes: list[str]) -> list[str]:
+    """The audit section of research_notes.md — what a second model family flagged, and why."""
+    lines = ["", "## Verification against the retrieved material", ""]
+    if not notes:
+        lines += [
+            "A second model family audited every drafted item against the pages actually "
+            "retrieved, looking for claims marked attested that the material does not state, "
+            "works named as though consulted when no page of them was fetched, and hedges "
+            "dropped from the source. **It flagged nothing.** That is a weaker result than it "
+            "sounds: an audit finding nothing is also what a lazy audit looks like, and a "
+            "reviewer should spot-check a handful of attested items by hand before trusting it.",
+        ]
+        return lines
+    lines += [
+        f"A second model family audited the drafted items against the pages actually retrieved "
+        f"and flagged **{len(notes)}**. Each was downgraded rather than deleted: the claim may "
+        f"well be true, and the honest repair is to stop calling it attested, not to pretend it "
+        f"was never made. A downgrade is a prompt to go and find the source, not a verdict that "
+        f"the claim is false.",
+        "",
+    ]
+    lines += notes
+    return lines
+
+
 def render_notes(subject: str, sufficiency: dict[str, Any], evidence: list[dict[str, Any]],
-                 conflicts: list[dict[str, Any]], dropped: set[str]) -> str:
+                 conflicts: list[dict[str, Any]], dropped: set[str],
+                 verification_notes: list[str] | None = None) -> str:
     low = [e for e in evidence if str(e.get("confidence", "")).lower() in ("low", "medium")]
     lines = [
         f"# Research notes — {subject} (DRAFT)",
@@ -362,6 +388,7 @@ def render_notes(subject: str, sufficiency: dict[str, Any], evidence: list[dict[
         "6. Compare against the skill arm's draft of the same subject and reconcile the two.",
         "",
     ]
+    lines += render_verification(verification_notes or [])
     return "\n".join(lines)
 
 
@@ -415,6 +442,66 @@ def format_acquired(
                 f"{excerpt}{truncated}"
             )
     return "\n\n".join(blocks)
+
+
+async def verify_evidence(
+    client: "ModelClient", evidence: list[dict], acquired_text: str, max_tokens: int
+) -> dict:
+    """Audit drafted items against the retrieved material, using a DIFFERENT model family.
+
+    This is the pass the script arm was missing, and the absence shows in its output: one draft
+    cited a third-century history 111 times having retrieved it zero times, and marked those
+    passages attested. A drafter cannot find that in its own work. The reviewer role is used
+    rather than the generator precisely so the check comes from somewhere else — a model auditing
+    its own output measures nothing.
+
+    Findings downgrade an item's evidence_basis rather than deleting it: the claim may well be
+    true, and the honest repair is to stop calling it attested, not to pretend it was never made.
+    """
+    if not evidence or not acquired_text:
+        return {}
+    items = json.dumps(
+        [
+            {k: e.get(k) for k in ("id", "kind", "title", "body", "evidence_basis", "source_url")}
+            for e in evidence
+        ],
+        indent=1,
+        ensure_ascii=False,
+    )
+    prompt = fill(P.VERIFY_PROMPT, items=items[:60000], sources=acquired_text[:60000])
+    try:
+        payload, _ = await client.complete_json(
+            "reviewer", messages(prompt), stage="verify", record_id="verify",
+            max_tokens=max_tokens,
+        )
+    except ModelError as error:
+        LOGGER.warning("  verification failed (%s); evidence is unaudited", error)
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def apply_verification(evidence: list[dict], findings: dict) -> list[str]:
+    """Downgrade flagged items and return a human-readable list of what changed."""
+    by_id = {str(e.get("id")): e for e in evidence}
+    notes: list[str] = []
+    for category, new_basis in (
+        ("unsupported", "reconstructed"),
+        ("laundered", "mixed"),
+        ("overstated", "mixed"),
+    ):
+        for finding in findings.get(category) or []:
+            item = by_id.get(str((finding or {}).get("id")))
+            if not item:
+                continue
+            was = item.get("evidence_basis", "attested")
+            if was == "attested":
+                item["evidence_basis"] = new_basis
+            notes.append(
+                f"- `{item.get('id')}` flagged {category}: "
+                f"{(finding or {}).get('why', '')} (evidence_basis {was} -> "
+                f"{item.get('evidence_basis')})"
+            )
+    return notes
 
 
 async def condense_acquired(
@@ -644,6 +731,15 @@ async def draft(subject: str, persona_id: str, config_path: str, out_dir: Path,
             indent=1,
         )
 
+        verification_notes: list[str] = []
+        if acquired_text:
+            LOGGER.info("pass 2b/4: verifying evidence against the retrieved material")
+            findings = await verify_evidence(client, evidence, acquired_text, max_tokens)
+            verification_notes = apply_verification(evidence, findings)
+            LOGGER.info(
+                "  %d item(s) downgraded by the audit", len(verification_notes)
+            )
+
         LOGGER.info("pass 3/4: conflicts")
         conflicts_payload = await run_pass(
             client,
@@ -683,7 +779,8 @@ async def draft(subject: str, persona_id: str, config_path: str, out_dir: Path,
         encoding="utf-8",
     )
     (root / "research_notes.md").write_text(
-        render_notes(subject, sufficiency, evidence, conflicts, dropped), encoding="utf-8"
+        render_notes(subject, sufficiency, evidence, conflicts, dropped, verification_notes),
+        encoding="utf-8",
     )
 
     print(f"draft written to {root}")

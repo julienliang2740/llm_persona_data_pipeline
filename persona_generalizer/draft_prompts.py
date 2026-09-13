@@ -250,6 +250,44 @@ supports a claim, either drop the claim or cite the nearest item that genuinely 
 """
 
 
+VERIFY_PROMPT = """\
+Audit drafted evidence items against the material they were supposedly drawn from. You did not
+write these; be adversarial. The author cannot catch this class of error in their own work,
+because the priors that produced a passage also approve it.
+
+Report three things and nothing else.
+
+1. UNSUPPORTED. An item marked `evidence_basis: attested` whose claim the retrieved material
+   below does not actually state. Believing something from background knowledge is not
+   attestation, however well known it is.
+2. LAUNDERED. An item whose body names a work that is NOT among the retrieved pages, as though
+   the drafter had consulted it. "Recorded in the chronicle, book 32" when no page of that
+   chronicle was retrieved is the failure: the corpus looks like archive work and rests on a
+   summary, and nobody can tell without checking every citation by hand. Attributing to the page
+   that REPORTED the claim is correct and is not a finding.
+3. OVERSTATED. An item that drops a hedge the source expressed, turning a disputed or
+   traditional claim into a flat one.
+
+Return JSON and nothing else:
+{"unsupported": [{"id": "...", "why": "..."}],
+ "laundered":   [{"id": "...", "work_named": "...", "why": "..."}],
+ "overstated":  [{"id": "...", "why": "..."}]}
+
+Name ids only. Return an empty list for a category with nothing in it; do not invent findings to
+fill one. Judge only against the material below — if something is simply absent from it, that is
+grounds for `unsupported`, not for assuming the drafter had another source.
+
+DRAFTED ITEMS
+
+{{items}}
+
+RETRIEVED MATERIAL
+
+{{sources}}
+
+END OF RETRIEVED MATERIAL
+"""
+
 CONDENSE_PROMPT = """\
 Condense the retrieved pages below for one coverage slot, following the repository's guideline in
 `persona_generalizer/docs/condensing-sources.md`.

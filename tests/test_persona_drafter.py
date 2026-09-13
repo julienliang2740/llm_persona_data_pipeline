@@ -349,3 +349,64 @@ def test_the_optional_draft_flags_are_passed_by_keyword():
     source = inspect.getsource(drafter.main)
     for flag in ("use_search=", "acquisition_passes=", "condense=", "source_languages="):
         assert flag in source, f"{flag} must be passed by keyword, not position"
+
+
+def test_the_audit_section_reports_what_was_flagged():
+    """The verification pass is only worth running if its findings reach a human."""
+    import sys
+
+    generalizer = REPO_ROOT / "persona_generalizer"
+    if str(generalizer) not in sys.path:
+        sys.path.insert(0, str(generalizer))
+    import draft_persona as drafter
+
+    notes = drafter.render_notes(
+        "X", {"verdict": "admit"}, [], [], set(),
+        ["- `C1` flagged laundered: names a work that was never fetched"],
+    )
+    assert "## Verification against the retrieved material" in notes
+    assert "C1" in notes and "laundered" in notes
+
+
+def test_an_empty_audit_is_not_reported_as_a_clean_bill():
+    """An audit that finds nothing looks identical to an audit that did not try."""
+    import sys
+
+    generalizer = REPO_ROOT / "persona_generalizer"
+    if str(generalizer) not in sys.path:
+        sys.path.insert(0, str(generalizer))
+    import draft_persona as drafter
+
+    notes = drafter.render_notes("X", {"verdict": "admit"}, [], [], set(), [])
+    assert "flagged nothing" in notes
+    assert "spot-check" in notes, "an empty result must tell the reviewer to check by hand"
+
+
+def test_verification_downgrades_rather_than_deletes():
+    """A flagged claim may still be true; the repair is to stop calling it attested."""
+    import sys
+
+    generalizer = REPO_ROOT / "persona_generalizer"
+    if str(generalizer) not in sys.path:
+        sys.path.insert(0, str(generalizer))
+    import draft_persona as drafter
+
+    evidence = [
+        {"id": "C1", "evidence_basis": "attested"},
+        {"id": "D2", "evidence_basis": "attested"},
+        {"id": "W3", "evidence_basis": "reconstructed"},
+    ]
+    notes = drafter.apply_verification(
+        evidence,
+        {
+            "unsupported": [{"id": "C1", "why": "not in the material"}],
+            "laundered": [{"id": "D2", "work_named": "a chronicle", "why": "never fetched"}],
+            "overstated": [{"id": "W3", "why": "hedge dropped"}],
+        },
+    )
+    by_id = {e["id"]: e for e in evidence}
+    assert by_id["C1"]["evidence_basis"] == "reconstructed"
+    assert by_id["D2"]["evidence_basis"] == "mixed"
+    # Already inferred: a downgrade must not silently promote it back up.
+    assert by_id["W3"]["evidence_basis"] == "reconstructed"
+    assert len(notes) == 3 and len(evidence) == 3, "findings downgrade, they do not delete"
