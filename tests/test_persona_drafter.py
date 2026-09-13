@@ -440,7 +440,13 @@ def test_a_slot_holding_a_primary_source_is_not_condensed():
 
 
 def test_an_over_aggressive_condensation_is_rejected():
-    """Under a fifth of the input is discarding, not condensing; the raw pages are kept."""
+    """Thresholds calibrated on a real run, where the ratios came out bimodal.
+
+    Legitimate condensations landed between 11.9% and 28.9%; the broken ones at 0.1%, 0.2% and
+    4.7%, which destroyed the deeds and words slots. A first guess of 20% would have thrown away
+    five of the seven good ones, so the cutoff sits in the empty band at 8%, with an absolute
+    floor because 26 words is useless whatever ratio produced it.
+    """
     import asyncio, sys
 
     generalizer = REPO_ROOT / "persona_generalizer"
@@ -456,3 +462,22 @@ def test_an_over_aggressive_condensation_is_rejected():
     pages = _pages(ws, [("https://example.org/a", "word " * 1000)])
     out = asyncio.run(drafter.condense_acquired(Client(), {"slot": pages}, 4000))
     assert out["slot"] == pages, "losing the material is worse than an oversized prompt"
+
+
+def test_a_legitimate_condensation_is_kept():
+    """The floor must not reject real work: observed good ratios start at 11.9%."""
+    import asyncio, sys
+
+    generalizer = REPO_ROOT / "persona_generalizer"
+    if str(generalizer) not in sys.path:
+        sys.path.insert(0, str(generalizer))
+    import draft_persona as drafter
+    import websearch as ws
+
+    class Client:
+        async def complete_json(self, *a, **k):
+            return {"condensed": "kept " * 120}, None   # 12% of 1000, above the 8% floor
+
+    pages = _pages(ws, [("https://example.org/a", "word " * 1000)])
+    out = asyncio.run(drafter.condense_acquired(Client(), {"slot": pages}, 4000))
+    assert out["slot"] != pages and len(out["slot"]) == 1

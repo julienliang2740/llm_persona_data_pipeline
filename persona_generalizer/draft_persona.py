@@ -542,12 +542,20 @@ async def condense_acquired(
         condensed = str((payload or {}).get("condensed") or "").strip()
         before = sum(len(text.split()) for _, text in pages)
         after = len(condensed.split())
-        # Anything under a fifth of the input is discarding, not condensing. Keep the raw pages:
-        # too much material is a budget problem, and losing the material is a correctness one.
-        if not condensed or (before and after < before * 0.2):
+        # Thresholds calibrated against a real run rather than guessed. Measured ratios across
+        # ten slots came out bimodal, which is what makes a cutoff possible at all:
+        #
+        #   legitimate   11.9%  12.4%  13.4%  14.7%  15.9%  26.3%  28.9%
+        #   catastrophic  0.1%   0.2%   4.7%          <- deeds, words, formation
+        #
+        # A first guess of 20% would have rejected five of the seven good ones. 8% sits in the
+        # empty band between the clusters. The absolute floor is there because ratio alone cannot
+        # express the real failure: 26 words is useless whatever it came from.
+        if not condensed or after < 100 or (before and after < before * 0.08):
             LOGGER.warning(
-                "  %s: condensation returned %d words from %d (under the 20%% floor); "
+                "  %s: condensation returned %d words from %d (%.1f%%, under the floor); "
                 "keeping the raw pages", slot, after, before,
+                (after / before * 100) if before else 0.0,
             )
             out[slot] = pages
             continue
