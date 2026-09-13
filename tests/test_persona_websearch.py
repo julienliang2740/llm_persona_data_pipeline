@@ -326,3 +326,21 @@ def test_the_words_slot_can_reach_a_primary_text_host(ws):
     """A query set that never names a transcription site cannot find a public-domain edition."""
     queries = " ".join(ws.COVERAGE_QUERIES["words"]).lower()
     assert "wikisource" in queries or "original language" in queries
+
+
+def test_primary_source_queries_come_first(ws):
+    """`acquire` stops at fetch_per_slot, so a query placed last usually never runs.
+
+    Adding the primary-text queries to the end of the words slot was a no-op for exactly this
+    reason: a live run filled the slot from an encyclopedia on the first query and never reached
+    them. Order in these tuples is priority, and the regression is silent — the acquisition looks
+    successful, it just never sought the better source.
+    """
+    words = ws.COVERAGE_QUERIES["words"]
+    assert "wikisource" in words[0] or "primary text" in words[0], (
+        "the best-source query must lead, or the slot fills from a summary before it is tried"
+    )
+    finances = ws.COVERAGE_QUERIES["context.material_conditions"]
+    assert "salary" not in finances[0], (
+        "a salary query leads with a living namesake for any pre-modern subject"
+    )

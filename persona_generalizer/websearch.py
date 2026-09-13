@@ -54,9 +54,12 @@ TIMEOUT = httpx.Timeout(20.0, connect=10.0)
 # both costs one extra search.
 COVERAGE_QUERIES: dict[str, tuple[str, ...]] = {
     "context.material_conditions": (
-        "{s} salary income wealth debts finances",
-        "{s} personal finances biography archival",
+        # The salary query leads to a living namesake for any pre-modern subject — it twice
+        # retrieved a fashion model's pay pages for a third-century warlord — so the historical
+        # phrasing goes first and the modern one only runs if that comes up short.
         "{s} landholding household economy how he was supported historians",
+        "{s} personal finances biography archival",
+        "{s} salary income wealth debts finances",
     ),
     "context.standing_and_constraint": (
         "{s} social class background upbringing status",
@@ -79,20 +82,21 @@ COVERAGE_QUERIES: dict[str, tuple[str, ...]] = {
         "{s} formative events early life turning point",
         "{s} biography chronology key events",
     ),
+    # ORDER IS PRIORITY, NOT PREFERENCE. `acquire` stops querying a slot the moment it has
+    # fetch_per_slot pages, so a query placed fourth usually never runs at all. Adding the
+    # primary-text queries at the end of this tuple was therefore a no-op: a live run filled the
+    # slot from an encyclopedia on query one and never reached them, and the public-domain text
+    # sat on Wikisource untouched. Best source first, always.
     "words": (
-        "{s} letters papers writings primary source archive",
-        "{s} speeches transcripts recorded remarks",
-        # Pre-modern and non-English subjects: the primary text is usually a public-domain
-        # edition on a transcription site, and none of the queries above ever reach one. A live
-        # run on a third-century subject retrieved four encyclopedia pages and a fan site while
-        # the biography sat on Wikisource, permitted and untouched.
         "{s} wikisource full text original edition",
         "{s} primary text original language translated edition public domain",
+        "{s} letters papers writings primary source archive",
+        "{s} speeches transcripts recorded remarks",
     ),
     "deeds": (
+        "{s} campaigns appointments recorded acts chronicle annals",
         "{s} documented decisions record of actions archive",
         "{s} voting record court records official papers",
-        "{s} campaigns appointments recorded acts chronicle annals",
     ),
     "testimony": (
         "{s} contemporaries described him memoir account",
@@ -558,6 +562,34 @@ def wikipedia_reference_index(
     return harvest_references(strip_markup(" ".join(blocks)), limit=limit)
 
 
+def native_name(subject: str, ledger: Acquisition, *, lang: str) -> str:
+    """The subject's name in another language, via Wikipedia's interwiki links.
+
+    This is the missing piece that made the cross-language pass decorative. Searching a Chinese
+    archive with the string "Liu Bei" finds nothing: the text is filed under 劉備, and the pass had
+    no way to learn that. So it ran, queried in English, retrieved English encyclopedia pages and
+    reported success. Recovering the native title first is what makes searching in a language
+    mean anything.
+
+    Uses the ordinary article path, which Wikipedia's robots.txt permits, and reads only the
+    interwiki href — not the article prose.
+    """
+    words = subject.strip().split()
+    for drop in range(min(3, len(words))):
+        candidate = "_".join(words[: len(words) - drop])
+        if not candidate:
+            break
+        html = fetch_html(f"https://en.wikipedia.org/wiki/{candidate}", ledger)
+        if not html:
+            continue
+        match = re.search(
+            rf'href="https://{re.escape(lang)}\.wikipedia\.org/wiki/([^"#]+)"', html
+        )
+        if match:
+            return urllib.parse.unquote(match.group(1)).replace("_", " ")
+    return ""
+
+
 def language_candidates(
     source_languages: Sequence[str] | None = None, *, include_english: bool = True
 ) -> list[str]:
@@ -671,11 +703,39 @@ def acquire_escalating(
         # Thin slots first, then the two where an original-language primary text would land even
         # if an English summary has already answered them.
         targets = list(dict.fromkeys(list(thin()) + [s for s in ("words", "deeds") if s in chosen]))
+        for lang in langs:
+            native = native_name(subject, ledger, lang=lang)
+            if native:
+                LOGGER.info("  %s: subject is known as %r", lang, native)
         for slot in targets:
             for lang in langs:
-                if strong(slot) >= fetch_per_slot:
-                    break
-                for cite in wikipedia_reference_index(subject, ledger, lang=lang, limit=8):
+                native = native_name(subject, ledger, lang=lang) or subject
+                # The in-language queries run UNCONDITIONALLY. Gating them on `strong(slot)`
+                # reintroduced the very bug this pass was unblocked to fix: the slot had been
+                # filled by an Amazon listing and a Wikidata entry, which count as strong only
+                # because no denylist names them, so the Chinese search was skipped again. If a
+                # caller says the sources are in Chinese, search in Chinese — the whole point is
+                # that this instruction outranks a host heuristic that cannot be made reliable.
+                for query in (f"{native} 原文", f"{native} wikisource", native):
+                    try:
+                        results = backend.search(query, per_query)
+                    except Exception as error:
+                        LOGGER.warning("search failed for %r: %s", query, error)
+                        continue
+                    ledger.record_search(f"{slot}/{lang}", query, results)
+                    added = 0
+                    for result in results:
+                        # Bounded by pages added in THIS language, so an in-language source is
+                        # always given a chance to enter the slot even when it is already full.
+                        if added >= fetch_per_slot:
+                            break
+                        text = fetch(result.url, ledger)
+                        if text:
+                            merged[slot].append(
+                                (SearchResult(result.url, result.title, result.snippet, slot), text)
+                            )
+                            added += 1
+                for cite in wikipedia_reference_index(native, ledger, lang=lang, limit=8):
                     if strong(slot) >= fetch_per_slot:
                         break
                     try:
