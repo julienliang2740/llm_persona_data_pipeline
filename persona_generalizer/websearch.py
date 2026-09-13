@@ -896,6 +896,51 @@ def acquire_escalating(
     return merged, passes
 
 
+def reacquire_for_gaps(
+    subject: str,
+    backend: SearchBackend,
+    ledger: Acquisition,
+    needs: Sequence[str],
+    *,
+    per_query: int = 5,
+    fetch_per_need: int = 2,
+) -> list[tuple[SearchResult, str]]:
+    """Go and get the things a draft discovered it needed but did not have.
+
+    Acquisition otherwise happens once, before anything is written, so a draft can only work with
+    what a blind first guess collected. The most informative moment in a run is later than that:
+    the audit saying "this passage cites a chronicle we never fetched" names the exact document
+    worth having, which no query written in advance could have known to ask for. That finding is
+    an acquisition target, and this turns it into one — the thing a human researcher does without
+    thinking, and the last of the three capabilities the script arm was missing.
+
+    `needs` are free-text: a named work, a claim that could not be supported. Each is searched
+    with the subject appended, since a title alone tends to return editions for sale.
+    """
+    found: list[tuple[SearchResult, str]] = []
+    seen: set[str] = set()
+    for need in list(dict.fromkeys(n.strip() for n in needs if n and n.strip()))[:8]:
+        query = f"{need} {subject}".strip()
+        try:
+            results = backend.search(query, per_query)
+        except Exception as error:
+            LOGGER.warning("search failed for %r: %s", query, error)
+            continue
+        ledger.record_search("reacquire", query, results)
+        added = 0
+        for result in rank_results(results):
+            if added >= fetch_per_need or result.url in seen:
+                continue
+            seen.add(result.url)
+            text = fetch(result.url, ledger)
+            if text:
+                found.append(
+                    (SearchResult(result.url, result.title, result.snippet, "reacquire"), text)
+                )
+                added += 1
+    return found
+
+
 def gate_verdict_for_gaps(
     pages: dict[str, list[tuple[SearchResult, str]]],
     passes: list[dict[str, object]],

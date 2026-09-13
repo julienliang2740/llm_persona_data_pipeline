@@ -439,3 +439,51 @@ def test_selection_keeps_source_order(ws):
     out = ws.extract_relevant("".join(paras), "he", 60)
     years = [int(y) for y in __import__("re").findall(r"\b1(\d{3})\b", out)]
     assert years == sorted(years), years
+
+
+def test_reacquisition_turns_an_audit_finding_into_a_search(ws, monkeypatch):
+    """The audit names the document worth having; no query written in advance could have.
+
+    A passage citing a chronicle nobody fetched IS the search term. Acquisition otherwise happens
+    once, before anything is drafted, so the most informative moment in the run — discovering
+    which source the draft actually needed — was previously thrown away.
+    """
+    queries: list[str] = []
+
+    class Backend:
+        name = "stub"
+        def search(self, query, n):
+            queries.append(query)
+            return [ws.SearchResult("https://zh.wikisource.org/wiki/x", "t", "s", "")]
+
+    monkeypatch.setattr(ws, "fetch", lambda url, ledger, **kw: "the chronicle text")
+    got = ws.reacquire_for_gaps(
+        "Liu Bei", Backend(), ws.Acquisition(), ["Sanguozhi Xianzhu zhuan"]
+    )
+    assert got and got[0][1] == "the chronicle text"
+    # The subject is appended: a bare title returns editions for sale.
+    assert any("Liu Bei" in q and "Sanguozhi" in q for q in queries), queries
+
+
+def test_reacquisition_is_bounded_and_deduplicated(ws, monkeypatch):
+    """A long findings list must not turn into an unbounded crawl."""
+    class Backend:
+        name = "stub"
+        def search(self, query, n):
+            return [ws.SearchResult("https://example.org/same", "t", "s", "")]
+
+    monkeypatch.setattr(ws, "fetch", lambda url, ledger, **kw: "text")
+    got = ws.reacquire_for_gaps(
+        "S", Backend(), ws.Acquisition(), [f"work {i}" for i in range(30)]
+    )
+    assert len(got) <= 8, "at most eight needs are chased"
+    assert len({r.url for r, _ in got}) == len(got), "the same page is not fetched twice"
+
+
+def test_reacquisition_ignores_empty_needs(ws):
+    class Backend:
+        name = "stub"
+        def search(self, query, n):
+            raise AssertionError("should not search for an empty need")
+
+    assert ws.reacquire_for_gaps("S", Backend(), ws.Acquisition(), ["", "   ", None]) == []

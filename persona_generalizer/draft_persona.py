@@ -581,6 +581,7 @@ async def draft(subject: str, persona_id: str, config_path: str, out_dir: Path,
     (root / "references").mkdir(parents=True, exist_ok=True)
 
     ledger: websearch.Acquisition | None = None
+    backend: "websearch.SearchBackend | None" = None
     acquired_text = ""
     if use_search:
         backend = websearch.backend_from_env()
@@ -732,9 +733,37 @@ async def draft(subject: str, persona_id: str, config_path: str, out_dir: Path,
         )
 
         verification_notes: list[str] = []
+        reacquired_notes: list[str] = []
         if acquired_text:
             LOGGER.info("pass 2b/4: verifying evidence against the retrieved material")
             findings = await verify_evidence(client, evidence, acquired_text, max_tokens)
+
+            # The audit names documents worth having that no query written in advance could have
+            # known to ask for: a passage citing a chronicle nobody fetched IS the search term.
+            # So the findings become an acquisition target, and the evidence is judged again
+            # against the enlarged material — otherwise a claim would be downgraded for resting
+            # on a source we had simply not gone and got.
+            needs = [
+                str(f.get("work_named") or "").strip()
+                for f in (findings.get("laundered") or [])
+                if str(f.get("work_named") or "").strip()
+            ]
+            if needs and backend is not None and ledger is not None:
+                LOGGER.info("pass 2c/4: re-acquiring %d source(s) the audit named", len(needs))
+                extra = websearch.reacquire_for_gaps(subject, backend, ledger, needs)
+                if extra:
+                    acquired.setdefault("reacquired", []).extend(extra)
+                    acquired_text = format_acquired(acquired)
+                    reacquired_notes = [
+                        f"- looked for `{need}` after the audit named it; "
+                        f"{len(extra)} page(s) retrieved"
+                        for need in needs
+                    ]
+                    LOGGER.info("  %d page(s) retrieved; re-verifying", len(extra))
+                    findings = await verify_evidence(
+                        client, evidence, acquired_text, max_tokens
+                    )
+
             verification_notes = apply_verification(evidence, findings)
             LOGGER.info(
                 "  %d item(s) downgraded by the audit", len(verification_notes)
@@ -779,7 +808,10 @@ async def draft(subject: str, persona_id: str, config_path: str, out_dir: Path,
         encoding="utf-8",
     )
     (root / "research_notes.md").write_text(
-        render_notes(subject, sufficiency, evidence, conflicts, dropped, verification_notes),
+        render_notes(
+            subject, sufficiency, evidence, conflicts, dropped,
+            (reacquired_notes + verification_notes) if reacquired_notes else verification_notes,
+        ),
         encoding="utf-8",
     )
 
