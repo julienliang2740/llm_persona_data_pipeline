@@ -399,7 +399,14 @@ def render_notes(subject: str, sufficiency: dict[str, Any], evidence: list[dict[
 # Budget it here instead, and tell the model where it is reading an excerpt so it does not treat
 # a cut-off page as a complete source.
 ACQUIRED_WORDS_PER_PAGE = 800
-ACQUIRED_WORDS_TOTAL = 10000
+# A transcription gets far more room than a summary. Everything upstream — source tiering,
+# cross-language search, native-title lookup, the condensation guards — exists to put the primary
+# text in front of the drafter, and an 800-word cap applied at the last step threw most of it
+# away again: a 13,000-word biography arrived as its first 800 words. That is why a run whose
+# slots were intact still had 56% of its passages downgraded as unsupported. The drafter was
+# writing from memory because it had not been shown the source.
+ACQUIRED_WORDS_PER_PRIMARY_PAGE = 6000
+ACQUIRED_WORDS_TOTAL = 16000
 
 
 def format_acquired(
@@ -423,7 +430,12 @@ def format_acquired(
                 )
                 break
             words = text.split()
-            allowance = min(words_per_page, budget)
+            per_page = (
+                ACQUIRED_WORDS_PER_PRIMARY_PAGE
+                if websearch.source_tier(result.url) == "primary"
+                else words_per_page
+            )
+            allowance = min(per_page, budget)
             excerpt = " ".join(words[:allowance])
             budget -= min(len(words), allowance)
             truncated = "\n\n[excerpt truncated]" if len(words) > allowance else ""

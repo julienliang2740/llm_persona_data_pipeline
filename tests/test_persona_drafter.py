@@ -481,3 +481,33 @@ def test_a_legitimate_condensation_is_kept():
     pages = _pages(ws, [("https://example.org/a", "word " * 1000)])
     out = asyncio.run(drafter.condense_acquired(Client(), {"slot": pages}, 4000))
     assert out["slot"] != pages and len(out["slot"]) == 1
+
+
+def test_a_primary_source_gets_far_more_of_the_prompt_than_a_summary():
+    """The last link in a chain that kept breaking in a new place each time.
+
+    Source tiering, cross-language search, native-title lookup and the condensation guards all
+    exist to put a transcription in front of the drafter. A flat 800-word-per-page cap at the
+    final step undid all of it: a 13,000-word biography arrived as its first 800 words, so the
+    drafter wrote from memory and 56% of its passages were then correctly downgraded as
+    unsupported. Budget has to follow the tier.
+    """
+    import re
+    import sys
+
+    generalizer = REPO_ROOT / "persona_generalizer"
+    if str(generalizer) not in sys.path:
+        sys.path.insert(0, str(generalizer))
+    import draft_persona as drafter
+    import websearch as ws
+
+    pages = [
+        (ws.SearchResult("https://zh.wikisource.org/wiki/x", "t", "s", ""), "zh " * 9000),
+        (ws.SearchResult("https://en.wikipedia.org/wiki/x", "t", "s", ""), "en " * 9000),
+    ]
+    out = drafter.format_acquired({"words": pages})
+    sizes = {}
+    for block in out.split("## words")[1:]:
+        url = re.search(r"URL: (\S+)", block).group(1)
+        sizes[ws.source_tier(url)] = len(block.split())
+    assert sizes["primary"] > 4 * sizes["reference"], sizes
