@@ -625,3 +625,44 @@ def test_a_rich_subject_gets_more_of_the_prompt_than_a_thin_one():
 
     assert drafter.ACQUIRED_WORDS_TOTAL >= 40000
     assert drafter.ACQUIRED_WORDS_PER_PRIMARY_PAGE > drafter.ACQUIRED_WORDS_PER_PAGE * 4
+
+
+def test_the_acquisition_round_trips_through_the_cache(tmp_path):
+    """A run killed downstream must not have to pay for search and condensation again.
+
+    One killed run lost 51 of 52 calls' worth of work — the whole expensive half of a draft —
+    because nothing was persisted until the very end. At thousands of subjects that is the
+    dominant cost of every retry.
+    """
+    import sys
+
+    generalizer = REPO_ROOT / "persona_generalizer"
+    if str(generalizer) not in sys.path:
+        sys.path.insert(0, str(generalizer))
+    import draft_persona as drafter
+    import websearch as ws
+
+    acquired = {
+        "words": [(ws.SearchResult("https://zh.wikisource.org/x", "t", "s", "words"), "text one")],
+        "deeds": [],
+    }
+    drafter.save_acquisition(tmp_path, acquired)
+    back = drafter.load_acquisition(tmp_path)
+    assert set(back) == {"words", "deeds"}
+    assert back["words"][0][1] == "text one"
+    assert back["words"][0][0].url == "https://zh.wikisource.org/x"
+    # The tier must survive, since the budget and the condensation guards both key off it.
+    assert ws.source_tier(back["words"][0][0].url) == "primary"
+
+
+def test_a_missing_or_corrupt_cache_is_not_fatal(tmp_path):
+    import sys
+
+    generalizer = REPO_ROOT / "persona_generalizer"
+    if str(generalizer) not in sys.path:
+        sys.path.insert(0, str(generalizer))
+    import draft_persona as drafter
+
+    assert drafter.load_acquisition(tmp_path) is None
+    (tmp_path / drafter.ACQUISITION_CACHE).write_text("{not json", encoding="utf-8")
+    assert drafter.load_acquisition(tmp_path) is None

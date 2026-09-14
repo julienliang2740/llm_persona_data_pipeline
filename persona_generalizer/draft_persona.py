@@ -601,6 +601,46 @@ def apply_verification(evidence: list[dict], findings: dict) -> list[str]:
     return notes
 
 
+ACQUISITION_CACHE = "acquired.json"
+
+
+def save_acquisition(root: Path, acquired: dict) -> None:
+    """Persist the acquired and condensed material so a failed run does not repay for it.
+
+    Acquisition plus condensation is the expensive half of a draft — 51 of 52 calls and most of
+    the cost on one run — and it was being thrown away whenever anything downstream failed. A run
+    killed at the evidence pass lost all of it and had to start from search. At one subject that
+    is an annoyance; at thousands it is the dominant cost of every retry.
+    """
+    payload = {
+        slot: [{"url": r.url, "title": r.title, "snippet": r.snippet, "text": text}
+               for r, text in pages]
+        for slot, pages in acquired.items()
+    }
+    (root / ACQUISITION_CACHE).write_text(
+        json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8"
+    )
+
+
+def load_acquisition(root: Path) -> dict | None:
+    """Reload a saved acquisition, or None if there is none to reload."""
+    path = root / ACQUISITION_CACHE
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return {
+        slot: [
+            (websearch.SearchResult(p.get("url", ""), p.get("title", ""),
+                                    p.get("snippet", ""), slot), p.get("text", ""))
+            for p in pages
+        ]
+        for slot, pages in payload.items()
+    }
+
+
 async def condense_acquired(
     client: "ModelClient", acquired: dict, max_tokens: int
 ) -> dict:
@@ -675,6 +715,7 @@ async def condense_acquired(
 async def draft(subject: str, persona_id: str, config_path: str, out_dir: Path,
                 target_count: int, max_tokens: int, use_search: bool = False,
                 acquisition_passes: int = 3, condense: bool = True,
+                refresh_acquisition: bool = False,
                 source_languages: tuple[str, ...] = ()) -> int:
     # Scope is checked before anything is loaded, created or spent. The gate that follows asks
     # whether enough material survives; this asks whether a faithful persona of this subject
@@ -711,7 +752,18 @@ async def draft(subject: str, persona_id: str, config_path: str, out_dir: Path,
     ledger: websearch.Acquisition | None = None
     backend: "websearch.SearchBackend | None" = None
     acquired_text = ""
-    if use_search:
+    cached = load_acquisition(root) if use_search and not refresh_acquisition else None
+    if cached:
+        acquired = cached
+        acquired_text = format_acquired(acquired)
+        backend = websearch.backend_from_env()
+        ledger = websearch.Acquisition()
+        LOGGER.info(
+            "pass 0/4: reusing the saved acquisition (%d words across %d slot(s)); "
+            "--refresh-acquisition to search again",
+            len(acquired_text.split()), len(acquired),
+        )
+    elif use_search:
         backend = websearch.backend_from_env()
         if backend is None:
             print(
@@ -740,6 +792,7 @@ async def draft(subject: str, persona_id: str, config_path: str, out_dir: Path,
                 load_config(config_path), root / "usage.jsonl", stage="condense"
             ) as condenser:
                 acquired = await condense_acquired(condenser, acquired, max_tokens)
+        save_acquisition(root, acquired)
         LOGGER.info(
             "  acquisition text for prompts: %d words (budget %d)",
             len(acquired_text.split()),
@@ -1051,6 +1104,13 @@ def build_parser() -> argparse.ArgumentParser:
         "persona_generalizer/docs/condensing-sources.md are untested.",
     )
     parser.add_argument(
+        "--refresh-acquisition",
+        action="store_true",
+        help="search again instead of reusing acquired.json. Acquisition and condensation are "
+        "the expensive half of a draft, so they are cached and reused by default; pass this when "
+        "the sources themselves should be re-fetched.",
+    )
+    parser.add_argument(
         "--dry-run", action="store_true", help="print the plan and exit without calling a model"
     )
     parser.add_argument("-v", "--verbose", action="store_true")
@@ -1108,6 +1168,7 @@ def main(argv: list[str] | None = None) -> int:
                 use_search=args.search,
                 acquisition_passes=args.acquisition_passes,
                 condense=args.condense,
+                refresh_acquisition=args.refresh_acquisition,
                 source_languages=tuple(
                     c.strip() for c in (args.source_languages or "").split(",") if c.strip()
                 ),
