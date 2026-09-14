@@ -428,12 +428,24 @@ def render_notes(subject: str, sufficiency: dict[str, Any], evidence: list[dict[
 ACQUIRED_WORDS_PER_PAGE = 800
 # A transcription gets far more room than a summary. Everything upstream — source tiering,
 # cross-language search, native-title lookup, the condensation guards — exists to put the primary
-# text in front of the drafter, and an 800-word cap applied at the last step threw most of it
-# away again: a 13,000-word biography arrived as its first 800 words. That is why a run whose
-# slots were intact still had 56% of its passages downgraded as unsupported. The drafter was
-# writing from memory because it had not been shown the source.
+# text in front of the drafter, and a flat cap at the last step threw most of it away again.
 ACQUIRED_WORDS_PER_PRIMARY_PAGE = 6000
-ACQUIRED_WORDS_TOTAL = 16000
+
+# The total was 10,000, then 16,000, neither grounded in anything. Measured against a real run:
+# the largest prompt actually sent was 44,504 tokens and a whole draft cost $2.35, so 16,000
+# words (~21,000 tokens) was nowhere near a technical limit — it was simply a number.
+#
+# It was, however, doing real harm. A subject with twice the surviving material got the same
+# budget, so proportionally half as much reached the drafter: Liu Bei 21.3% of what was
+# retrieved, Julian 9.8%. The pipeline was tuned for thin subjects and degraded on rich ones,
+# which is backwards. Raised to 40,000 words (~53,000 tokens), still comfortably inside context.
+ACQUIRED_WORDS_TOTAL = 40000
+
+# The safety valve, expressed in tokens because that is the unit the limit actually lives in —
+# and because word counts are meaningless for scripts without spaces, where a 13,000-character
+# Chinese page counts as a few hundred "words". Not a target: a prompt this size means something
+# upstream is looping or a page is pathological, and it should stop rather than be paid for.
+ACQUIRED_TOKENS_HARD_CAP = 120000
 
 
 def format_acquired(
@@ -480,7 +492,18 @@ def format_acquired(
                 f"## {slot}\n\nURL: {result.url}\nTITLE: {result.title}\n{tier_line}\n"
                 f"{excerpt}{truncated}"
             )
-    return "\n\n".join(blocks)
+    text = "\n\n".join(blocks)
+    # Rough tokens-per-word for mixed English and CJK. Deliberately pessimistic: overestimating
+    # trims a little early, underestimating sends a prompt that costs real money.
+    if len(text.split()) * 1.4 > ACQUIRED_TOKENS_HARD_CAP:
+        allowed = int(ACQUIRED_TOKENS_HARD_CAP / 1.4)
+        LOGGER.warning(
+            "acquisition text hit the hard cap (%d words, ~%d tokens); truncating to %d words. "
+            "A prompt this size usually means an upstream loop or a pathological page.",
+            len(text.split()), int(len(text.split()) * 1.4), allowed,
+        )
+        text = " ".join(text.split()[:allowed])
+    return text
 
 
 async def check_gate_coverage(
@@ -581,12 +604,18 @@ def apply_verification(evidence: list[dict], findings: dict) -> list[str]:
 async def condense_acquired(
     client: "ModelClient", acquired: dict, max_tokens: int
 ) -> dict:
-    """Replace each slot's raw pages with one condensed account, per docs/condensing-sources.md.
+    """Condense each retrieved page, per docs/condensing-sources.md.
 
-    Raw pages arrive as navigation chrome, cookie notices and restatement, and the passage budget
+    Raw pages arrive as navigation chrome, cookie notices and restatement, and the prompt budget
     then spends itself on those rather than on the source. Condensing first is cheaper than
-    raising the budget, because the budget is paid again on every row the pipeline later
-    generates. A slot whose condensation fails keeps its raw pages rather than being lost.
+    widening the budget, because the budget is paid again on every row later generated.
+
+    PER PAGE, not per slot. Condensing a slot as one unit asks for a single summary of ten
+    documents and gets a summary-shaped answer: measured output was 904-1,564 words whether the
+    input was 5,000 or 31,000. The ratio therefore tracked input size rather than compression
+    quality, so on a well-documented subject every slot tripped the floor and fell back to raw —
+    condensation was disabled for exactly the subjects that needed it most. One page per call
+    gives each page its own budget and makes the ratio mean something again.
     """
     out: dict = {}
     for slot, pages in acquired.items():
@@ -594,52 +623,52 @@ async def condense_acquired(
             out[slot] = pages
             continue
         # A slot carrying a transcription is not condensed at all. The guideline says a primary
-        # text passes through close to whole, and on the first live run this slot went from
-        # 16,476 words to 32 — the model discarded the source instead of compressing it, and the
-        # one slot that mattered most was the one destroyed. Asking a model to be careful is not
-        # a control; not asking it is.
+        # text passes through close to whole, and on a live run one such slot went from 16,476
+        # words to 32 — the model discarded the source instead of compressing it. Asking a model
+        # to be careful is not a control; not asking it is.
         if any(websearch.source_tier(r.url) == "primary" for r, _ in pages):
             LOGGER.info("  %s: holds a primary source, left uncondensed", slot)
             out[slot] = pages
             continue
-        joined = "\n\n".join(
-            f"URL: {result.url}\nTIER: {websearch.source_tier(result.url)}\n\n{text}"
-            for result, text in pages
-        )
-        prompt = fill(P.CONDENSE_PROMPT, slot=slot, pages=joined[:60000])
-        try:
-            payload = await run_pass(client, prompt, f"condense:{slot}", max_tokens)
-        except ModelError as error:
-            LOGGER.warning("  %s: condensation failed (%s); keeping raw pages", slot, error)
-            out[slot] = pages
-            continue
-        condensed = str((payload or {}).get("condensed") or "").strip()
-        before = sum(len(text.split()) for _, text in pages)
-        after = len(condensed.split())
-        # Thresholds calibrated against a real run rather than guessed. Measured ratios across
-        # ten slots came out bimodal, which is what makes a cutoff possible at all:
-        #
-        #   legitimate   11.9%  12.4%  13.4%  14.7%  15.9%  26.3%  28.9%
-        #   catastrophic  0.1%   0.2%   4.7%          <- deeds, words, formation
-        #
-        # A first guess of 20% would have rejected five of the seven good ones. 8% sits in the
-        # empty band between the clusters. The absolute floor is there because ratio alone cannot
-        # express the real failure: 26 words is useless whatever it came from.
-        if not condensed or after < 100 or (before and after < before * 0.08):
-            LOGGER.warning(
-                "  %s: condensation returned %d words from %d (%.1f%%, under the floor); "
-                "keeping the raw pages", slot, after, before,
-                (after / before * 100) if before else 0.0,
+
+        kept: list = []
+        for result, text in pages:
+            if len(text.split()) < 400:
+                kept.append((result, text))
+                continue
+            page_block = (
+                f"URL: {result.url}\n"
+                f"TIER: {websearch.source_tier(result.url)}\n\n{text}"
             )
-            out[slot] = pages
-            continue
+            prompt = fill(P.CONDENSE_PROMPT, slot=slot, pages=page_block[:60000])
+            try:
+                payload = await run_pass(client, prompt, f"condense:{slot}", max_tokens)
+            except ModelError as error:
+                LOGGER.warning("  %s: a page failed to condense (%s); kept whole", slot, error)
+                kept.append((result, text))
+                continue
+            condensed = str((payload or {}).get("condensed") or "").strip()
+            before, after = len(text.split()), len(condensed.split())
+            # Calibrated against real runs: legitimate condensations measured 11.9-38.6%,
+            # catastrophic ones 0.1-5.0%, with a wide empty band between. The absolute floor is
+            # separate because a ratio cannot express the real failure — 26 words is useless
+            # whatever it came from.
+            if not condensed or after < 100 or (before and after < before * 0.08):
+                LOGGER.warning(
+                    "  %s: a page condensed to %d words from %d (%.1f%%, under the floor); "
+                    "kept whole", slot, after, before,
+                    (after / before * 100) if before else 0.0,
+                )
+                kept.append((result, text))
+                continue
+            kept.append((result, condensed))
+
+        before_total = sum(len(x.split()) for _, x in pages)
+        after_total = sum(len(x.split()) for _, x in kept)
         LOGGER.info(
-            "  %s: %d -> %d words", slot,
-            sum(len(t.split()) for _, t in pages), len(condensed.split()),
+            "  %s: %d -> %d words across %d page(s)", slot, before_total, after_total, len(pages)
         )
-        # Keep the best-ranked result as the carrier so the URL and tier survive.
-        carrier = pages[0][0]
-        out[slot] = [(carrier, condensed)]
+        out[slot] = kept
     return out
 
 

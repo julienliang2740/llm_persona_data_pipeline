@@ -588,3 +588,40 @@ def test_coverage_is_skipped_when_the_gate_said_nothing():
         Client(), {"decisions_with_reasoning": ""}, [{"id": "C1"}], 4000)) == []
     assert asyncio.run(drafter.check_gate_coverage(
         Client(), {"decisions_with_reasoning": "grounds"}, [], 4000)) == []
+
+
+def test_the_acquisition_text_has_a_hard_token_cap():
+    """The safety valve, in tokens rather than words.
+
+    Word counts are meaningless for scripts without spaces — a 13,000-character Chinese page
+    counts as a few hundred "words" — and a prompt at this size means something upstream is
+    looping rather than that the subject is well documented.
+    """
+    import sys
+
+    generalizer = REPO_ROOT / "persona_generalizer"
+    if str(generalizer) not in sys.path:
+        sys.path.insert(0, str(generalizer))
+    import draft_persona as drafter
+    import websearch as ws
+
+    pages = [
+        (ws.SearchResult(f"https://zh.wikisource.org/{i}", "t", "s", ""), "word " * 60000)
+        for i in range(6)
+    ]
+    out = drafter.format_acquired({"words": pages})
+    assert len(out.split()) * 1.4 <= drafter.ACQUIRED_TOKENS_HARD_CAP * 1.01
+
+
+def test_a_rich_subject_gets_more_of_the_prompt_than_a_thin_one():
+    """The defect this replaced: a fixed budget gave a well-documented subject proportionally
+    less. Liu Bei saw 21.3% of what was retrieved, Julian 9.8%, on the same 16,000 words."""
+    import sys
+
+    generalizer = REPO_ROOT / "persona_generalizer"
+    if str(generalizer) not in sys.path:
+        sys.path.insert(0, str(generalizer))
+    import draft_persona as drafter
+
+    assert drafter.ACQUIRED_WORDS_TOTAL >= 40000
+    assert drafter.ACQUIRED_WORDS_PER_PRIMARY_PAGE > drafter.ACQUIRED_WORDS_PER_PAGE * 4

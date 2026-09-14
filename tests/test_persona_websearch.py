@@ -487,3 +487,22 @@ def test_reacquisition_ignores_empty_needs(ws):
             raise AssertionError("should not search for an empty need")
 
     assert ws.reacquire_for_gaps("S", Backend(), ws.Acquisition(), ["", "   ", None]) == []
+
+
+def test_the_reacquisition_bound_is_high_enough_for_a_large_apparatus(ws, monkeypatch):
+    """A subject with a big scholarly literature legitimately names many works.
+
+    One audit named 25 and the code chased 8 — the log said one number and the behaviour was
+    another, and each dropped need became a passage downgraded for want of a source nobody went
+    and fetched.
+    """
+    seen: list[str] = []
+
+    class Backend:
+        name = "stub"
+        def search(self, query, n):
+            seen.append(query)
+            return []
+
+    ws.reacquire_for_gaps("S", Backend(), ws.Acquisition(), [f"work {i}" for i in range(25)])
+    assert len(seen) == 24, f"chased {len(seen)} of 25"

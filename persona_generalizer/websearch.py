@@ -919,7 +919,16 @@ def reacquire_for_gaps(
     """
     found: list[tuple[SearchResult, str]] = []
     seen: set[str] = set()
-    for need in list(dict.fromkeys(n.strip() for n in needs if n and n.strip()))[:8]:
+    # Was [:8], which silently dropped 17 of the 25 works one audit named — the log reported 25
+    # and the code acted on 8. A subject with a large scholarly apparatus legitimately produces
+    # many, and each dropped one becomes a passage downgraded for want of a source nobody fetched.
+    # Raised to 24 with the count returned, so the caller can say what was actually chased.
+    wanted = list(dict.fromkeys(n.strip() for n in needs if n and n.strip()))
+    if len(wanted) > 24:
+        LOGGER.warning(
+            "reacquire: %d needs named, chasing the first 24", len(wanted)
+        )
+    for need in wanted[:24]:
         query = f"{need} {subject}".strip()
         try:
             results = backend.search(query, per_query)
