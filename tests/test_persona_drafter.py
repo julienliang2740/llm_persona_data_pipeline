@@ -666,3 +666,67 @@ def test_a_missing_or_corrupt_cache_is_not_fatal(tmp_path):
     assert drafter.load_acquisition(tmp_path) is None
     (tmp_path / drafter.ACQUISITION_CACHE).write_text("{not json", encoding="utf-8")
     assert drafter.load_acquisition(tmp_path) is None
+
+
+def test_the_auditor_is_shown_the_whole_corpus_and_all_sources():
+    """A flat truncation made the instrument track the thing it was measuring.
+
+    verify_evidence cut both the passage list and the sources at 60,000 chars. When the prompt
+    budget rose from 16,000 to 40,000 words the auditor's view of the material fell from 59% to
+    24%, so it flagged passages as unsupported that were supported in text it had never been
+    shown — and reconstruction appeared to rise from 64% to 83% when the draft had not got worse.
+    Passages past the cut were never audited at all and silently kept `attested`.
+    """
+    import asyncio, sys
+
+    generalizer = REPO_ROOT / "persona_generalizer"
+    if str(generalizer) not in sys.path:
+        sys.path.insert(0, str(generalizer))
+    import draft_persona as drafter
+
+    captured = {}
+
+    class Client:
+        async def complete_json(self, role, messages, **k):
+            captured["prompt"] = messages[-1]["content"]
+            return {"unsupported": [], "laundered": [], "overstated": []}, None
+
+    marker = "UNIQUE_TAIL_MARKER"
+    evidence = [{"id": f"C{i}", "title": "t", "body": "word " * 200} for i in range(80)]
+    evidence[-1]["body"] = marker
+    sources = ("source text " * 20000) + marker
+    asyncio.run(drafter.verify_evidence(Client(), evidence, sources, 4000))
+    assert captured["prompt"].count(marker) == 2, (
+        "both the last passage and the end of the sources must reach the auditor"
+    )
+
+
+def test_redrafted_items_are_given_ids_the_caller_controls():
+    """Asking a model not to collide failed: two calls produced ~6,600 tokens each and every
+    item was dropped for reusing an existing id, so 33 freshly retrieved pages yielded nothing."""
+    import sys
+
+    generalizer = REPO_ROOT / "persona_generalizer"
+    if str(generalizer) not in sys.path:
+        sys.path.insert(0, str(generalizer))
+    import draft_persona as drafter
+    import inspect
+
+    source = inspect.getsource(drafter.draft)
+    assert 'item["id"] = new_id' in source, "redrafted ids must be assigned, not requested"
+
+
+def test_a_primary_page_is_not_fetched_at_summary_length():
+    """The 6,000-word prompt allowance for a transcription was unreachable while fetch capped
+    every page at 4,000 first — the largest primary page retrieved was exactly 4,000."""
+    import sys
+
+    generalizer = REPO_ROOT / "persona_generalizer"
+    if str(generalizer) not in sys.path:
+        sys.path.insert(0, str(generalizer))
+    import draft_persona as drafter
+    import websearch as ws
+
+    assert ws.PRIMARY_FETCH_WORDS > drafter.ACQUIRED_WORDS_PER_PRIMARY_PAGE, (
+        "the fetch cap must leave headroom above the prompt allowance, or the allowance is dead"
+    )

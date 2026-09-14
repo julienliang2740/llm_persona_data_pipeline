@@ -528,7 +528,8 @@ async def check_gate_coverage(
         [{k: e.get(k) for k in ("id", "title", "body")} for e in evidence],
         indent=1, ensure_ascii=False,
     )
-    prompt = fill(P.COVERAGE_PROMPT, grounds=grounds, items=items[:60000])
+    prompt = fill(P.COVERAGE_PROMPT, grounds=grounds, items=items)
+    _warn_if_prompt_is_huge(prompt, "coverage")
     try:
         payload, _ = await client.complete_json(
             "reviewer", messages(prompt), stage="coverage", record_id="coverage",
@@ -565,7 +566,14 @@ async def verify_evidence(
         indent=1,
         ensure_ascii=False,
     )
-    prompt = fill(P.VERIFY_PROMPT, items=items[:60000], sources=acquired_text[:60000])
+    # No arbitrary truncation. A flat 60,000-char cut meant the auditor saw 24% of the material
+    # once the prompt budget rose to 40,000 words, so it flagged passages as unsupported that
+    # were supported in text it had never been shown — and the measurement used to judge the
+    # whole pipeline inverted. The passage list was cut too, at roughly 66 of 70, and anything
+    # past the cut was never audited at all and silently kept `attested`, which is the worse
+    # direction. Both now go in whole, bounded only by the same hard cap the drafter obeys.
+    prompt = fill(P.VERIFY_PROMPT, items=items, sources=acquired_text)
+    _warn_if_prompt_is_huge(prompt, "verification")
     try:
         payload, _ = await client.complete_json(
             "reviewer", messages(prompt), stage="verify", record_id="verify",
@@ -602,6 +610,22 @@ def apply_verification(evidence: list[dict], findings: dict) -> list[str]:
 
 
 ACQUISITION_CACHE = "acquired.json"
+
+
+def _warn_if_prompt_is_huge(prompt: str, label: str) -> None:
+    """Say so when a check prompt approaches the cap, rather than letting it fail quietly.
+
+    A prompt that exceeds the model's context raises, and the callers here catch that and carry
+    on with the evidence simply unaudited. That is the right fallback and the wrong silence: an
+    unaudited draft looks exactly like a clean one.
+    """
+    tokens = len(prompt.split()) * 1.4
+    if tokens > ACQUIRED_TOKENS_HARD_CAP * 0.8:
+        LOGGER.warning(
+            "%s prompt is ~%d tokens, near the %d cap. If it fails, the evidence goes "
+            "UNAUDITED rather than the run stopping — check the log for a failure above.",
+            label, int(tokens), ACQUIRED_TOKENS_HARD_CAP,
+        )
 
 
 def save_acquisition(root: Path, acquired: dict) -> None:
@@ -990,10 +1014,24 @@ async def draft(subject: str, persona_id: str, config_path: str, out_dir: Path,
                             except ModelError as error:
                                 LOGGER.warning("  %s redraft failed (%s)", kind, error)
                                 continue
+                            # Ids are assigned here, not requested. Asking the model not to
+                            # collide failed completely: both redraft calls produced ~6,600
+                            # completion tokens of real passages and every one was dropped for
+                            # reusing an existing id, so 33 freshly retrieved pages yielded
+                            # nothing. A prefix nothing else uses removes the failure mode
+                            # rather than restating the instruction.
                             seen = {str(e.get("id")) for e in evidence}
-                            batch = [e for e in batch if str(e.get("id")) not in seen]
-                            evidence.extend(batch)
-                            LOGGER.info("    %s: %d new item(s)", kind, len(batch))
+                            fresh = []
+                            for index, item in enumerate(batch, start=1):
+                                new_id = f"R{kind[0].upper()}{index}"
+                                while new_id in seen:
+                                    index += 1
+                                    new_id = f"R{kind[0].upper()}{index}"
+                                item["id"] = new_id
+                                seen.add(new_id)
+                                fresh.append(item)
+                            evidence.extend(fresh)
+                            LOGGER.info("    %s: %d new item(s)", kind, len(fresh))
                     findings = await verify_evidence(
                         client, evidence, acquired_text, max_tokens
                     )

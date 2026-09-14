@@ -355,6 +355,12 @@ def extract_relevant(text: str, subject: str, max_words: int, *, slot: str = "")
     return "\n\n".join(para for _, para in sorted(kept))
 
 
+# A transcription is not truncated to the same length as a summary. The prompt builder grants a
+# primary page 6,000 words, and that allowance was unreachable because every page was capped here
+# at 4,000 first — the largest primary page ever retrieved was exactly 4,000, sitting on the cap.
+PRIMARY_FETCH_WORDS = 12000
+
+
 def fetch(url: str, ledger: Acquisition, max_words: int = 4000) -> str | None:
     """Retrieve one page as text, honouring robots.txt and recording the outcome."""
     # A product listing for a book is not the book. These were being fetched, counted as
@@ -381,7 +387,8 @@ def fetch(url: str, ledger: Acquisition, max_words: int = 4000) -> str | None:
     ledger.record_fetch(url, url, len(words))
     # Select rather than truncate. `subject` is not threaded down here, so selection falls back
     # to signal markers alone, which still beats taking whatever sat at the top of the page.
-    return extract_relevant(text, _FETCH_SUBJECT.get("name", ""), max_words)
+    allowance = PRIMARY_FETCH_WORDS if source_tier(url) == "primary" else max_words
+    return extract_relevant(text, _FETCH_SUBJECT.get("name", ""), allowance)
 
 
 def strip_markup(html: str) -> str:
@@ -924,6 +931,7 @@ def reacquire_for_gaps(
     # many, and each dropped one becomes a passage downgraded for want of a source nobody fetched.
     # Raised to 24 with the count returned, so the caller can say what was actually chased.
     wanted = list(dict.fromkeys(n.strip() for n in needs if n and n.strip()))
+    LOGGER.info("reacquire: %d need(s) after deduplication", len(wanted))
     if len(wanted) > 24:
         LOGGER.warning(
             "reacquire: %d needs named, chasing the first 24", len(wanted)
