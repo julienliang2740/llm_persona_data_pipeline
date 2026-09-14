@@ -511,3 +511,28 @@ def test_a_primary_source_gets_far_more_of_the_prompt_than_a_summary():
         url = re.search(r"URL: (\S+)", block).group(1)
         sizes[ws.source_tier(url)] = len(block.split())
     assert sizes["primary"] > 4 * sizes["reference"], sizes
+
+
+def test_gendered_schema_field_names_are_normalised():
+    """Models silently rewrite gendered field names to match their subject.
+
+    A run lost all eleven formation phases to `what_it_left_him_with`, and an earlier one dropped
+    `what_was_possible_for_someone_like_her` — a field named after the template persona, who is a
+    woman — rather than use it for a man. Renaming the schema fields is the other fix, but they
+    are the published contract and two committed personas already use them.
+    """
+    import sys
+
+    generalizer = REPO_ROOT / "persona_generalizer"
+    if str(generalizer) not in sys.path:
+        sys.path.insert(0, str(generalizer))
+    import draft_persona as drafter
+
+    out = drafter.normalise_field_names(
+        {
+            "formation": [{"phase": "p", "what_it_left_him_with": "x"}],
+            "context": {"what_was_possible_for_someone_like_them": {"what": "y"}},
+        }
+    )
+    assert "what_it_left_them_with" in out["formation"][0]
+    assert "what_was_possible_for_someone_like_her" in out["context"]

@@ -181,6 +181,33 @@ def render_key_passages(
     return "\n".join(lines) + "\n"
 
 
+# Schema field names that carry a gender, which models silently "correct" to match the subject.
+# `what_was_possible_for_someone_like_her` is named after the template persona, who is a woman;
+# `what_it_left_them_with` is neutral and gets gendered anyway. A run lost all eleven formation
+# phases to `what_it_left_him_with`, and an earlier one dropped a required context block outright.
+# Renaming the schema fields would be the other fix, but they are the published contract and two
+# committed personas use them, so the variants are accepted and normalised here instead.
+_FIELD_ALIASES = {
+    "what_it_left_him_with": "what_it_left_them_with",
+    "what_it_left_her_with": "what_it_left_them_with",
+    "what_it_left_with": "what_it_left_them_with",
+    "what_was_possible_for_someone_like_him": "what_was_possible_for_someone_like_her",
+    "what_was_possible_for_someone_like_them": "what_was_possible_for_someone_like_her",
+    "what_was_possible": "what_was_possible_for_someone_like_her",
+}
+
+
+def normalise_field_names(value: Any) -> Any:
+    """Rewrite known gendered variants of schema keys, recursively."""
+    if isinstance(value, dict):
+        return {
+            _FIELD_ALIASES.get(k, k): normalise_field_names(v) for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [normalise_field_names(v) for v in value]
+    return value
+
+
 def build_spec(persona_id: str, subject: str, spec: dict[str, Any], sufficiency: dict[str, Any],
                conflicts: list[dict[str, Any]], valid: set[str]) -> tuple[dict[str, Any], set[str]]:
     dropped: set[str] = set()
@@ -827,6 +854,7 @@ async def draft(subject: str, persona_id: str, config_path: str, out_dir: Path,
             "spec",
             max_tokens,
         )
+        spec_payload = normalise_field_names(spec_payload)
 
     valid = {e["id"] for e in evidence}
     spec, dropped = build_spec(persona_id, subject, spec_payload, sufficiency, conflicts, valid)
