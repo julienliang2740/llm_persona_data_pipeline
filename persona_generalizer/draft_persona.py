@@ -483,6 +483,41 @@ def format_acquired(
     return "\n\n".join(blocks)
 
 
+async def check_gate_coverage(
+    client: "ModelClient", sufficiency: dict, evidence: list[dict], max_tokens: int
+) -> list[dict]:
+    """Ask whether the evidence contains the decisions the gate admitted the subject for.
+
+    The other checks look for something wrong in what was written. This looks for something
+    absent, which is harder, because nothing in a corpus points at what is not in it. On a real
+    run the gate admitted Liu Bei citing "the Baidicheng succession instruction" and "the deathbed
+    testament", the evidence pass covered neither, and nothing compared the two — the drafter's
+    own stated grounds went unused. Both passages live in a different chapter of the history than
+    the one acquisition had found, which no query written in advance could have known.
+
+    Needs no knowledge of the subject: it closes the loop against the run's own reasoning, which
+    is what makes it work for someone nobody has read.
+    """
+    grounds = str(sufficiency.get("decisions_with_reasoning") or "").strip()
+    if not grounds or not evidence:
+        return []
+    items = json.dumps(
+        [{k: e.get(k) for k in ("id", "title", "body")} for e in evidence],
+        indent=1, ensure_ascii=False,
+    )
+    prompt = fill(P.COVERAGE_PROMPT, grounds=grounds, items=items[:60000])
+    try:
+        payload, _ = await client.complete_json(
+            "reviewer", messages(prompt), stage="coverage", record_id="coverage",
+            max_tokens=max_tokens,
+        )
+    except ModelError as error:
+        LOGGER.warning("  coverage check failed (%s); gaps are unchecked", error)
+        return []
+    found = (payload or {}).get("uncovered") if isinstance(payload, dict) else None
+    return [f for f in (found or []) if isinstance(f, dict) and f.get("decision")]
+
+
 async def verify_evidence(
     client: "ModelClient", evidence: list[dict], acquired_text: str, max_tokens: int
 ) -> dict:
@@ -798,6 +833,7 @@ async def draft(subject: str, persona_id: str, config_path: str, out_dir: Path,
 
         verification_notes: list[str] = []
         reacquired_notes: list[str] = []
+        coverage_notes: list[str] = []
         if acquired_text:
             LOGGER.info("pass 2b/4: verifying evidence against the retrieved material")
             findings = await verify_evidence(client, evidence, acquired_text, max_tokens)
@@ -812,6 +848,25 @@ async def draft(subject: str, persona_id: str, config_path: str, out_dir: Path,
                 for f in (findings.get("laundered") or [])
                 if str(f.get("work_named") or "").strip()
             ]
+
+            # Second trigger, and a different kind of gap. Laundering is something wrong in what
+            # was written; this is something absent, which the corpus cannot reveal about itself.
+            uncovered = await check_gate_coverage(client, sufficiency, evidence, max_tokens)
+            if uncovered:
+                LOGGER.info(
+                    "  %d decision(s) the gate admitted this subject for are not in the evidence",
+                    len(uncovered),
+                )
+                for gap in uncovered:
+                    LOGGER.info("    uncovered: %s", gap.get("decision"))
+                needs += [str(g.get("decision") or "").strip() for g in uncovered]
+                coverage_notes = [
+                    f"- the gate admitted this subject partly on `{g.get('decision')}`, which no "
+                    f"passage covered: {g.get('why', '')}"
+                    for g in uncovered
+                ]
+            else:
+                coverage_notes = []
             if needs and backend is not None and ledger is not None:
                 LOGGER.info("pass 2c/4: re-acquiring %d source(s) the audit named", len(needs))
                 extra = websearch.reacquire_for_gaps(subject, backend, ledger, needs)
@@ -824,11 +879,44 @@ async def draft(subject: str, persona_id: str, config_path: str, out_dir: Path,
                         for need in needs
                     ]
                     LOGGER.info("  %d page(s) retrieved; re-verifying", len(extra))
+                    # Re-acquisition for a MISSING decision only helps if the new material is
+                    # then drafted. Verifying alone would leave the hole exactly where it was,
+                    # with a page about it sitting unused in the acquisition.
+                    if uncovered:
+                        LOGGER.info("  redrafting words and deeds against the new material")
+                        for kind, share in (("words", 0.20), ("deed", 0.32)):
+                            want = max(4, round(target_count * share))
+                            used = [str(e.get("id")) for e in evidence]
+                            redraft_prompt = fill(
+                                P.EVIDENCE_PROMPT, subject=subject, target_count=str(want),
+                                kind_clause=f", ALL of kind {kind!r}",
+                                id_clause=(
+                                    f"Ids already used, which you must not reuse: "
+                                    f"{', '.join(used)}"
+                                ),
+                            )
+                            redraft_prompt = (
+                                fill(P.SOURCED_PREAMBLE, sources=acquired_text)
+                                + "\n\n" + redraft_prompt
+                            )
+                            try:
+                                batch = normalise_evidence(
+                                    await run_pass(
+                                        client, redraft_prompt, f"redraft:{kind}", max_tokens
+                                    )
+                                )
+                            except ModelError as error:
+                                LOGGER.warning("  %s redraft failed (%s)", kind, error)
+                                continue
+                            seen = {str(e.get("id")) for e in evidence}
+                            batch = [e for e in batch if str(e.get("id")) not in seen]
+                            evidence.extend(batch)
+                            LOGGER.info("    %s: %d new item(s)", kind, len(batch))
                     findings = await verify_evidence(
                         client, evidence, acquired_text, max_tokens
                     )
 
-            verification_notes = apply_verification(evidence, findings)
+            verification_notes = coverage_notes + apply_verification(evidence, findings)
             LOGGER.info(
                 "  %d item(s) downgraded by the audit", len(verification_notes)
             )

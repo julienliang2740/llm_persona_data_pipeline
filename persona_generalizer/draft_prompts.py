@@ -250,6 +250,32 @@ supports a claim, either drop the claim or cite the nearest item that genuinely 
 """
 
 
+COVERAGE_PROMPT = """\
+The gate admitted this subject on the strength of specific decisions. Check whether the drafted
+evidence actually contains them.
+
+This is not a judgement of quality. It is one question per decision: is there a passage that
+carries this act, with its stated reason? A decision the gate leaned on and the corpus omits is a
+hole in the persona, and it is invisible from inside the corpus — nothing there points at what is
+missing.
+
+THE GATE'S GROUNDS
+
+{{grounds}}
+
+PASSAGE TITLES AND BODIES
+
+{{items}}
+
+Return JSON and nothing else:
+{"uncovered": [{"decision": "the decision in a few words, as a search phrase someone could use
+   to find the source", "why": "what is missing"}]}
+
+Return an empty list if every decision is covered. Judge coverage generously — a passage that
+carries the act and the reason counts even if it is worded differently, and a near-miss is not a
+hole. Only report a decision that genuinely has no passage behind it.
+"""
+
 VERIFY_PROMPT = """\
 Audit drafted evidence items against the material they were supposedly drawn from. You did not
 write these; be adversarial. The author cannot catch this class of error in their own work,

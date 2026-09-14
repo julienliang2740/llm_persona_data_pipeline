@@ -536,3 +536,55 @@ def test_gendered_schema_field_names_are_normalised():
     )
     assert "what_it_left_them_with" in out["formation"][0]
     assert "what_was_possible_for_someone_like_her" in out["context"]
+
+
+def test_uncovered_gate_decisions_become_search_targets():
+    """The run's own stated grounds are the one signal that can reveal an absence.
+
+    A corpus cannot show what is missing from it. But the gate wrote down which decisions it
+    admitted the subject for — on a real run, "the Baidicheng succession instruction" and "the
+    deathbed testament" — and the evidence pass covered neither. Both live in a different chapter
+    of the history than acquisition had found, which no query written in advance could know. So
+    an uncovered decision becomes a search phrase through the same loop laundering uses.
+    """
+    import asyncio, sys
+
+    generalizer = REPO_ROOT / "persona_generalizer"
+    if str(generalizer) not in sys.path:
+        sys.path.insert(0, str(generalizer))
+    import draft_persona as drafter
+
+    class Client:
+        async def complete_json(self, role, messages, **k):
+            assert role == "reviewer", "coverage must be judged by a different family"
+            return {"uncovered": [
+                {"decision": "the deathbed testament", "why": "no passage carries it"},
+                {"decision": "", "why": "malformed, must be dropped"},
+            ]}, None
+
+    got = asyncio.run(drafter.check_gate_coverage(
+        Client(),
+        {"decisions_with_reasoning": "(1) the deathbed testament (2) Changban"},
+        [{"id": "C1", "title": "t", "body": "b"}],
+        4000,
+    ))
+    assert [g["decision"] for g in got] == ["the deathbed testament"]
+
+
+def test_coverage_is_skipped_when_the_gate_said_nothing():
+    """No stated grounds means no signal; the check must not invent one."""
+    import asyncio, sys
+
+    generalizer = REPO_ROOT / "persona_generalizer"
+    if str(generalizer) not in sys.path:
+        sys.path.insert(0, str(generalizer))
+    import draft_persona as drafter
+
+    class Client:
+        async def complete_json(self, *a, **k):
+            raise AssertionError("must not call the model with no grounds to check against")
+
+    assert asyncio.run(drafter.check_gate_coverage(
+        Client(), {"decisions_with_reasoning": ""}, [{"id": "C1"}], 4000)) == []
+    assert asyncio.run(drafter.check_gate_coverage(
+        Client(), {"decisions_with_reasoning": "grounds"}, [], 4000)) == []
